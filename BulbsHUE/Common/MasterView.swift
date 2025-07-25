@@ -12,7 +12,7 @@ struct MasterView: View {
         ZStack {
             BG()
              
-           
+            TabBarButton(image: "envir", title: "environment")
          
         }
     }
