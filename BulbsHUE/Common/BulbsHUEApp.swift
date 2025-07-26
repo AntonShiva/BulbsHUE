@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct BulbsHUEApp: App {
+    @StateObject private var navigationManager = NavigationManager.shared
     var body: some Scene {
         WindowGroup {
            MasterView()
+                .environmentObject(navigationManager)
         }
     }
 }
