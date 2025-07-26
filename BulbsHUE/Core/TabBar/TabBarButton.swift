@@ -12,60 +12,72 @@ struct TabBarButton: View {
     let image: String
    
     let title: String
-//    let route: Router
+    let route: Router
 //    @Binding var currentView: Router
+    @EnvironmentObject var nav: NavigationManager
     
     // Colors from Figma
     private let activeColor = Color(red: 0.79, green: 1, blue: 1) // Active color
-    private let inactiveColor = Color(red: 0.41, green: 0.46, blue: 0.65) // Inactive color
+    private let inactiveColor = Color(red: 0.6, green: 0.6, blue: 0.6) // Inactive color
     
     private var isSelected: Bool {
-//        currentView == route
-        true
+        nav.currentRoute == route
     }
     
     var body: some View {
         Button {
-//            currentView = route
+            nav.currentRoute = route
         } label: {
-            VStack(spacing: 9) {
-                // Icon
-               Image(image)
-                    .resizable()
-                    .renderingMode(.template)
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundColor(isSelected ? activeColor : inactiveColor)
-                    .adaptiveFrame(width: 40, height: 40)
+             ZStack {
                 
-                // Title
-                Text(title)
-                    .font(Font.custom("DMSans-9ptRegular_Light", size: 10))
-                  .kerning(2.2)
-                  .multilineTextAlignment(.center)
-                  .foregroundColor(isSelected ? activeColor : inactiveColor)
-                    .opacity(isSelected ? 1.0 : 0.8)
-                    .textCase(.uppercase)
+                  Rectangle()
+                    .foregroundColor(.clear)
+                    .adaptiveFrame(width: 112, height: 1)
+                    .background(Color(red: 0.79, green: 1, blue: 1))
+                    .adaptiveOffset(y: -51.5)
+                    .opacity(isSelected ? 1.0 : 0)
+                
+                VStack(spacing: 9) {
+                    // Icon
+                    Image(image)
+                        .resizable()
+                        .renderingMode(.template)
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundColor(isSelected ? activeColor : inactiveColor)
+                        .adaptiveFrame(width: 40, height: 40)
                     
-//                    .offset(x: title == "MIXER" ? 4 : 0)
+                    // Title
+                    Text(title)
+                        .font(Font.custom("DMSans-9ptRegular_Light", size: 10))
+                        .kerning(2.2)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(isSelected ? activeColor : inactiveColor)
+                        .opacity(isSelected ? 1.0 : 0.8)
+                        .textCase(.uppercase)
+                    
+                    //                    .offset(x: title == "MIXER" ? 4 : 0)
+                }
+                .adaptiveFrame(height: 104)
             }
         }
         .buttonStyle(PlainButtonStyle())
-        .onAppear {
-              //  проверка шрифтов 
-              for family in UIFont.familyNames {
-                  print("== \(family)")
-                  for name in UIFont.fontNames(forFamilyName: family) {
-                      print("   - \(name)")
-                  }
-              }
-          }
+      
     }
 }
 #Preview {
     ZStack {
         BG()
-        TabBarButton(image: "envir", title: "environment")
+        TabBarView()
+            .adaptiveOffset(y: 330)
     }
+    .environmentObject(NavigationManager.shared)
+}
+#Preview {
+    ZStack {
+        BG()
+        TabBarButton(image: "envir", title: "environment", route: .environment)
+    }
+    .environmentObject(NavigationManager.shared)
     .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&m=dev")!)
     .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
