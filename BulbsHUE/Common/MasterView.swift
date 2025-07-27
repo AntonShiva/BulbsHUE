@@ -16,15 +16,7 @@ struct MasterView: View {
             TabBarView()
                 .adaptiveOffset(y: 20)
         }
-        .onAppear {
-              //  проверка шрифтов
-              for family in UIFont.familyNames {
-                  print("== \(family)")
-                  for name in UIFont.fontNames(forFamilyName: family) {
-                      print("   - \(name)")
-                  }
-              }
-          }
+    
     }
 }
 
@@ -32,3 +24,13 @@ struct MasterView: View {
     MasterView()
         .environmentObject(NavigationManager.shared)
 }
+
+//.onAppear {
+//      //  проверка шрифтов
+//      for family in UIFont.familyNames {
+//          print("== \(family)")
+//          for name in UIFont.fontNames(forFamilyName: family) {
+//              print("   - \(name)")
+//          }
+//      }
+//  }
