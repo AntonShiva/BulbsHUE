@@ -14,8 +14,7 @@ struct BGPlusButton: View {
                   
             
             ZStack {
-                     Circle()
-                    .stroke(Color(red: 0.79, green: 1, blue: 1).opacity(0.2), lineWidth: 2.2)
+                    BGCircle()
                      .adaptiveFrame(width: 30, height: 30)
                      
                      Image(systemName: "plus")
