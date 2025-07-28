@@ -21,7 +21,7 @@ struct Header<LeftView: View, RightView: View>: View {
             Text(title)
                 .font(Font.custom("DM Sans", size: 16).weight(.regular))
                 .kerning(4.3)
-              .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                .foregroundColor(.primColor)
               .blur(radius: 0.2)
            // Правая кнопка
             rightView
