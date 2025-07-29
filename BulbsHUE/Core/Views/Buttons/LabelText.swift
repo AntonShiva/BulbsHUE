@@ -14,22 +14,22 @@ struct LabelText: View {
     var height: CGFloat
     var text: String
       var body: some View {
-        ZStack() {
+        HStack(spacing: 12) {
         
          Image(image)
                 .resizable()
                 .scaledToFit()
                 .adaptiveFrame(width: width, height: height)
-                .adaptiveOffset(x: -28, y: 0)
+                
             
             Text(text)
               .font(Font.custom("DM Sans", size: 12))
               .tracking(2.04)
               .foregroundColor(.primColor)
               .textCase(.uppercase)
-              .adaptiveOffset(x: 18, y: 0)
+              
         }
-        .adaptiveFrame(width: 80, height: 24);
+        .adaptiveFrame(width: 95, height: 24)
       }
     }
 

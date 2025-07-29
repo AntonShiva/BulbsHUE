@@ -23,6 +23,8 @@ struct MasterView: View {
 #Preview {
     MasterView()
         .environmentObject(NavigationManager.shared)
+        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=w7kYvAzD6FTnifyZ-4")!)
+        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
 
 //.onAppear {

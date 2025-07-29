@@ -21,6 +21,9 @@ struct EnvironmentView: View {
                         }
                         .adaptiveOffset(y: -330)
             
+            SelectorTabEnviromentView()
+                .adaptiveOffset(y: -264)
+            
             Text("You don’t have \nany bulbs yet")
               .font(Font.custom("DM Sans", size: 16))
               .kerning(3.2)
@@ -32,9 +35,15 @@ struct EnvironmentView: View {
             AddButton(text: "add bulb", width: 427, height: 295) {
                 
             }
-            .adaptiveOffset(y: 150)
+            .adaptiveOffset(y: 195)
         }
     }
+}
+#Preview {
+    MasterView()
+        .environmentObject(NavigationManager.shared)
+        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=64-207&t=hGUwQNy3BUo6l6lB-4")!)
+        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
 
 #Preview {
