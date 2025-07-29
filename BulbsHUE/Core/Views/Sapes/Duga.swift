@@ -12,11 +12,11 @@ struct Duga: View {
     var body: some View {
         DugaPath()
                .stroke(color, style: StrokeStyle(
-                lineWidth: 1.6,
+                lineWidth: 2,
                 lineCap: .round,
                 lineJoin: .round
             ))
-               .adaptiveFrame(width: 140, height: 54.5)
+               .adaptiveFrame(width: 140, height: 56.1)
     }
 }
 

@@ -11,7 +11,7 @@ struct SelectorTabEnviromentView: View {
     var body: some View {
         ZStack{
             BGSelector()
-                .adaptiveFrame(width: 330, height: 100)
+                .adaptiveFrame(width: 330, height: 103)
             
             if true {
                 Duga(color: .primColor)
@@ -24,9 +24,15 @@ struct SelectorTabEnviromentView: View {
                 .adaptiveOffset(x: -72)
             LabelText(image: "bed", width: 32, height: 32, text: "Rooms")
             
-                .adaptiveOffset(x: 72)
+                .adaptiveOffset(x: 62)
         }
     }
+}
+#Preview {
+    MasterView()
+        .environmentObject(NavigationManager.shared)
+        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=64-207&t=hGUwQNy3BUo6l6lB-4")!)
+        .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
 
 #Preview {

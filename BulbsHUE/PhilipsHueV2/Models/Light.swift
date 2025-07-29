@@ -49,7 +49,7 @@ struct Light: Codable, Identifiable {
     var color_gamut: Gamut?
     
     /// Градиент (для поддерживающих устройств)
-    var gradient: Gradient?
+    var gradient: HueGradient?
 }
 
 
@@ -161,7 +161,7 @@ struct EffectsV2: Codable {
 
 
 /// Градиентная конфигурация
-struct Gradient: Codable {
+struct HueGradient: Codable {
     /// Точки градиента
     var points: [GradientPoint]?
     
