@@ -25,6 +25,9 @@ struct Bridge: Codable, Identifiable, Hashable {
     /// Имя моста
     var name: String?
     
+    /// Серийный номер моста
+    var serialNumber: String?
+    
     // MARK: - Hashable
     
     func hash(into hasher: inout Hasher) {
