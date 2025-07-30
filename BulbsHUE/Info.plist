@@ -8,5 +8,12 @@
     </array>
     <key>NSCameraUsageDescription</key>
     <string>Приложению нужно разрешение для использования камеры для сканирования QR-кодов</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Приложению нужен доступ к локальной сети для обнаружения и управления Hue Bridge</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_hue._tcp</string>
+        <string>_https._tcp</string>
+    </array>
 </dict>
 </plist>

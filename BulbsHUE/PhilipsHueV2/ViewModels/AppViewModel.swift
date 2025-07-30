@@ -238,6 +238,27 @@ class AppViewModel: ObservableObject {
         loadAllData()
     }
     
+    /// Поиск мостов (обертка для OnboardingView)
+    func searchForBridges() {
+        discoverBridges()
+    }
+    
+    /// Создание пользователя на конкретном мосту
+    /// - Parameters:
+    ///   - bridge: Мост для подключения
+    ///   - appName: Имя приложения
+    ///   - deviceName: Имя устройства
+    ///   - completion: Обработчик завершения
+    func createUser(on bridge: Bridge, appName: String, deviceName: String, completion: @escaping (Bool) -> Void) {
+        // Сначала подключаемся к мосту если еще не подключены
+        if currentBridge?.id != bridge.id {
+            connectToBridge(bridge)
+        }
+        
+        // Создаем пользователя
+        createUser(appName: appName, completion: completion)
+    }
+    
     /// Загружает информацию о возможностях моста
     func loadBridgeCapabilities() {
         apiClient.getBridgeCapabilities()

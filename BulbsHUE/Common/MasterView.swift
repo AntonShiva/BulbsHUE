@@ -11,16 +11,20 @@ struct MasterView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     
     var body: some View {
-                ZStack(alignment: .bottom) {
+        ZStack(alignment: .bottom) {
             BG()
             
-    
+            if appViewModel.showSetup {
+                // Показываем онбординг для настройки Hue Bridge
+                OnboardingView(appViewModel: appViewModel)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
                 // Показываем основной интерфейс
                 MainContainer()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 TabBarView()
                     .adaptiveOffset(y: 20)
-            
+            }
         }
     }
 }

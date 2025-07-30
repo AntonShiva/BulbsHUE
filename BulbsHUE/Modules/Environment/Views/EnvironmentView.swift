@@ -41,7 +41,7 @@ struct EnvironmentView: View {
             .adaptiveOffset(y: 195)
         }
         .sheet(isPresented: $selectedSetting) {
-            BridgeSetupView(viewModel: _viewModel)
+            OnboardingView(appViewModel: viewModel)
         }
         .sheet(isPresented: $breageStatus) {
             BridgeStatusView(viewModel: viewModel)
