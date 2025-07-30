@@ -25,8 +25,8 @@ struct Bridge: Codable, Identifiable, Hashable {
     /// Имя моста
     var name: String?
     
-    /// Серийный номер моста
-    var serialNumber: String?
+//    /// Серийный номер моста
+//    var serialNumber: String?
     
     // MARK: - Hashable
     
@@ -116,4 +116,42 @@ struct StreamingLimits: Codable {
     
     /// Максимум развлекательных областей
     var entertainment: Int?
+}
+
+extension Bridge {
+    /// Серийный номер моста (вычисляется из ID или MAC адреса)
+    var serialNumber: String? {
+        // Если есть ID, возвращаем его
+        if !id.isEmpty {
+            return id
+        }
+        
+        // Если есть MAC адрес, извлекаем из него серийный номер
+        if let mac = macaddress {
+            // Убираем двоеточия из MAC адреса
+            return mac.replacingOccurrences(of: ":", with: "").uppercased()
+        }
+        
+        return nil
+    }
+    
+    /// Проверяет, соответствует ли мост заданному ID
+    func matches(bridgeId: String) -> Bool {
+        let searchId = bridgeId.lowercased().replacingOccurrences(of: ":", with: "")
+        
+        // Проверяем ID
+        if id.lowercased().replacingOccurrences(of: ":", with: "").contains(searchId) {
+            return true
+        }
+        
+        // Проверяем MAC адрес
+        if let mac = macaddress {
+            let cleanMac = mac.lowercased().replacingOccurrences(of: ":", with: "")
+            if cleanMac.contains(searchId) || searchId.contains(cleanMac) {
+                return true
+            }
+        }
+        
+        return false
+    }
 }
