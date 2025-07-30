@@ -160,6 +160,7 @@ class AppViewModel: ObservableObject {
                         self?.connectionStatus = .connected
                         self?.startEventStream()
                         self?.loadAllData()
+                        self?.showSetup = false
                     } else {
                         self?.connectionStatus = .needsAuthentication
                         self?.showSetup = true
@@ -255,6 +256,13 @@ class AppViewModel: ObservableObject {
     
     /// Загружает сохраненные настройки
     private func loadSavedSettings() {
+        // Сначала пробуем загрузить из Keychain (новый метод)
+        if let credentials = HueKeychainManager.shared.getLastBridgeCredentials() {
+            loadSavedSettingsFromKeychain()
+            return
+        }
+        
+        // Fallback на старый метод с UserDefaults
         if let savedIP = UserDefaults.standard.string(forKey: "HueBridgeIP"),
            let savedKey = UserDefaults.standard.string(forKey: "HueApplicationKey") {
             
@@ -418,5 +426,274 @@ struct PerformanceMetrics {
         rateLimitHits = 0
         bufferOverflows = 0
         averageLatency = 0
+    }
+}
+
+
+
+/// Модель для данных QR-кода Hue Bridge
+struct HueBridgeQRCode {
+    /// Серийный номер моста
+    let serialNumber: String
+    
+    /// ID моста (если доступен)
+    let bridgeId: String?
+    
+    /// Инициализация из строки QR-кода
+    init?(from qrString: String) {
+        let cleaned = qrString.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Парсим различные форматы QR-кодов
+        if cleaned.hasPrefix("S#") {
+            // Формат: S#12345678
+            self.serialNumber = String(cleaned.dropFirst(2))
+            self.bridgeId = nil
+        } else if let url = URL(string: cleaned),
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            // URL формат: https://...?serial=S%2312345678&id=...
+            var serial: String?
+            var id: String?
+            
+            for queryItem in components.queryItems ?? [] {
+                switch queryItem.name {
+                case "serial":
+                    serial = queryItem.value?.replacingOccurrences(of: "S#", with: "")
+                case "id":
+                    id = queryItem.value
+                default:
+                    break
+                }
+            }
+            
+            guard let serialNumber = serial else { return nil }
+            self.serialNumber = serialNumber
+            self.bridgeId = id
+        } else {
+            // Неизвестный формат
+            return nil
+        }
+    }
+}
+
+/// Расширение для работы с N-UPnP (Network Universal Plug and Play)
+extension AppViewModel {
+    /// Поиск моста по серийному номеру через N-UPnP
+   
+      func discoverBridge(bySerial serial: String, completion: @escaping (Bridge?) -> Void) {
+          // Сначала пробуем облачный поиск
+          apiClient.discoverBridgesViaCloud()
+              .receive(on: DispatchQueue.main)
+              .sink(
+                  receiveCompletion: { _ in },
+                  receiveValue: { bridges in
+                      // Ищем мост по частичному совпадению ID
+                      let foundBridge = bridges.first { bridge in
+                          // ID моста НЕ опциональный, поэтому используем напрямую
+                          let bridgeId = bridge.id
+                          return bridgeId.lowercased().contains(serial.lowercased()) ||
+                                 serial.lowercased().contains(bridgeId.lowercased())
+                      }
+                      completion(foundBridge)
+                  }
+              )
+              .store(in: &cancellables)
+      }
+    
+    /// Подключение к мосту с использованием Touch Link
+    func connectWithTouchLink(bridge: Bridge, completion: @escaping (Bool) -> Void) {
+        // Touch Link - альтернативный метод подключения
+        // Работает только если устройство находится очень близко к мосту
+        
+        // В API v2 Touch Link не поддерживается напрямую
+        // Используем стандартный метод с кнопкой Link
+        connectToBridge(bridge)
+        
+        // Начинаем попытки создания пользователя
+        var attempts = 0
+        let maxAttempts = 10
+        
+        Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { timer in
+            attempts += 1
+            
+            self.createUser(appName: "PhilipsHueV2") { success in
+                if success {
+                    timer.invalidate()
+                    completion(true)
+                } else if attempts >= maxAttempts {
+                    timer.invalidate()
+                    completion(false)
+                }
+            }
+        }
+    }
+}
+
+
+
+extension AppViewModel {
+    
+    /// Загружает сохраненные настройки из Keychain
+    func loadSavedSettingsFromKeychain() {
+        if let credentials = HueKeychainManager.shared.getLastBridgeCredentials() {
+            // Пересоздаем API клиент
+            recreateAPIClient(with: credentials.bridgeIP)
+            
+            // Устанавливаем ключи
+            applicationKey = credentials.applicationKey
+            
+            // Настраиваем Entertainment клиент если есть client key
+            if let clientKey = credentials.clientKey {
+                setupEntertainmentClient(clientKey: clientKey)
+            }
+            
+            // Создаем объект моста
+            currentBridge = Bridge(
+                id: credentials.bridgeId,
+                internalipaddress: credentials.bridgeIP,
+                port: 443
+            )
+            
+            connectionStatus = .connected
+            startEventStream()
+            loadAllData()
+        } else {
+            showSetup = true
+        }
+    }
+    
+    /// Сохраняет учетные данные при успешном подключении
+    func saveCredentials() {
+        guard let bridge = currentBridge,
+              let appKey = applicationKey else { 
+            print("❌ Не удалось сохранить учетные данные: отсутствует мост или ключ приложения")
+            return 
+        }
+        
+        let clientKey = UserDefaults.standard.string(forKey: "HueClientKey")
+        
+        let credentials = HueKeychainManager.BridgeCredentials(
+            bridgeId: bridge.id,
+            bridgeIP: bridge.internalipaddress,
+            applicationKey: appKey,
+            clientKey: clientKey
+        )
+        
+        let success = HueKeychainManager.shared.saveBridgeCredentials(credentials)
+        if success {
+            print("✅ Учетные данные успешно сохранены в Keychain")
+            print("   - Bridge ID: \(bridge.id)")
+            print("   - Bridge IP: \(bridge.internalipaddress)")
+            print("   - App Key: \(appKey.prefix(8))...")
+            if let clientKey = clientKey {
+                print("   - Client Key: \(clientKey.prefix(8))...")
+            }
+        } else {
+            print("❌ Ошибка сохранения учетных данных в Keychain")
+        }
+    }
+    
+    /// Отключается от моста и удаляет сохраненные данные
+    func disconnectAndClearData() {
+        guard let bridge = currentBridge else { return }
+        
+        // Отключаемся
+        disconnect()
+        
+        // Удаляем учетные данные из Keychain
+        HueKeychainManager.shared.deleteCredentials(for: bridge.id)
+    }
+    
+    /// Создает пользователя с улучшенной обработкой ошибок
+    func createUserEnhanced(appName: String, completion: @escaping (Result<Bool, Error>) -> Void) {
+        #if canImport(UIKit)
+        let deviceName = UIDevice.current.name
+        #else
+        let deviceName = Host.current().localizedName ?? "Mac"
+        #endif
+        
+        apiClient.createUser(appName: appName, deviceName: deviceName)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { result in
+                    if case .failure(let error) = result {
+                        // Детальная обработка ошибок
+                        if let hueError = error as? HueAPIError {
+                            switch hueError {
+                            case .linkButtonNotPressed:
+                                completion(.failure(LinkButtonError.notPressed))
+                            case .httpError(let statusCode):
+                                if statusCode == 429 {
+                                    completion(.failure(LinkButtonError.tooManyAttempts))
+                                } else {
+                                    completion(.failure(error))
+                                }
+                            default:
+                                completion(.failure(error))
+                            }
+                        } else {
+                            completion(.failure(error))
+                        }
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    if let success = response.success,
+                       let username = success.username {
+                        self?.applicationKey = username
+                        
+                        // Сохраняем client key для Entertainment API
+                        if let clientKey = success.clientkey {
+                            UserDefaults.standard.set(clientKey, forKey: "HueClientKey")
+                            self?.setupEntertainmentClient(clientKey: clientKey)
+                        }
+                        
+                        self?.connectionStatus = .connected
+                        self?.showSetup = false
+                        self?.startEventStream()
+                        self?.loadAllData()
+                        
+                        // Сохраняем учетные данные
+                        self?.saveCredentials()
+                        
+                        completion(.success(true))
+                    } else if let error = response.error {
+                        // Проверяем код ошибки
+                        switch error.type {
+                        case 101:
+                            completion(.failure(LinkButtonError.notPressed))
+                        case 7:
+                            completion(.failure(LinkButtonError.invalidRequest))
+                        default:
+                            completion(.failure(LinkButtonError.unknown(error.description ?? "Unknown error")))
+                        }
+                    } else {
+                        completion(.failure(LinkButtonError.unknown("No response")))
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+}
+
+/// Ошибки при нажатии кнопки Link
+enum LinkButtonError: LocalizedError {
+    case notPressed
+    case tooManyAttempts
+    case timeout
+    case invalidRequest
+    case unknown(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .notPressed:
+            return "Нажмите кнопку Link на Hue Bridge"
+        case .tooManyAttempts:
+            return "Слишком много попыток. Подождите минуту и попробуйте снова"
+        case .timeout:
+            return "Время ожидания истекло. Попробуйте снова"
+        case .invalidRequest:
+            return "Неверный запрос. Проверьте подключение к мосту"
+        case .unknown(let message):
+            return "Ошибка: \(message)"
+        }
     }
 }

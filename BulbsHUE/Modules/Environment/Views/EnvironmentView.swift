@@ -8,16 +8,19 @@
 import SwiftUI
 
 struct EnvironmentView: View {
+    @State var selectedSetting: Bool = false
+    @State var breageStatus: Bool = false
+   @EnvironmentObject var viewModel: AppViewModel
     var body: some View {
         ZStack {
             BG()
             
             Header(title: "ENVIRONMENT") {
                             // Левая кнопка - ваше меню
-                         MenuButton {}
+                         MenuButton { selectedSetting.toggle()}
                         } rightView: {
                             // Правая кнопка - плюс
-                            AddHeaderButton{}
+                            AddHeaderButton{ breageStatus.toggle()}
                         }
                         .adaptiveOffset(y: -330)
             
@@ -37,6 +40,12 @@ struct EnvironmentView: View {
             }
             .adaptiveOffset(y: 195)
         }
+        .sheet(isPresented: $selectedSetting) {
+            BridgeSetupView(viewModel: _viewModel)
+        }
+        .sheet(isPresented: $breageStatus) {
+            BridgeStatusView(viewModel: viewModel)
+        }
     }
 }
 #Preview {
@@ -47,5 +56,7 @@ struct EnvironmentView: View {
 }
 
 #Preview {
-    EnvironmentView()
+    @Previewable @EnvironmentObject var viewModel: AppViewModel
+    EnvironmentView(viewModel: _viewModel)
+        .environmentObject(AppViewModel())
 }

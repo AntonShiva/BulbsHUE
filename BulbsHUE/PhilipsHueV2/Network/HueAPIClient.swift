@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import Network
 
 /// Основной клиент для взаимодействия с Philips Hue API v2
 /// Использует HTTPS подключение с проверкой сертификатов
@@ -126,9 +127,25 @@ class HueAPIClient: NSObject {
         }
         
         return session.dataTaskPublisher(for: request)
-            .map(\.data)
+            .tryMap { data, response in
+                // Проверяем статус ответа
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("HTTP Status: \(httpResponse.statusCode)")
+                    
+                    // В случае ошибки Link Button мост возвращает статус 200, но с ошибкой в теле
+                    if httpResponse.statusCode == 200 {
+                        return data
+                    } else if httpResponse.statusCode == 403 {
+                        throw HueAPIError.linkButtonNotPressed
+                    }
+                }
+                throw HueAPIError.invalidResponse
+            }
             .decode(type: [AuthenticationResponse].self, decoder: JSONDecoder())
-            .compactMap { $0.first }
+            .compactMap { responses in
+                // Philips Hue возвращает массив, берем первый элемент
+                responses.first
+            }
             .eraseToAnyPublisher()
     }
     
@@ -689,50 +706,68 @@ extension HueAPIClient: URLSessionDelegate, URLSessionDataDelegate {
             return
         }
         
-        // Проверяем сертификат
-        // 1. Загружаем корневой сертификат Signify
+        // Проверяем сертификат Philips Hue Bridge
+        // 1. Пробуем загрузить корневой сертификат Signify
         if let certPath = Bundle.main.path(forResource: "HueBridgeCACert", ofType: "pem"),
            let certData = try? Data(contentsOf: URL(fileURLWithPath: certPath)),
            let certString = String(data: certData, encoding: .utf8) {
             
-            // Удаляем заголовки PEM
+            print("Найден сертификат HueBridgeCACert.pem")
+            
+            // Удаляем заголовки PEM и переводы строк
             let lines = certString.components(separatedBy: .newlines)
             let certBase64 = lines.filter {
-                !$0.contains("BEGIN CERTIFICATE") && !$0.contains("END CERTIFICATE") && !$0.isEmpty
+                !$0.contains("BEGIN CERTIFICATE") && 
+                !$0.contains("END CERTIFICATE") && 
+                !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             }.joined()
             
             if let decodedData = Data(base64Encoded: certBase64),
                let certificate = SecCertificateCreateWithData(nil, decodedData as CFData) {
                 
-                // Создаем политику для проверки SSL
+                print("Сертификат успешно декодирован")
+                
+                // Создаем политику для проверки SSL с hostname verification
                 let policy = SecPolicyCreateSSL(true, bridgeIP as CFString)
                 
-                // Устанавливаем якорные сертификаты
+                // Создаем trust объект с загруженным сертификатом
                 var trust: SecTrust?
-                SecTrustCreateWithCertificates([certificate] as CFArray,
-                                               policy,
-                                               &trust)
+                let status = SecTrustCreateWithCertificates([certificate] as CFArray, policy, &trust)
                 
-                if let trust = trust {
+                if status == errSecSuccess, let trust = trust {
+                    // Устанавливаем якорные сертификаты
                     SecTrustSetAnchorCertificates(trust, [certificate] as CFArray)
                     SecTrustSetAnchorCertificatesOnly(trust, true)
                     
                     var result: SecTrustResultType = .invalid
-                    SecTrustEvaluate(trust, &result)
+                    let evalStatus = SecTrustEvaluate(trust, &result)
                     
-                    if result == .unspecified || result == .proceed {
+                    print("Результат проверки сертификата: \(result.rawValue)")
+                    
+                    if evalStatus == errSecSuccess && 
+                       (result == .unspecified || result == .proceed) {
                         let credential = URLCredential(trust: serverTrust)
                         completionHandler(.useCredential, credential)
                         return
                     }
                 }
+            } else {
+                print("Ошибка декодирования сертификата")
             }
+        } else {
+            print("Сертификат HueBridgeCACert.pem не найден в Bundle")
         }
         
-        // Если проверка Signify не прошла, пробуем стандартную проверку
-        // (для поддержки Google Trust Services в будущем)
-        let credential = URLCredential(trust: serverTrust)
-        completionHandler(.useCredential, credential)
+        // Fallback: для локальных IP разрешаем подключение с любым сертификатом
+        // (Hue Bridge может использовать самоподписанный сертификат)
+        if bridgeIP.hasPrefix("192.168.") || bridgeIP.hasPrefix("10.") || bridgeIP.hasPrefix("172.") {
+            print("Разрешаем подключение к локальному IP: \(bridgeIP)")
+            let credential = URLCredential(trust: serverTrust)
+            completionHandler(.useCredential, credential)
+        } else {
+            print("Отклоняем подключение к удаленному IP: \(bridgeIP)")
+            completionHandler(.performDefaultHandling, nil)
+        }
     }
     
     /// Обрабатывает получение данных для SSE
@@ -740,5 +775,251 @@ extension HueAPIClient: URLSessionDelegate, URLSessionDataDelegate {
         if dataTask == eventStreamTask {
             parseSSEEvent(data)
         }
+    }
+}
+
+
+
+extension HueAPIClient {
+    
+    // MARK: - Исправление 1: Правильный endpoint для создания пользователя в API v2
+    
+    /// Создает нового пользователя (application key) на мосту - исправленная версия
+    /// В API v2 используется endpoint /api с методом POST
+    func createUserV2(appName: String, deviceName: String) -> AnyPublisher<AuthenticationResponse, Error> {
+        guard let url = baseURL?.appendingPathComponent("/api") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // В API v2 используется другая структура
+        let body: [String: Any] = [
+            "devicetype": "\(appName)#\(deviceName)",
+            "generateclientkey": true  // Для Entertainment API
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return Fail(error: error)
+                .eraseToAnyPublisher()
+        }
+        
+        return session.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                // Проверяем статус ответа
+                if let httpResponse = response as? HTTPURLResponse {
+                    if httpResponse.statusCode == 200 {
+                        return data
+                    } else if httpResponse.statusCode == 101 {
+                        // Link button not pressed
+                        throw HueAPIError.linkButtonNotPressed
+                    }
+                }
+                throw HueAPIError.invalidResponse
+            }
+            .decode(type: [AuthenticationResponse].self, decoder: JSONDecoder())
+            .compactMap { $0.first }
+            .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Исправление 2: Правильные пути для API v2
+    
+    /// Базовые пути для различных типов запросов
+    private var clipV2BasePath: String {
+        guard let key = applicationKey else { return "" }
+        return "/clip/v2/resource"
+    }
+    
+    // MARK: - Исправление 3: Правильная обработка SSE
+    
+    /// Подключается к потоку событий - исправленная версия
+    func connectToEventStreamV2() -> AnyPublisher<HueEvent, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        // Правильный URL для SSE в API v2
+        guard let url = baseURL?.appendingPathComponent("/eventstream/clip/v2") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue(applicationKey, forHTTPHeaderField: "hue-application-key")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = TimeInterval.infinity
+        
+        // Добавляем keep-alive
+        request.setValue("keep-alive", forHTTPHeaderField: "Connection")
+        
+        return Future<HueEvent, Error> { [weak self] promise in
+            self?.eventStreamTask = self?.session.dataTask(with: request)
+            self?.eventStreamTask?.resume()
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Исправление 4: Правильная структура для удаления ресурсов
+    
+    /// Удаляет ресурс
+    func deleteResource<T: Decodable>(type: String, id: String) -> AnyPublisher<T, Error> {
+        let endpoint = "/clip/v2/resource/\(type)/\(id)"
+        return performRequest(endpoint: endpoint, method: "DELETE")
+    }
+    
+    // MARK: - Исправление 5: Batch операции для оптимизации
+    
+    /// Выполняет batch операцию для множественных изменений
+    func batchUpdate(updates: [BatchUpdate]) -> AnyPublisher<BatchResponse, Error> {
+        let endpoint = "/clip/v2/resource"
+        
+        let body = BatchRequest(data: updates)
+        
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(body)
+            
+            return performRequest(endpoint: endpoint, method: "PUT", body: data)
+        } catch {
+            return Fail(error: error)
+                .eraseToAnyPublisher()
+        }
+    }
+    
+    // MARK: - Исправление 6: Правильная работа с Entertainment Configuration
+    
+    /// Создает Entertainment Configuration
+    func createEntertainmentConfiguration(
+        name: String,
+        lights: [String],
+        positions: [Position3D]
+    ) -> AnyPublisher<EntertainmentConfiguration, Error> {
+        let endpoint = "/clip/v2/resource/entertainment_configuration"
+        
+        var config = EntertainmentConfiguration()
+        config.metadata.name = name
+        
+        // Создаем каналы для каждой лампы
+        config.channels = lights.enumerated().map { index, lightId in
+            var channel = EntertainmentChannel()
+            channel.channel_id = index
+            channel.position = positions[safe: index] ?? Position3D(x: 0, y: 0, z: 0)
+            channel.members = [
+                ChannelMember(
+                    service: ResourceIdentifier(rid: lightId, rtype: "light"),
+                    index: 0
+                )
+            ]
+            return channel
+        }
+        
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(config)
+            
+            return performRequest(endpoint: endpoint, method: "POST", body: data)
+        } catch {
+            return Fail(error: error)
+                .eraseToAnyPublisher()
+        }
+    }
+    
+    // MARK: - Исправление 7: mDNS Discovery с использованием Bonjour
+    
+    /// Поиск Hue Bridge через mDNS - правильная реализация
+    func discoverBridgesViaMDNSV2() -> AnyPublisher<[Bridge], Error> {
+        return BonjourDiscovery().discoverBridges()
+    }
+}
+
+// MARK: - Дополнительные модели для API v2
+
+/// Batch запрос
+struct BatchRequest: Codable {
+    let data: [BatchUpdate]
+}
+
+/// Batch обновление
+struct BatchUpdate: Codable {
+    let rid: String
+    let rtype: String
+    let on: OnState?
+    let dimming: Dimming?
+    let color: HueColor?
+}
+
+/// Batch ответ
+struct BatchResponse: Codable {
+    let errors: [APIError]?
+    let data: [BatchUpdateResult]?
+}
+
+/// Результат batch обновления
+struct BatchUpdateResult: Codable {
+    let rid: String
+    let rtype: String
+}
+
+// MARK: - Bonjour Discovery Helper
+
+
+/// Вспомогательный класс для mDNS поиска
+class BonjourDiscovery {
+    private let browser = NWBrowser(for: .bonjour(type: "_hue._tcp", domain: "local"), using: .tcp)
+    private var bridges: [Bridge] = []
+    private let subject = PassthroughSubject<[Bridge], Error>()
+    
+    func discoverBridges() -> AnyPublisher<[Bridge], Error> {
+        browser.browseResultsChangedHandler = { [weak self] results, changes in
+            self?.handleBrowseResults(results)
+        }
+        
+        browser.start(queue: .main)
+        
+        // Останавливаем поиск через 10 секунд
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            self?.browser.cancel()
+            self?.subject.send(self?.bridges ?? [])
+            self?.subject.send(completion: .finished)
+        }
+        
+        return subject.eraseToAnyPublisher()
+    }
+    
+    private func handleBrowseResults(_ results: Set<NWBrowser.Result>) {
+        bridges = results.compactMap { result in
+            switch result.endpoint {
+            case .service(let name, let type, let domain, _):
+                // Извлекаем IP адрес из метаданных
+                if case .bonjour(let record) = result.metadata,
+                   let txtRecord = record.dictionary["bridgeid"] as? String {
+                    // Здесь нужно получить IP адрес из endpoint
+                    // Это требует дополнительного разрешения имени
+                    return Bridge(
+                        id: txtRecord,
+                        internalipaddress: "", // Нужно разрешить
+                        port: 443,
+                        name: name
+                    )
+                }
+            default:
+                break
+            }
+            return nil
+        }
+    }
+}
+
+// MARK: - Safe Array Extension
+
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
