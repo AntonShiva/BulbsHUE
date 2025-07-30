@@ -550,7 +550,6 @@ extension AppViewModel {
 }
 
 
-
 extension AppViewModel {
     
     /// Загружает сохраненные настройки из Keychain
@@ -585,10 +584,7 @@ extension AppViewModel {
     /// Сохраняет учетные данные при успешном подключении
     func saveCredentials() {
         guard let bridge = currentBridge,
-              let appKey = applicationKey else { 
-            print("❌ Не удалось сохранить учетные данные: отсутствует мост или ключ приложения")
-            return 
-        }
+              let appKey = applicationKey else { return }
         
         let clientKey = UserDefaults.standard.string(forKey: "HueClientKey")
         
@@ -599,18 +595,7 @@ extension AppViewModel {
             clientKey: clientKey
         )
         
-        let success = HueKeychainManager.shared.saveBridgeCredentials(credentials)
-        if success {
-            print("✅ Учетные данные успешно сохранены в Keychain")
-            print("   - Bridge ID: \(bridge.id)")
-            print("   - Bridge IP: \(bridge.internalipaddress)")
-            print("   - App Key: \(appKey.prefix(8))...")
-            if let clientKey = clientKey {
-                print("   - Client Key: \(clientKey.prefix(8))...")
-            }
-        } else {
-            print("❌ Ошибка сохранения учетных данных в Keychain")
-        }
+        _ = HueKeychainManager.shared.saveBridgeCredentials(credentials)
     }
     
     /// Отключается от моста и удаляет сохраненные данные
@@ -663,7 +648,6 @@ extension AppViewModel {
                         
                         // Сохраняем client key для Entertainment API
                         if let clientKey = success.clientkey {
-                            UserDefaults.standard.set(clientKey, forKey: "HueClientKey")
                             self?.setupEntertainmentClient(clientKey: clientKey)
                         }
                         

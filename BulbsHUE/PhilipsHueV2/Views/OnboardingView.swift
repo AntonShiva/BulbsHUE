@@ -99,7 +99,8 @@ struct OnboardingView: View {
         case .cameraPermission:
             cameraPermissionStepView
         case .qrScanner:
-            qrScannerStepView
+            // Этот экран больше не нужен - сразу открываем камеру
+            EmptyView()
         case .localNetworkPermission:
             localNetworkPermissionStepView
         case .searchBridges:
@@ -187,31 +188,7 @@ struct OnboardingView: View {
         }
     }
     
-    /// Экран QR сканнера
-    private var qrScannerStepView: some View {
-        VStack(spacing: 40) {
-            bridgeImageView
-            
-            VStack(spacing: 16) {
-                Text("Сканирование QR-кода")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                
-                Text("Отсканируйте QR-код на обратной стороне вашего Hue Bridge")
-                    .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-            }
-            
-            Button("Открыть сканер") {
-                viewModel.showQRScanner = true
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.horizontal, 40)
-        }
-    }
+
     
     /// Экран разрешения локальной сети (как на четвертом скриншоте)
     private var localNetworkPermissionStepView: some View {
@@ -543,35 +520,7 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - QR Code Scanner
 
-/// Обертка для сканнера QR-кодов
-struct QRCodeScannerView: View {
-    let completion: (String) -> Void
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        NavigationView {
-            CodeScannerView(
-                codeTypes: [.qr],
-                simulatedData: "bridge-id: ECB5FAFFE896811\n2124", // Данные из фото
-                completion: { result in
-                    switch result {
-                    case .success(let scanResult):
-                        completion(scanResult.string)
-                        presentationMode.wrappedValue.dismiss()
-                    case .failure:
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-            )
-            .navigationTitle("Сканер QR-кода")
-            .navigationBarItems(trailing: Button("Готово") {
-                presentationMode.wrappedValue.dismiss()
-            })
-        }
-    }
-}
 
 // MARK: - Preview
 

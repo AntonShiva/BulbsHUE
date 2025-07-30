@@ -5,82 +5,96 @@
 //  Created by Anton Reasin on 30.07.2025.
 //
 
-import Foundation
 import SwiftUI
 import AVFoundation
+import Combine
 
-/// ViewModel для управления процессом онбординга
-@MainActor
+/// ViewModel для OnboardingView
 class OnboardingViewModel: ObservableObject {
-    
     // MARK: - Published Properties
     
-    /// Текущий шаг онбординга
     @Published var currentStep: OnboardingStep = .welcome
-    
-    /// Показать алерт разрешения камеры
-    @Published var showCameraPermissionAlert = false
-    
-    /// Показать алерт локальной сети
-    @Published var showLocalNetworkAlert = false
-    
-    /// Показать сканер QR-кода
     @Published var showQRScanner = false
-    
-    /// Статус поиска мостов
+    @Published var showCameraPermissionAlert = false
+    @Published var showLocalNetworkAlert = false
+    @Published var showLinkButtonAlert = false
     @Published var isSearchingBridges = false
-    
-    /// Найденные мосты
+    @Published var linkButtonCountdown = 30
     @Published var discoveredBridges: [Bridge] = []
-    
-    /// Выбранный мост для подключения
     @Published var selectedBridge: Bridge?
     
-    /// Показать алерт нажатия кнопки на мосту
-    @Published var showLinkButtonAlert = false
+    // MARK: - Private Properties
     
-    /// Счетчик времени для нажатия кнопки Link
-    @Published var linkButtonCountdown = 30
-    
-    /// Таймер для обратного отсчета
+    private var appViewModel: AppViewModel
     private var linkButtonTimer: Timer?
-    
-    /// Ссылка на главный ViewModel
-    private let appViewModel: AppViewModel
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     
     init(appViewModel: AppViewModel) {
         self.appViewModel = appViewModel
+        setupBindings()
     }
     
-    // MARK: - Onboarding Steps Management
+    // MARK: - Setup
     
-    /// Переход к следующему шагу
+    private func setupBindings() {
+        // Слушаем изменения статуса подключения
+        appViewModel.$connectionStatus
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                switch status {
+                case .connected:
+                    self?.currentStep = .connected
+                case .discovered:
+                    if !(self?.discoveredBridges.isEmpty ?? true) {
+                        self?.currentStep = .bridgeFound
+                    }
+                default:
+                    break
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Слушаем найденные мосты
+        appViewModel.$discoveredBridges
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] bridges in
+                self?.discoveredBridges = bridges
+                if !bridges.isEmpty && self?.currentStep == .searchBridges {
+                    self?.currentStep = .bridgeFound
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Navigation
+    
     func nextStep() {
         switch currentStep {
         case .welcome:
             currentStep = .cameraPermission
         case .cameraPermission:
-            showQRScanner = true
-            currentStep = .qrScanner
+            // После разрешения камеры сразу показываем сканер
+            requestCameraPermission()
         case .qrScanner:
             currentStep = .localNetworkPermission
         case .localNetworkPermission:
             currentStep = .searchBridges
         case .searchBridges:
-            currentStep = .bridgeFound
+            if !discoveredBridges.isEmpty {
+                currentStep = .bridgeFound
+            }
         case .bridgeFound:
             currentStep = .linkButton
         case .linkButton:
             currentStep = .connected
         case .connected:
-            // Завершение онбординга
-            completeOnboarding()
+            // Завершаем онбординг
+            appViewModel.showSetup = false
         }
     }
     
-    /// Возврат к предыдущему шагу
     func previousStep() {
         switch currentStep {
         case .welcome:
@@ -102,207 +116,230 @@ class OnboardingViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Permission Methods
+    // MARK: - Camera Permission
     
-    /// Проверка и запрос разрешения камеры
     func requestCameraPermission() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            // Разрешение уже получено, переходим к сканеру
-            nextStep()
-            
+            print("📷 Камера уже авторизована, открываем сканер")
+            showQRScanner = true
         case .notDetermined:
-            // Запрашиваем разрешение
+            print("📷 Запрашиваем разрешение камеры")
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
                 DispatchQueue.main.async {
                     if granted {
-                        self?.nextStep()
+                        print("✅ Разрешение камеры получено")
+                        self?.showQRScanner = true
                     } else {
+                        print("❌ Разрешение камеры отклонено")
                         self?.showCameraPermissionAlert = true
                     }
                 }
             }
-            
         case .denied, .restricted:
-            // Показываем алерт с предложением открыть настройки
+            print("❌ Камера запрещена или ограничена")
             showCameraPermissionAlert = true
-            
         @unknown default:
-            showCameraPermissionAlert = true
+            break
         }
     }
     
-    /// Открытие настроек приложения
-    func openAppSettings() {
-        if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(settingsUrl)
-        }
-    }
+    // MARK: - QR Code Handling
     
-    /// Показать информацию о локальной сети
-    func showLocalNetworkInfo() {
-        showLocalNetworkAlert = true
-    }
-    
-    // MARK: - Bridge Discovery Methods
-    
-    /// Начать поиск мостов
-    func startBridgeSearch() {
-        isSearchingBridges = true
-        discoveredBridges = []
+    func handleScannedQR(_ code: String) {
+        print("📱 OnboardingViewModel: Получен QR-код: '\(code)'")
+        showQRScanner = false
         
-        // Запускаем поиск через AppViewModel
+        let cleanedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // ⚠️ Опционально — проверка, что это HomeKit QR
+        if cleanedCode.hasPrefix("X-HM://") {
+            print("✅ Распознан HomeKit QR-код")
+            
+            // Пробуем, вдруг получится вытащить bridgeId (например, если это кастомный код)
+            if let bridgeId = parseBridgeId(from: code) {
+                print("✅ Bridge ID успешно извлечен: \(bridgeId)")
+                searchForSpecificBridge(bridgeId: bridgeId)
+            } else {
+                print("⚠️ Не удалось извлечь Bridge ID, но продолжаем")
+                // Выполняем обычный поиск всех мостов
+                startBridgeSearch()
+            }
+
+            // Переход к следующему шагу в любом случае
+            currentStep = .searchBridges
+
+        } else {
+            print("❌ Неверный формат QR-кода")
+            // Показать алерт или сбросить
+        }
+    } 
+    /// Парсинг ID моста из QR-кода
+    private func parseBridgeId(from input: String) -> String? {
+        let cleaned = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        print("🔍 Парсинг QR-кода: '\(cleaned)'")
+        
+        // ГЛАВНЫЙ ФОРМАТ с фото: bridge-id:ECB5FAFFFE896811
+        if cleaned.hasPrefix("bridge-id:") {
+            let bridgeId = String(cleaned.dropFirst(10)).trimmingCharacters(in: .whitespacesAndNewlines)
+            print("✅ Извлечен Bridge ID из 'bridge-id:' формата: \(bridgeId)")
+            return bridgeId.uppercased()
+        }
+        
+        // Альтернативные форматы с bridge-id
+        if cleaned.contains("bridge-id") {
+            let patterns = [
+                #"bridge-id:\s*([A-Fa-f0-9]{12,16})"#,
+                #"bridge-id\s+([A-Fa-f0-9]{12,16})"#,
+                #"bridge-id\s*:\s*([A-Fa-f0-9]{12,16})"#
+            ]
+            
+            for pattern in patterns {
+                if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+                   let match = regex.firstMatch(in: cleaned, options: [], range: NSRange(location: 0, length: cleaned.count)),
+                   let range = Range(match.range(at: 1), in: cleaned) {
+                    let bridgeId = String(cleaned[range])
+                    print("✅ Извлечен Bridge ID через regex: \(bridgeId)")
+                    return bridgeId.uppercased()
+                }
+            }
+        }
+        
+        // Если ничего не подошло, ищем hex последовательность
+        let hexPattern = #"[A-Fa-f0-9]{12,16}"#
+        if let regex = try? NSRegularExpression(pattern: hexPattern, options: []),
+           let match = regex.firstMatch(in: cleaned, options: [], range: NSRange(location: 0, length: cleaned.count)),
+           let range = Range(match.range, in: cleaned) {
+            let bridgeId = String(cleaned[range])
+            print("✅ Найден возможный Bridge ID (hex): \(bridgeId)")
+            return bridgeId.uppercased()
+        }
+        
+        print("❌ Не удалось извлечь Bridge ID из: '\(cleaned)'")
+        return nil
+    }
+    
+    // MARK: - Bridge Search
+    
+    func startBridgeSearch() {
+        print("🔍 Начинаем поиск мостов в сети")
+        isSearchingBridges = true
         appViewModel.searchForBridges()
         
-        // Подписываемся на обновления найденных мостов
-        // Симулируем поиск для демонстрации
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+        // Таймаут поиска
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             self?.isSearchingBridges = false
-            
-            // Проверяем найденные мосты из AppViewModel
-            if !self?.appViewModel.discoveredBridges.isEmpty ?? true {
-                self?.discoveredBridges = self?.appViewModel.discoveredBridges ?? []
-                self?.nextStep() // Переходим к экрану найденного моста
+            if self?.discoveredBridges.isEmpty ?? true {
+                print("❌ Мосты не найдены")
+                // Можно показать алерт
             }
         }
     }
     
-    /// Выбор моста для подключения
-    func selectBridge(_ bridge: Bridge) {
-        selectedBridge = bridge
-        nextStep() // Переходим к экрану нажатия кнопки Link
-    }
-    
-    // MARK: - Bridge Connection Methods
-    
-    /// Начать процесс подключения к мосту
-    func startBridgeConnection() {
-        guard let bridge = selectedBridge else { return }
+    private func searchForSpecificBridge(bridgeId: String) {
+        print("🔍 Ищем конкретный мост с ID: \(bridgeId)")
+        isSearchingBridges = true
         
-        // Подключаемся к мосту через AppViewModel
-        appViewModel.connectToBridge(bridge)
-        
-        // Показываем алерт нажатия кнопки
-        showLinkButtonAlert = true
-        linkButtonCountdown = 30
-        
-        // Запускаем таймер
-        startLinkButtonTimer()
-    }
-    
-    /// Запуск таймера для кнопки Link
-    private func startLinkButtonTimer() {
-        linkButtonTimer?.invalidate()
-        
-        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            self.linkButtonCountdown -= 1
-            
-            // Пробуем создать пользователя каждые 3 секунды
-            if self.linkButtonCountdown % 3 == 0 {
-                self.attemptCreateUser()
-            }
-            
-            // Проверяем таймаут
-            if self.linkButtonCountdown <= 0 {
-                self.cancelLinkButton()
-            }
-        }
-    }
-    
-    /// Попытка создать пользователя на мосту
-    private func attemptCreateUser() {
-        guard let bridge = selectedBridge else { return }
-        
-        appViewModel.createUser(on: bridge, appName: "BulbsHUE", deviceName: "iOS Device") { [weak self] success in
+        appViewModel.discoverBridge(bySerial: bridgeId) { [weak self] bridge in
             DispatchQueue.main.async {
-                if success {
-                    // Успешное подключение
-                    self?.linkButtonTimer?.invalidate()
-                    self?.showLinkButtonAlert = false
-                    self?.nextStep() // Переходим к экрану успешного подключения
+                self?.isSearchingBridges = false
+                
+                if let bridge = bridge {
+                    print("✅ Мост найден: \(bridge.id) по адресу \(bridge.internalipaddress)")
+                    self?.discoveredBridges = [bridge]
+                    self?.selectedBridge = bridge
+                    self?.currentStep = .bridgeFound
+                } else {
+                    print("❌ Мост с ID \(bridgeId) не найден")
+                    // Пробуем общий поиск
+                    self?.startBridgeSearch()
                 }
             }
         }
     }
     
-    /// Отмена процесса подключения
+    // MARK: - Bridge Connection
+    
+    func selectBridge(_ bridge: Bridge) {
+        print("📡 Выбран мост: \(bridge.id)")
+        selectedBridge = bridge
+        appViewModel.currentBridge = bridge
+    }
+    
+    func startBridgeConnection() {
+        guard let bridge = selectedBridge else { return }
+        
+        print("🔗 Начинаем подключение к мосту: \(bridge.id)")
+        currentStep = .linkButton
+        showLinkButtonAlert = true
+        linkButtonCountdown = 30
+        
+        // Подключаемся к мосту
+        appViewModel.connectToBridge(bridge)
+        
+        // Запускаем таймер для попыток авторизации
+        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.linkButtonCountdown -= 1
+            
+            if self?.linkButtonCountdown ?? 0 % 3 == 0 {
+                print("🔐 Попытка создания пользователя (осталось: \(self?.linkButtonCountdown ?? 0) сек)")
+                self?.attemptCreateUser()
+            }
+            
+            if self?.linkButtonCountdown ?? 0 <= 0 {
+                print("⏰ Время истекло")
+                self?.cancelLinkButton()
+            }
+        }
+    }
+    
+    private func attemptCreateUser() {
+        #if canImport(UIKit)
+        let deviceName = UIDevice.current.name
+        #else
+        let deviceName = Host.current().localizedName ?? "Mac"
+        #endif
+        
+        appViewModel.createUser(appName: "BulbsHUE", completion: { [weak self] success in
+            if success {
+                print("✅ Пользователь успешно создан!")
+                self?.cancelLinkButton()
+                self?.currentStep = .connected
+                
+                // Даем время на анимацию перед закрытием
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    self?.appViewModel.showSetup = false
+                }
+            } else {
+                print("⏳ Кнопка Link еще не нажата, продолжаем попытки...")
+            }
+        })
+    }
+    
     func cancelLinkButton() {
         linkButtonTimer?.invalidate()
+        linkButtonTimer = nil
         showLinkButtonAlert = false
-        // Возвращаемся к предыдущему шагу
-        previousStep()
+        linkButtonCountdown = 30
     }
     
-    // MARK: - QR Code Handling
+    // MARK: - Helpers
     
-    /// Обработка отсканированного QR-кода
-    func handleScannedQR(_ code: String) {
-        showQRScanner = false
-        
-        // Парсим QR-код (формат: bridge-id: ECB5FAFFE896811 + номер)
-        if let bridgeId = parseBridgeId(from: code) {
-            // Ищем мост с данным ID
-            searchForSpecificBridge(bridgeId: bridgeId)
+    func openAppSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
         }
     }
     
-    /// Парсинг ID моста из QR-кода
-    private func parseBridgeId(from code: String) -> String? {
-        // Обрабатываем различные форматы QR-кода
-        if code.contains("bridge-id:") {
-            // Формат: bridge-id: ECB5FAFFE896811
-            let components = code.components(separatedBy: "bridge-id:")
-            if components.count > 1 {
-                return components[1].trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        } else if code.hasPrefix("S#") {
-            // Формат: S#12345678
-            return String(code.dropFirst(2))
-        }
-        
-        return nil
-    }
-    
-    /// Поиск конкретного моста по ID
-    private func searchForSpecificBridge(bridgeId: String) {
-        isSearchingBridges = true
-        
-        // Запускаем поиск мостов
-        appViewModel.searchForBridges()
-        
-        // Ждем результат и ищем наш мост
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-            self?.isSearchingBridges = false
-            
-            // Ищем мост с нужным ID
-            if let foundBridge = self?.appViewModel.discoveredBridges.first(where: { bridge in
-                bridge.id.contains(bridgeId) || bridge.serialNumber?.contains(bridgeId) == true
-            }) {
-                self?.discoveredBridges = [foundBridge]
-                self?.selectedBridge = foundBridge
-                self?.currentStep = .bridgeFound
-            } else {
-                // Мост не найден, продолжаем общий поиск
-                self?.startBridgeSearch()
-            }
-        }
-    }
-    
-    // MARK: - Completion
-    
-    /// Завершение онбординга
-    private func completeOnboarding() {
-        // Скрываем экран настройки в AppViewModel
-        appViewModel.showSetup = false
+    func showLocalNetworkInfo() {
+        showLocalNetworkAlert = true
     }
 }
 
-// MARK: - Onboarding Steps
+// MARK: - OnboardingStep
 
-/// Шаги онбординга
-enum OnboardingStep: CaseIterable {
+enum OnboardingStep {
     case welcome
     case cameraPermission
     case qrScanner
@@ -311,46 +348,4 @@ enum OnboardingStep: CaseIterable {
     case bridgeFound
     case linkButton
     case connected
-    
-    var title: String {
-        switch self {
-        case .welcome:
-            return "Добро пожаловать!"
-        case .cameraPermission:
-            return "Разрешение камеры"
-        case .qrScanner:
-            return "Сканирование QR-кода"
-        case .localNetworkPermission:
-            return "Доступ к локальной сети"
-        case .searchBridges:
-            return "Поиск Hue Bridge"
-        case .bridgeFound:
-            return "Найден блок управления Hue"
-        case .linkButton:
-            return "Подключение к мосту"
-        case .connected:
-            return "Подключен блок управления Hue"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .welcome:
-            return "Хотите добавить Hue Bridge?"
-        case .cameraPermission:
-            return "Приложение будет использовать вашу камеру для сканирования QR-кодов"
-        case .qrScanner:
-            return "Отсканируйте QR-код на вашем Hue Bridge"
-        case .localNetworkPermission:
-            return "Для работы с Hue Bridge необходим доступ к локальной сети"
-        case .searchBridges:
-            return "Поиск доступных Hue Bridge в сети"
-        case .bridgeFound:
-            return "Нажмите кнопку в верхней части устройства Hue Bridge, которое хотите подключить"
-        case .linkButton:
-            return "Нажмите круглую кнопку Link на вашем Hue Bridge"
-        case .connected:
-            return "Ваш Hue Bridge успешно подключен к приложению"
-        }
-    }
 }
