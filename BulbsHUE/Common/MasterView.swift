@@ -8,21 +8,27 @@
 import SwiftUI
 
 struct MasterView: View {
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            BG()
-            MainContainer()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            TabBarView()
-                .adaptiveOffset(y: 20)
-        }
+    @EnvironmentObject var appViewModel: AppViewModel
     
+    var body: some View {
+                ZStack(alignment: .bottom) {
+            BG()
+            
+    
+                // Показываем основной интерфейс
+                MainContainer()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                TabBarView()
+                    .adaptiveOffset(y: 20)
+            
+        }
     }
 }
 
 #Preview {
     MasterView()
         .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=w7kYvAzD6FTnifyZ-4")!)
         .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }

@@ -10,10 +10,12 @@ import SwiftUI
 @main
 struct BulbsHUEApp: App {
     @StateObject private var navigationManager = NavigationManager.shared
+    @StateObject private var appViewModel = AppViewModel()
     var body: some Scene {
         WindowGroup {
            MasterView()
                 .environmentObject(navigationManager)
+                .environmentObject(appViewModel)
         }
     }
 }

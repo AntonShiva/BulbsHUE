@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3E12E87B2E3A2E1F00E72A5D /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = 3E12E87A2E3A2E1F00E72A5D /* CodeScanner */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		3ECA0B352E33871D00FCA975 /* BulbsHUE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BulbsHUE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3E12E87B2E3A2E1F00E72A5D /* CodeScanner in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = BulbsHUE;
 			packageProductDependencies = (
+				3E12E87A2E3A2E1F00E72A5D /* CodeScanner */,
 			);
 			productName = BulbsHUE;
 			productReference = 3ECA0B352E33871D00FCA975 /* BulbsHUE.app */;
@@ -107,6 +113,9 @@
 			);
 			mainGroup = 3ECA0B2C2E33871D00FCA975;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3E12E8792E3A2E1F00E72A5D /* XCRemoteSwiftPackageReference "CodeScanner" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3ECA0B362E33871D00FCA975 /* Products */;
 			projectDirPath = "";
@@ -355,6 +364,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3E12E8792E3A2E1F00E72A5D /* XCRemoteSwiftPackageReference "CodeScanner" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/twostraws/CodeScanner";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3E12E87A2E3A2E1F00E72A5D /* CodeScanner */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3E12E8792E3A2E1F00E72A5D /* XCRemoteSwiftPackageReference "CodeScanner" */;
+			productName = CodeScanner;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3ECA0B2D2E33871D00FCA975 /* Project object */;
 }
