@@ -14,8 +14,9 @@ class OnboardingViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var currentStep: OnboardingStep = .welcome
-    @Published var showQRScanner = false
-    @Published var showCameraPermissionAlert = false
+    // MARK: - QR Code Properties (закомментировано)
+    // @Published var showQRScanner = false
+    // @Published var showCameraPermissionAlert = false
     @Published var showLocalNetworkAlert = false
     @Published var showLinkButtonAlert = false
     @Published var isSearchingBridges = false
@@ -67,7 +68,8 @@ class OnboardingViewModel: ObservableObject {
                         print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
                     }
                     
-                    self?.currentStep = .bridgeFound
+                    // Не переходим автоматически к bridgeFound - остаемся на searchBridges
+                    // и показываем кнопку "Далее" вместо "Поиск"
                     
                     // Автоматически выбираем первый мост если он единственный
                     if bridges.count == 1 {
@@ -84,11 +86,7 @@ class OnboardingViewModel: ObservableObject {
     func nextStep() {
         switch currentStep {
         case .welcome:
-            currentStep = .cameraPermission
-        case .cameraPermission:
-            // После разрешения камеры сразу показываем сканер
-            requestCameraPermission()
-        case .qrScanner:
+            // Сразу переходим к запросу разрешения локальной сети
             currentStep = .localNetworkPermission
         case .localNetworkPermission:
             currentStep = .searchBridges
@@ -104,18 +102,23 @@ class OnboardingViewModel: ObservableObject {
             // Завершаем онбординг
             appViewModel.showSetup = false
         }
+        
+        // MARK: - QR Code Steps (закомментировано)
+        /*
+        case .cameraPermission:
+            // После разрешения камеры сразу показываем сканер
+            requestCameraPermission()
+        case .qrScanner:
+            currentStep = .localNetworkPermission
+        */
     }
     
     func previousStep() {
         switch currentStep {
         case .welcome:
             break
-        case .cameraPermission:
-            currentStep = .welcome
-        case .qrScanner:
-            currentStep = .cameraPermission
         case .localNetworkPermission:
-            currentStep = .qrScanner
+            currentStep = .welcome
         case .searchBridges:
             currentStep = .localNetworkPermission
         case .bridgeFound:
@@ -125,10 +128,18 @@ class OnboardingViewModel: ObservableObject {
         case .connected:
             currentStep = .linkButton
         }
+        
+        // MARK: - QR Code Steps (закомментировано)
+        /*
+        case .cameraPermission:
+            currentStep = .welcome
+        case .qrScanner:
+            currentStep = .cameraPermission
+        */
     }
     
-    // MARK: - Camera Permission
-    
+    // MARK: - Camera Permission (закомментировано - может понадобиться для QR-кода в будущем)
+    /*
     func requestCameraPermission() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -154,9 +165,10 @@ class OnboardingViewModel: ObservableObject {
             break
         }
     }
+    */
     
-    // MARK: - QR Code Handling
-    
+    // MARK: - QR Code Handling (закомментировано - может понадобиться в будущем)
+    /*
     func handleScannedQR(_ code: String) {
         print("📱 OnboardingViewModel: Получен QR-код: '\(code)'")
         showQRScanner = false
@@ -249,6 +261,7 @@ class OnboardingViewModel: ObservableObject {
         print("❌ Не удалось извлечь Bridge ID из: '\(cleaned)'")
         return nil
     }
+    */
     
     // MARK: - Bridge Search
         
@@ -276,10 +289,8 @@ class OnboardingViewModel: ObservableObject {
                     print("   3. Разрешения локальной сети в настройках iOS")
                 } else {
                     print("✅ Поиск завершен: найдено мостов: \(self?.discoveredBridges.count ?? 0)")
-                    // Автоматически переходим к следующему шагу если мост найден
-                    if let bridges = self?.discoveredBridges, !bridges.isEmpty {
-                        self?.currentStep = .bridgeFound
-                    }
+                    // Остаемся на экране поиска, но показываем кнопку "Далее" вместо "Поиск"
+                    // Переход к bridgeFound будет только по нажатию кнопки
                 }
             }
         }
@@ -399,8 +410,9 @@ class OnboardingViewModel: ObservableObject {
 
 enum OnboardingStep {
     case welcome
-    case cameraPermission
-    case qrScanner
+    // MARK: - QR Code Steps (закомментировано - может понадобиться в будущем)
+    // case cameraPermission
+    // case qrScanner
     case localNetworkPermission
     case searchBridges
     case bridgeFound

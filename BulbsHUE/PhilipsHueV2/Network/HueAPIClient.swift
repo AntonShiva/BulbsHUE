@@ -166,15 +166,14 @@ class HueAPIClient: NSObject {
             .eraseToAnyPublisher()
     }
     
-    /// Поиск Hue Bridge через mDNS (локальная сеть)
+    /// Поиск Hue Bridge через новый простой discovery
         /// - Returns: Combine Publisher со списком найденных мостов
-        func discoverBridgesViaMDNS() -> AnyPublisher<[Bridge], Error> {
+        func discoverBridges() -> AnyPublisher<[Bridge], Error> {
             return Future<[Bridge], Error> { promise in
-                let discovery = MDNSBridgeDiscovery()
+                let discovery = HueBridgeDiscovery()
                 discovery.discoverBridges { bridges in
                     if bridges.isEmpty {
-                        // Если mDNS не нашел мосты, возможно отклонено разрешение
-                        promise(.failure(HueAPIError.localNetworkPermissionDenied))
+                        promise(.failure(HueAPIError.bridgeNotFound))
                     } else {
                         promise(.success(bridges))
                     }

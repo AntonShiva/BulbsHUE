@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import CodeScanner
+// import CodeScanner // Закомментировано - используется для QR-кода
 
 /// Главный экран онбординга для настройки Hue Bridge
 struct OnboardingView: View {
@@ -59,6 +59,8 @@ struct OnboardingView: View {
             }
             .navigationBarHidden(true)
         }
+        // MARK: - QR Code Sheets (закомментировано)
+        /*
         .sheet(isPresented: $viewModel.showQRScanner) {
             QRCodeScannerView { code in
                 viewModel.handleScannedQR(code)
@@ -72,6 +74,7 @@ struct OnboardingView: View {
         } message: {
             Text("Для сканирования QR-кода необходимо разрешение на использование камеры. Откройте настройки и разрешите доступ к камере.")
         }
+        */
         .alert("Доступ к локальной сети", isPresented: $viewModel.showLocalNetworkAlert) {
             Button("Настройки") {
                 viewModel.openAppSettings()
@@ -80,12 +83,16 @@ struct OnboardingView: View {
         } message: {
             Text("Для подключения к Hue Bridge необходим доступ к локальной сети. Откройте Настройки > BulbsHUE > Локальная сеть и включите доступ.")
         }
-        .alert("Нажмите кнопку Link", isPresented: $viewModel.showLinkButtonAlert) {
-            Button("Отмена") {
+        .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
+            Button("Готово") {
+                viewModel.showLinkButtonAlert = false
+                viewModel.nextStep() // Переходим к linkButtonStepView
+            }
+            Button("Отмена", role: .cancel) {
                 viewModel.cancelLinkButton()
             }
         } message: {
-            Text("Нажмите круглую кнопку Link на вашем Hue Bridge.\n\nОсталось времени: \(viewModel.linkButtonCountdown) сек.")
+            Text("Нажмите кнопку на мосту для подключения.\n\nНажмите кнопку на внешнем устройстве")
         }
     }
     
@@ -96,11 +103,6 @@ struct OnboardingView: View {
         switch viewModel.currentStep {
         case .welcome:
             welcomeStepView
-        case .cameraPermission:
-            cameraPermissionStepView
-        case .qrScanner:
-            // Этот экран больше не нужен - сразу открываем камеру
-            EmptyView()
         case .localNetworkPermission:
             localNetworkPermissionStepView
         case .searchBridges:
@@ -112,6 +114,15 @@ struct OnboardingView: View {
         case .connected:
             connectedStepView
         }
+        
+        // MARK: - QR Code Steps (закомментировано)
+        /*
+        case .cameraPermission:
+            cameraPermissionStepView
+        case .qrScanner:
+            // Этот экран больше не нужен - сразу открываем камеру
+            EmptyView()
+        */
     }
     
     // MARK: - Step Views
@@ -154,6 +165,8 @@ struct OnboardingView: View {
         }
     }
     
+    // MARK: - QR Camera Permission Step (закомментировано)
+    /*
     /// Экран разрешения камеры (как на третьем скриншоте)
     private var cameraPermissionStepView: some View {
         VStack(spacing: 40) {
@@ -187,6 +200,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 40)
         }
     }
+    */
     
 
     
@@ -270,11 +284,49 @@ struct OnboardingView: View {
             }
             
             if !viewModel.isSearchingBridges {
-                Button("Поиск") {
-                    viewModel.startBridgeSearch()
+                // Показываем разные кнопки в зависимости от того, найдены ли мосты
+                if viewModel.discoveredBridges.isEmpty {
+                    Button("Поиск") {
+                        viewModel.startBridgeSearch()
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .padding(.horizontal, 40)
+                } else {
+                    // Показываем найденные мосты и кнопку "Далее"
+                    VStack(spacing: 16) {
+                        // Список найденных мостов
+                        ForEach(viewModel.discoveredBridges, id: \.id) { bridge in
+                            HStack {
+                                Image(systemName: "wifi.router")
+                                    .foregroundColor(.green)
+                                VStack(alignment: .leading) {
+                                    Text("Hue Bridge")
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                    Text(bridge.internalipaddress)
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.8))
+                                }
+                                Spacer()
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
+                            .padding()
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(12)
+                            .padding(.horizontal, 40)
+                        }
+                        
+                        Button("Далее") {
+                            if let bridge = viewModel.discoveredBridges.first {
+                                viewModel.selectBridge(bridge)
+                            }
+                            viewModel.nextStep()
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .padding(.horizontal, 40)
+                    }
                 }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal, 40)
             }
         }
         .onAppear {
@@ -328,8 +380,9 @@ struct OnboardingView: View {
             Button("Далее") {
                 if let bridge = viewModel.discoveredBridges.first {
                     viewModel.selectBridge(bridge)
-                    viewModel.startBridgeConnection()
                 }
+                // Показываем алерт перед переходом к linkButton
+                viewModel.showLinkButtonAlert = true
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
@@ -364,6 +417,12 @@ struct OnboardingView: View {
             }
             .buttonStyle(SecondaryButtonStyle())
             .padding(.horizontal, 40)
+        }
+        .onAppear {
+            // Автоматически начинаем процесс подключения когда появляется экран
+            if viewModel.selectedBridge != nil && viewModel.linkButtonCountdown == 30 {
+                viewModel.startBridgeConnection()
+            }
         }
     }
     
