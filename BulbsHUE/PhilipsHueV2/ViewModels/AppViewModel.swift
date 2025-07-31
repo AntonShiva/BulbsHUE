@@ -95,14 +95,21 @@ class AppViewModel: ObservableObject {
     
     /// Начинает поиск мостов в сети
         func discoverBridges() {
+            print("🚀 Запуск поиска мостов...")
             connectionStatus = .searching
             discoveredBridges.removeAll() // Очищаем предыдущие результаты
+            error = nil // Сбрасываем предыдущие ошибки
             
             // Создаем единый discovery класс
             let discovery = HueBridgeDiscovery()
             
             discovery.discoverBridges { [weak self] bridges in
                 DispatchQueue.main.async {
+                    print("📋 Discovery завершен с результатом: \(bridges.count) мостов")
+                    for bridge in bridges {
+                        print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
+                    }
+                    
                     self?.discoveredBridges = bridges
                     
                     if bridges.isEmpty {
@@ -117,6 +124,7 @@ class AppViewModel: ObservableObject {
                     } else {
                         print("✅ Найдено мостов: \(bridges.count)")
                         self?.connectionStatus = .discovered
+                        self?.error = nil // Убираем ошибки при успешном поиске
                     }
                 }
             }

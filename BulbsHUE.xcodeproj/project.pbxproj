@@ -15,7 +15,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		3E8856942E33D56700CB20AF /* Exceptions for "BulbsHUE" folder in "BulbsHUE" target */ = {
+		3EFF5DF22E3B654F00F47F6B /* Exceptions for "BulbsHUE" folder in "BulbsHUE" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -28,7 +28,7 @@
 		3ECA0B372E33871D00FCA975 /* BulbsHUE */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				3E8856942E33D56700CB20AF /* Exceptions for "BulbsHUE" folder in "BulbsHUE" target */,
+				3EFF5DF22E3B654F00F47F6B /* Exceptions for "BulbsHUE" folder in "BulbsHUE" target */,
 			);
 			path = BulbsHUE;
 			sourceTree = "<group>";

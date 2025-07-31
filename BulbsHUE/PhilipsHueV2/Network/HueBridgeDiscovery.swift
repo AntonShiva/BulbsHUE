@@ -59,6 +59,20 @@ class HueBridgeDiscovery {
         group.notify(queue: .main) {
             let uniqueBridges = Array(Set(allBridges))
             print("✅ Всего найдено уникальных мостов: \(uniqueBridges.count)")
+            
+            // Детальная информация о найденных мостах
+            for (index, bridge) in uniqueBridges.enumerated() {
+                print("  🏠 Мост \(index + 1): ID=\(bridge.id), IP=\(bridge.internalipaddress), Name=\(bridge.name ?? "Без имени")")
+            }
+            
+            if uniqueBridges.isEmpty {
+                print("⚠️ Не найдено ни одного моста. Возможные причины:")
+                print("   1. Мост не подключен к той же Wi-Fi сети")
+                print("   2. Отказано в разрешении локальной сети (iOS)")
+                print("   3. Мост находится в режиме сна")
+                print("   4. Проблемы с UPnP/mDNS в роутере")
+            }
+            
             completion(uniqueBridges)
         }
     }
@@ -379,6 +393,12 @@ class CloudBridgeDiscovery: BridgeDiscoveryMethod {
             do {
                 let bridges = try JSONDecoder().decode([Bridge].self, from: data)
                 print("✅ Cloud нашел мостов: \(bridges.count)")
+                
+                // Детальная информация о каждом найденном мосте
+                for (index, bridge) in bridges.enumerated() {
+                    print("  ☁️ Cloud Мост \(index + 1): ID=\(bridge.id), IP=\(bridge.internalipaddress)")
+                }
+                
                 completion(bridges)
             } catch {
                 print("❌ Ошибка декодирования Cloud ответа: \(error)")

@@ -1,24 +1,22 @@
-
-
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>UIAppFonts</key>
-    <array>
-      <string>DMSans.ttf</string>
-    </array>
-    <key>NSCameraUsageDescription</key>
-    <string>Приложению нужно разрешение для использования камеры для сканирования QR-кодов</string>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>Приложению нужен доступ к локальной сети для обнаружения и управления Hue Bridge</string>
-    <key>NSBonjourServices</key>
-    <array>
-        <string>_hue._tcp</string>
-        <string>_hue._tcp.</string>
-        <string>_https._tcp</string>
-    </array>
-    <key>ITSAppUsesNonExemptEncryption</key>
-    <false/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>DMSans.ttf</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Приложению нужно разрешение для использования камеры для сканирования QR-кодов</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Приложению нужен доступ к локальной сети для обнаружения и управления Hue Bridge</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_hue._tcp</string>
+		<string>_hue._tcp.</string>
+		<string>_https._tcp</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

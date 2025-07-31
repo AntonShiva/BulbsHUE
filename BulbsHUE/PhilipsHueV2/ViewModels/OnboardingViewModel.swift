@@ -62,7 +62,18 @@ class OnboardingViewModel: ObservableObject {
             .sink { [weak self] bridges in
                 self?.discoveredBridges = bridges
                 if !bridges.isEmpty && self?.currentStep == .searchBridges {
+                    print("✅ Получены мосты от AppViewModel: \(bridges.count)")
+                    for bridge in bridges {
+                        print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
+                    }
+                    
                     self?.currentStep = .bridgeFound
+                    
+                    // Автоматически выбираем первый мост если он единственный
+                    if bridges.count == 1 {
+                        print("🎯 Автоматически выбираем единственный найденный мост")
+                        self?.selectBridge(bridges[0])
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -152,26 +163,45 @@ class OnboardingViewModel: ObservableObject {
         
         let cleanedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // ⚠️ Опционально — проверка, что это HomeKit QR
-        if cleanedCode.hasPrefix("X-HM://") {
-            print("✅ Распознан HomeKit QR-код")
-            
-            // Пробуем, вдруг получится вытащить bridgeId (например, если это кастомный код)
+        // Проверяем различные форматы QR-кодов Hue Bridge
+        if cleanedCode.hasPrefix("bridge-id:") {
+            // Основной формат Philips Hue: bridge-id:ECB5FAFFFE896811
+            print("✅ Распознан QR-код Philips Hue Bridge")
             if let bridgeId = parseBridgeId(from: code) {
                 print("✅ Bridge ID успешно извлечен: \(bridgeId)")
                 searchForSpecificBridge(bridgeId: bridgeId)
             } else {
-                print("⚠️ Не удалось извлечь Bridge ID, но продолжаем")
-                // Выполняем обычный поиск всех мостов
+                print("⚠️ Не удалось извлечь Bridge ID, выполняем общий поиск")
                 startBridgeSearch()
             }
-
-            // Переход к следующему шагу в любом случае
             currentStep = .searchBridges
-
+            
+        } else if cleanedCode.hasPrefix("S#") {
+            // Альтернативный формат: S#12345678
+            print("✅ Распознан альтернативный QR-код Hue Bridge")
+            let serialNumber = String(cleanedCode.dropFirst(2))
+            searchForSpecificBridge(bridgeId: serialNumber)
+            currentStep = .searchBridges
+            
+        } else if cleanedCode.hasPrefix("X-HM://") {
+            // HomeKit QR-код - НЕ Philips Hue
+            print("❌ Распознан HomeKit QR-код, но это не Philips Hue Bridge")
+            print("💡 QR-код рядом с HomeKit меткой предназначен для подключения к HomeKit")
+            print("💡 Для подключения к Hue используется поиск мостов в локальной сети")
+            
+            // Переходим сразу к поиску без QR-кода - мост находится в той же сети
+            print("🔍 Выполняем поиск Hue Bridge в локальной сети...")
+            currentStep = .searchBridges
+            startBridgeSearch()
+            
         } else {
-            print("❌ Неверный формат QR-кода")
-            // Показать алерт или сбросить
+            print("❌ Неизвестный формат QR-кода: \(cleanedCode)")
+            print("💡 Продолжаем с поиском мостов в локальной сети")
+            
+            // Переходим к сетевому поиску
+            print("🔍 Выполняем поиск Hue Bridge в локальной сети...")
+            currentStep = .searchBridges
+            startBridgeSearch()
         }
     } 
     /// Парсинг ID моста из QR-кода
@@ -230,7 +260,7 @@ class OnboardingViewModel: ObservableObject {
             appViewModel.searchForBridges()
             
             // Таймаут поиска
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
                 self?.isSearchingBridges = false
                 
                 // Проверяем результаты
@@ -239,8 +269,17 @@ class OnboardingViewModel: ObservableObject {
                     print("🚫 Отказано в разрешении локальной сети")
                     self?.showLocalNetworkAlert = true
                 } else if self?.discoveredBridges.isEmpty ?? true {
-                    print("❌ Мосты не найдены")
-                    // Можно показать алерт с предложением проверить подключение
+                    print("❌ Поиск завершен: мосты не найдены в локальной сети")
+                    print("💡 Проверьте:")
+                    print("   1. Мост подключен к той же Wi-Fi сети")
+                    print("   2. Мост включен и работает")
+                    print("   3. Разрешения локальной сети в настройках iOS")
+                } else {
+                    print("✅ Поиск завершен: найдено мостов: \(self?.discoveredBridges.count ?? 0)")
+                    // Автоматически переходим к следующему шагу если мост найден
+                    if let bridges = self?.discoveredBridges, !bridges.isEmpty {
+                        self?.currentStep = .bridgeFound
+                    }
                 }
             }
         }
@@ -276,27 +315,38 @@ class OnboardingViewModel: ObservableObject {
     }
     
     func startBridgeConnection() {
-        guard let bridge = selectedBridge else { return }
+        guard let bridge = selectedBridge else { 
+            print("❌ Не выбран мост для подключения")
+            return 
+        }
         
-        print("🔗 Начинаем подключение к мосту: \(bridge.id)")
+        print("🔗 Начинаем подключение к мосту: \(bridge.id) at \(bridge.internalipaddress)")
         currentStep = .linkButton
         showLinkButtonAlert = true
         linkButtonCountdown = 30
         
-        // Подключаемся к мосту
+        // Сначала подключаемся к мосту
         appViewModel.connectToBridge(bridge)
         
+        // Ждем немного перед началом попыток авторизации
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.startAuthenticationTimer()
+        }
+    }
+    
+    private func startAuthenticationTimer() {
         // Запускаем таймер для попыток авторизации
         linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.linkButtonCountdown -= 1
             
+            // Попытка создания пользователя каждые 3 секунды
             if self?.linkButtonCountdown ?? 0 % 3 == 0 {
                 print("🔐 Попытка создания пользователя (осталось: \(self?.linkButtonCountdown ?? 0) сек)")
                 self?.attemptCreateUser()
             }
             
             if self?.linkButtonCountdown ?? 0 <= 0 {
-                print("⏰ Время истекло")
+                print("⏰ Время ожидания нажатия кнопки Link истекло")
                 self?.cancelLinkButton()
             }
         }
