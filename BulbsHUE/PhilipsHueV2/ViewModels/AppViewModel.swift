@@ -747,6 +747,75 @@ extension AppViewModel {
             .store(in: &cancellables)
     }
 }
+extension AppViewModel {
+    
+    /// Создает пользователя с обработкой локальной сети
+    func createUserWithRetry(appName: String, completion: @escaping (Bool) -> Void) {
+        #if canImport(UIKit)
+        let deviceName = UIDevice.current.name
+        #else
+        let deviceName = Host.current().localizedName ?? "Mac"
+        #endif
+        
+        // Проверяем что у нас есть подключение к мосту
+        guard let bridge = currentBridge else {
+            print("❌ Нет выбранного моста")
+            completion(false)
+            return
+        }
+        
+        print("🔐 Попытка создания пользователя на мосту: \(bridge.internalipaddress)")
+        
+        apiClient.createUserWithLocalNetworkCheck(appName: appName, deviceName: deviceName)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { result in
+                    if case .failure(let error) = result {
+                        print("❌ Ошибка создания пользователя: \(error)")
+                        
+                        // Специальная обработка ошибки локальной сети
+                        if let nsError = error as NSError?,
+                           nsError.code == -1009 {
+                            print("🚫 Нет доступа к локальной сети!")
+                            self.error = HueAPIError.localNetworkPermissionDenied
+                        } else if case HueAPIError.linkButtonNotPressed = error as? HueAPIError ?? HueAPIError.invalidResponse {
+                            print("⏳ Кнопка Link еще не нажата")
+                            // Это нормально - продолжаем попытки
+                        }
+                        
+                        completion(false)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    if let success = response.success,
+                       let username = success.username {
+                        print("✅ Пользователь создан! Username: \(username)")
+                        
+                        self?.applicationKey = username
+                        
+                        // Сохраняем client key для Entertainment API
+                        if let clientKey = success.clientkey {
+                            print("🔑 Client key: \(clientKey)")
+                            UserDefaults.standard.set(clientKey, forKey: "HueClientKey")
+                            self?.setupEntertainmentClient(clientKey: clientKey)
+                        }
+                        
+                        self?.connectionStatus = .connected
+                        self?.showSetup = false
+                        self?.startEventStream()
+                        self?.loadAllData()
+                        self?.saveCredentials()
+                        
+                        completion(true)
+                    } else {
+                        print("❌ Неожиданный ответ от API")
+                        completion(false)
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+}
 
 /// Ошибки при нажатии кнопки Link
 enum LinkButtonError: LocalizedError {

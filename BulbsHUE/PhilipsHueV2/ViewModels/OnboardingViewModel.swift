@@ -352,29 +352,37 @@ class OnboardingViewModel: ObservableObject {
         }
     }
     
-    private func attemptCreateUser() {
-        #if canImport(UIKit)
-        let deviceName = UIDevice.current.name
-        #else
-        let deviceName = Host.current().localizedName ?? "Mac"
-        #endif
-        
-        appViewModel.createUser(appName: "BulbsHUE", completion: { [weak self] success in
-            if success {
-                print("✅ Пользователь успешно создан! Подключение установлено!")
-                self?.cancelLinkButton()
-                self?.currentStep = .connected
-                
-                // Мгновенно закрываем setup после успешного подключения
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self?.appViewModel.showSetup = false
+    /// Попытка создать пользователя
+        private func attemptCreateUser() {
+            #if canImport(UIKit)
+            let deviceName = UIDevice.current.name
+            #else
+            let deviceName = Host.current().localizedName ?? "Mac"
+            #endif
+            
+            // Используем улучшенный метод с проверкой локальной сети
+            appViewModel.createUserWithRetry(appName: "BulbsHUE", completion: { [weak self] success in
+                if success {
+                    print("✅ Пользователь успешно создан! Подключение установлено!")
+                    self?.cancelLinkButton()
+                    self?.currentStep = .connected
+                    
+                    // Мгновенно закрываем setup после успешного подключения
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self?.appViewModel.showSetup = false
+                    }
+                } else {
+                    // Проверяем ошибку локальной сети
+                    if let error = self?.appViewModel.error as? HueAPIError,
+                       case .localNetworkPermissionDenied = error {
+                        print("🚫 Нет доступа к локальной сети!")
+                        self?.cancelLinkButton()
+                        self?.showLocalNetworkAlert = true
+                    }
+                    // Иначе продолжаем попытки - кнопка Link может быть еще не нажата
                 }
-            } else {
-                // Убираем логирование для уменьшения спама в консоли
-                // print("⏳ Кнопка Link еще не нажата, продолжаем попытки...")
-            }
-        })
-    }
+            })
+        }
     
     func cancelLinkButton() {
         linkButtonTimer?.invalidate()
@@ -394,7 +402,76 @@ class OnboardingViewModel: ObservableObject {
         showLocalNetworkAlert = true
     }
 }
-
+extension OnboardingViewModel {
+    
+    /// Улучшенная попытка создания пользователя
+    func attemptCreateUserImproved() {
+        guard let bridge = selectedBridge else {
+            print("❌ Не выбран мост для подключения")
+            return
+        }
+        
+        print("🔐 Попытка авторизации на мосту \(bridge.internalipaddress)...")
+        
+        appViewModel.createUserWithRetry(appName: "BulbsHUE") { [weak self] success in
+            if success {
+                print("✅ Авторизация успешна!")
+                self?.cancelLinkButton()
+                self?.currentStep = .connected
+                
+                // Закрываем онбординг через секунду
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self?.appViewModel.showSetup = false
+                }
+            } else {
+                // Продолжаем попытки - кнопка Link может быть еще не нажата
+                // Таймер продолжит вызывать этот метод
+            }
+        }
+    }
+}
+extension OnboardingViewModel {
+    
+    /// Запускает процесс подключения с проверкой разрешений
+    func startBridgeConnectionWithPermissionCheck() {
+        guard let bridge = selectedBridge else {
+            print("❌ Не выбран мост для подключения")
+            return
+        }
+        
+        print("🔗 Проверяем разрешение локальной сети...")
+        
+        if #available(iOS 14.0, *) {
+            let checker = LocalNetworkPermissionChecker()
+            checker.checkLocalNetworkPermission { [weak self] hasPermission in
+                if hasPermission {
+                    print("✅ Разрешение локальной сети получено")
+                    self?.proceedWithConnection(bridge: bridge)
+                } else {
+                    print("🚫 Нет разрешения локальной сети")
+                    self?.showLocalNetworkAlert = true
+                }
+            }
+        } else {
+            // Для iOS < 14 сразу пытаемся подключиться
+            proceedWithConnection(bridge: bridge)
+        }
+    }
+    
+    private func proceedWithConnection(bridge: Bridge) {
+        print("🔗 Начинаем подключение к мосту: \(bridge.id) at \(bridge.internalipaddress)")
+        currentStep = .linkButton
+        showLinkButtonAlert = true
+        
+        // Подключаемся к мосту
+        appViewModel.connectToBridge(bridge)
+        
+        // Запускаем таймер для попыток авторизации
+        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.attemptCreateUserImproved()
+        }
+    }
+}
 // MARK: - OnboardingStep
 
 enum OnboardingStep {

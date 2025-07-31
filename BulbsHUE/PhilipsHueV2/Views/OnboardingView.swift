@@ -75,25 +75,25 @@ struct OnboardingView: View {
             Text("Для сканирования QR-кода необходимо разрешение на использование камеры. Откройте настройки и разрешите доступ к камере.")
         }
         */
-        .alert("Доступ к локальной сети", isPresented: $viewModel.showLocalNetworkAlert) {
-            Button("Настройки") {
-                viewModel.openAppSettings()
-            }
-            Button("Отмена", role: .cancel) { }
-        } message: {
-            Text("Для подключения к Hue Bridge необходим доступ к локальной сети. Откройте Настройки > BulbsHUE > Локальная сеть и включите доступ.")
-        }
-        .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
-            Button("Готово") {
-                viewModel.showLinkButtonAlert = false
-                viewModel.nextStep() // Переходим к linkButtonStepView
-            }
-            Button("Отмена", role: .cancel) {
-                viewModel.cancelLinkButton()
-            }
-        } message: {
-            Text("Нажмите кнопку на мосту для подключения.\n\nНажмите кнопку на внешнем устройстве")
-        }
+//        .alert("Доступ к локальной сети", isPresented: $viewModel.showLocalNetworkAlert) {
+//            Button("Настройки") {
+//                viewModel.openAppSettings()
+//            }
+//            Button("Отмена", role: .cancel) { }
+//        } message: {
+//            Text("Для подключения к Hue Bridge необходим доступ к локальной сети. Откройте Настройки > BulbsHUE > Локальная сеть и включите доступ.")
+//        }
+//        .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
+//            Button("Готово") {
+//                viewModel.showLinkButtonAlert = false
+//                viewModel.nextStep() // Переходим к linkButtonStepView
+//            }
+//            Button("Отмена", role: .cancel) {
+//                viewModel.cancelLinkButton()
+//            }
+//        } message: {
+//            Text("Нажмите кнопку на мосту для подключения.\n\nНажмите кнопку на внешнем устройстве")
+//        }
     }
     
     // MARK: - Content Views
@@ -370,19 +370,16 @@ struct OnboardingView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
                 
-                Text("Нажмите кнопку в верхней части устройства Hue Bridge, которое хотите подключить.")
-                    .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
+                
             }
             
-            Button("Далее") {
+            Button("Подключиться") {
                 if let bridge = viewModel.discoveredBridges.first {
                     viewModel.selectBridge(bridge)
                 }
+                viewModel.nextStep()
                 // Показываем алерт перед переходом к linkButton
-                viewModel.showLinkButtonAlert = true
+//                viewModel.showLinkButtonAlert = true
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
