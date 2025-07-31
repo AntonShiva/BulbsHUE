@@ -136,9 +136,9 @@ struct BridgeSetupView: View {
             }
             .navigationBarHidden(true)
         }
-        .sheet(isPresented: $showingScanner) {
-            QRCodeScannerView(completion: handleScannedCode)
-        }
+//        .sheet(isPresented: $showingScanner) {
+//            QRCodeScannerView(completion: handleScannedCode)
+//        }
         .sheet(isPresented: $showingManualEntry) {
             ManualEntryView(serialNumber: $manualSerialNumber) { serial in
                 handleManualEntry(serial)
@@ -512,8 +512,8 @@ struct BridgeSetupView: View {
     }
 }
 
-// MARK: - QR Code Scanner View
-
+// MARK: - QR Code Scanner View (закомментировано - может понадобиться в будущем)
+/*
 struct QRCodeScannerView: View {
     let completion: (String) -> Void
     @Environment(\.presentationMode) var presentationMode
@@ -545,6 +545,7 @@ struct QRCodeScannerView: View {
         }
     }
 }
+*/
 
 // MARK: - Manual Entry View
 

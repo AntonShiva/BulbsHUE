@@ -93,42 +93,46 @@ class AppViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Начинает поиск мостов в сети
-        func discoverBridges() {
-            print("🚀 Запуск поиска мостов...")
-            connectionStatus = .searching
-            discoveredBridges.removeAll() // Очищаем предыдущие результаты
-            error = nil // Сбрасываем предыдущие ошибки
-            
-            // Создаем единый discovery класс
-            let discovery = HueBridgeDiscovery()
-            
-            discovery.discoverBridges { [weak self] bridges in
-                DispatchQueue.main.async {
-                    print("📋 Discovery завершен с результатом: \(bridges.count) мостов")
-                    for bridge in bridges {
-                        print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
-                    }
-                    
-                    self?.discoveredBridges = bridges
-                    
-                    if bridges.isEmpty {
-                        print("❌ Мосты не найдены")
-                        self?.connectionStatus = .disconnected
-                        
-                        // Проверяем, возможно ли это из-за отсутствия разрешений
-                        #if os(iOS)
-                        // На iOS это может быть из-за отказа в разрешении локальной сети
-                        self?.error = HueAPIError.localNetworkPermissionDenied
-                        #endif
-                    } else {
-                        print("✅ Найдено мостов: \(bridges.count)")
-                        self?.connectionStatus = .discovered
-                        self?.error = nil // Убираем ошибки при успешном поиске
-                    }
+    /// Начинает поиск мостов в сети (старый метод для совместимости)
+    func discoverBridges() {
+        searchForBridges()
+    }
+    
+    /// Начинает комплексный поиск мостов с использованием всех доступных методов
+    func searchForBridges() {
+        print("🚀 Запуск поиска мостов...")
+        connectionStatus = .searching
+        discoveredBridges.removeAll() // Очищаем предыдущие результаты
+        error = nil // Сбрасываем предыдущие ошибки
+        
+        // Создаем улучшенный discovery класс
+        let discovery = HueBridgeDiscovery()
+        
+        discovery.discoverBridges { [weak self] bridges in
+            DispatchQueue.main.async {
+                print("📋 Discovery завершен с результатом: \(bridges.count) мостов")
+                for bridge in bridges {
+                    print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
+                }
+                
+                self?.discoveredBridges = bridges
+                
+                if bridges.isEmpty {
+                    print("❌ Мосты не найдены")
+                    self?.connectionStatus = .disconnected
+                    #if os(iOS)
+                    self?.error = HueAPIError.localNetworkPermissionDenied
+                    #endif
+                } else {
+                    print("✅ Найдено мостов: \(bridges.count)")
+                    self?.connectionStatus = .discovered
+                    self?.error = nil
                 }
             }
         }
+    }
+    
+
     
     /// Подключается к выбранному мосту
     /// - Parameter bridge: Мост для подключения
@@ -243,10 +247,10 @@ class AppViewModel: ObservableObject {
         loadAllData()
     }
     
-    /// Поиск мостов (обертка для OnboardingView)
-    func searchForBridges() {
-        discoverBridges()
-    }
+//    /// Поиск мостов (обертка для OnboardingView)
+//    func searchForBridges() {
+//        discoverBridges()
+//    }
     
     /// Создание пользователя на конкретном мосту
     /// - Parameters:
