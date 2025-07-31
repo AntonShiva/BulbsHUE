@@ -94,36 +94,33 @@ class AppViewModel: ObservableObject {
     // MARK: - Public Methods
     
     /// Начинает поиск мостов в сети
-    func discoverBridges() {
-        connectionStatus = .searching
-        
-        // Пробуем оба метода параллельно
-        let cloudDiscovery = apiClient.discoverBridgesViaCloud()
-        let mdnsDiscovery = apiClient.discoverBridgesViaMDNS()
-        
-        Publishers.Merge(cloudDiscovery, mdnsDiscovery)
-            .collect()
-            .map { results in
-                Array(Set(results.flatMap { $0 }))
-            }
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure = completion {
-                        self?.connectionStatus = .disconnected
-                    }
-                },
-                receiveValue: { [weak self] bridges in
+        func discoverBridges() {
+            connectionStatus = .searching
+            discoveredBridges.removeAll() // Очищаем предыдущие результаты
+            
+            // Создаем единый discovery класс
+            let discovery = HueBridgeDiscovery()
+            
+            discovery.discoverBridges { [weak self] bridges in
+                DispatchQueue.main.async {
                     self?.discoveredBridges = bridges
+                    
                     if bridges.isEmpty {
+                        print("❌ Мосты не найдены")
                         self?.connectionStatus = .disconnected
+                        
+                        // Проверяем, возможно ли это из-за отсутствия разрешений
+                        #if os(iOS)
+                        // На iOS это может быть из-за отказа в разрешении локальной сети
+                        self?.error = HueAPIError.localNetworkPermissionDenied
+                        #endif
                     } else {
+                        print("✅ Найдено мостов: \(bridges.count)")
                         self?.connectionStatus = .discovered
                     }
                 }
-            )
-            .store(in: &cancellables)
-    }
+            }
+        }
     
     /// Подключается к выбранному мосту
     /// - Parameter bridge: Мост для подключения
@@ -519,6 +516,47 @@ extension AppViewModel {
               )
               .store(in: &cancellables)
       }
+    
+    /// Валидация моста через запрос к description.xml
+    func validateBridge(_ bridge: Bridge, completion: @escaping (Bool) -> Void) {
+        print("🔍 Валидируем мост \(bridge.internalipaddress)...")
+        
+        // Создаем URL для description.xml
+        guard let url = URL(string: "https://\(bridge.internalipaddress)/description.xml") else {
+            print("❌ Невалидный URL для моста")
+            completion(false)
+            return
+        }
+        
+        // Выполняем запрос
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("❌ Ошибка при валидации моста: \(error)")
+                completion(false)
+                return
+            }
+            
+            guard let data = data,
+                  let xmlString = String(data: data, encoding: .utf8) else {
+                print("❌ Не удалось получить XML данные")
+                completion(false)
+                return
+            }
+            
+            // Проверяем что это Philips Hue Bridge
+            let isHueBridge = xmlString.contains("Philips hue") || 
+                             xmlString.contains("Royal Philips Electronics") ||
+                             xmlString.contains("modelName>Philips hue bridge")
+            
+            if isHueBridge {
+                print("✅ Подтверждено: это Philips Hue Bridge")
+            } else {
+                print("❌ Это не Philips Hue Bridge")
+            }
+            
+            completion(isHueBridge)
+        }.resume()
+    }
     
     /// Подключение к мосту с использованием Touch Link
     func connectWithTouchLink(bridge: Bridge, completion: @escaping (Bool) -> Void) {

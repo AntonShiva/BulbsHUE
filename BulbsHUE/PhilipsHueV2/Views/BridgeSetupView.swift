@@ -20,6 +20,7 @@ struct BridgeSetupView: View {
     @State private var linkButtonTimer: Timer?
     @State private var linkButtonCountdown = 30
     @State private var selectedBridge: Bridge?
+    @State private var hasReturnedFromSettings = false
     
     var body: some View {
         NavigationView {
@@ -150,6 +151,17 @@ struct BridgeSetupView: View {
         } message: {
             Text("Нажмите круглую кнопку Link на вашем Hue Bridge.\n\nОсталось времени: \(linkButtonCountdown) сек.")
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            // Приложение вернулось из фона (например, из настроек)
+            if hasReturnedFromSettings {
+                print("📱 Приложение вернулось из настроек, проверяем разрешение...")
+                hasReturnedFromSettings = false
+                // Небольшая задержка для стабильности
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    checkLocalNetworkPermissionAndRetrySearch()
+                }
+            }
+        }
     }
     
     // MARK: - Methods
@@ -180,21 +192,60 @@ struct BridgeSetupView: View {
         // Реализация алерта
     }
     
+    /// Обработка HomeKit QR-кода
+    private func handleHomeKitQRCode(_ code: String) {
+        print("🔄 Начинаем автоматический поиск Bridge после сканирования HomeKit QR-кода")
+        
+        // Извлекаем setup code из HomeKit URI если нужно
+        // Формат: X-HM://0024SIN3EQ0EB где SIN3EQ0EB - setup code
+        let setupCode = extractHomeKitSetupCode(from: code)
+        print("🔑 Setup код HomeKit: \(setupCode)")
+        
+        // Запускаем автоматический поиск мостов
+        searchForBridges()
+    }
+    
+    /// Извлечение setup кода из HomeKit URI
+    private func extractHomeKitSetupCode(from uri: String) -> String {
+        // X-HM://0024SIN3EQ0EB -> извлекаем SIN3EQ0EB
+        if let range = uri.range(of: "X-HM://") {
+            let afterPrefix = String(uri[range.upperBound...])
+            // Пропускаем первые 4 символа (0024) и берем остальное
+            if afterPrefix.count > 4 {
+                return String(afterPrefix.dropFirst(4))
+            }
+        }
+        return ""
+    }
+    
+    /// Показать алерт о неподдерживаемом QR-коде
+    private func showUnsupportedQRAlert() {
+        // В реальном приложении здесь будет SwiftUI Alert
+        print("⚠️ Показываем алерт: Неподдерживаемый QR-код. Попробуйте автоматический поиск.")
+        
+        // Предлагаем запустить автоматический поиск
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.searchForBridges()
+        }
+    }
+    
     /// Обработка отсканированного QR-кода
     private func handleScannedCode(_ code: String) {
         print("📱 handleScannedCode вызван с кодом: '\(code)'")
         showingScanner = false
         
-        // Парсим QR-код
-        if let bridgeId = parseBridgeId(from: code) {
+        // Проверяем тип QR-кода
+        if code.hasPrefix("X-HM://") {
+            print("🏠 Обнаружен HomeKit Setup URI: \(code)")
+            // HomeKit QR-код - запускаем автоматический поиск Bridge
+            handleHomeKitQRCode(code)
+        } else if let bridgeId = parseBridgeId(from: code) {
             print("✅ Bridge ID успешно извлечен: \(bridgeId)")
             connectToBridge(withId: bridgeId)
         } else {
-            print("❌ Не удалось извлечь Bridge ID из кода: '\(code)'")
-            // Показываем алерт об ошибке
-            DispatchQueue.main.async {
-                // Здесь можно показать алерт пользователю
-            }
+            print("❌ Неподдерживаемый формат QR-кода: '\(code)'")
+            // Показываем алерт с предложением автоматического поиска
+            showUnsupportedQRAlert()
         }
     }
     
@@ -232,28 +283,169 @@ struct BridgeSetupView: View {
         return nil
     }
     
-    /// Поиск мостов в сети
+    /// Поиск мостов в сети согласно Philips Hue Discovery Guide
     private func searchForBridges() {
+        print("🔍 Запускаем комплексный поиск Hue Bridge...")
         isSearching = true
+        
+        // Очищаем предыдущие результаты
+        viewModel.discoveredBridges.removeAll()
+        
+        // Запускаем поиск (mDNS + N-UPnP параллельно)
         viewModel.discoverBridges()
         
-        // Таймаут поиска
+        // Таймаут поиска согласно рекомендациям:
+        // - UPnP/mDNS: максимум 5 секунд
+        // - N-UPnP: максимум 8 секунд
+        // - Общий таймаут: 10 секунд
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-            isSearching = false
+            self.isSearching = false
+            self.handleDiscoveryResults()
+        }
+    }
+    
+    /// Обработка результатов поиска мостов
+    private func handleDiscoveryResults() {
+        let foundBridges = viewModel.discoveredBridges
+        
+        print("📊 Результаты поиска: найдено \(foundBridges.count) мостов")
+        
+        if foundBridges.isEmpty {
+            print("❌ Мосты не найдены. Предлагаем ручной ввод IP.")
+            showNoBridgesFoundAlert()
+        } else if foundBridges.count == 1 {
+            print("✅ Найден один мост: \(foundBridges[0].internalipaddress)")
+            selectedBridge = foundBridges.first
+            if let bridge = selectedBridge {
+                validateAndConnectToBridge(bridge)
+            }
+        } else {
+            print("🔀 Найдено несколько мостов: \(foundBridges.count)")
+            showMultipleBridgesSelection(foundBridges)
+        }
+    }
+    
+    /// Показать алерт когда мосты не найдены
+    private func showNoBridgesFoundAlert() {
+        // Проверяем, была ли ошибка связана с отказом в разрешении
+        if let error = viewModel.error as? HueAPIError,
+           case .localNetworkPermissionDenied = error {
+            print("🚫 Показываем алерт об отказе в разрешении локальной сети")
+            showLocalNetworkPermissionDeniedAlert()
+        } else {
+            // В реальном приложении здесь будет SwiftUI Alert с предложением:
+            // 1. Попробовать еще раз
+            // 2. Ввести IP вручную
+            // 3. Проверить подключение Bridge к сети
+            print("⚠️ Алерт: Мосты не найдены. Попробуйте ввести IP вручную.")
             
-            if !viewModel.discoveredBridges.isEmpty {
-                // Показать список найденных мостов
-                if viewModel.discoveredBridges.count == 1 {
-                    selectedBridge = viewModel.discoveredBridges.first
-                    if let bridge = selectedBridge {
-                        startLinkButtonProcess(for: bridge)
+            // Автоматически открываем ручной ввод через 2 секунды
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                self.showingManualEntry = true
+            }
+        }
+    }
+    
+    /// Показать алерт об отказе в разрешении локальной сети
+    private func showLocalNetworkPermissionDeniedAlert() {
+        print("🚫 Алерт: Разрешение локальной сети отклонено")
+        print("📱 Автоматически открываем настройки iOS для включения разрешения...")
+        
+        // Автоматически открываем настройки iOS на странице с разрешениями приложения
+        openAppSettingsForLocalNetwork()
+    }
+    
+    /// Открыть настройки iOS для включения разрешения локальной сети
+    private func openAppSettingsForLocalNetwork() {
+        // Отмечаем что пользователь идет в настройки
+        hasReturnedFromSettings = true
+        
+        // Открываем настройки приложения в iOS
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            if UIApplication.shared.canOpenURL(url) {
+                print("🔧 Открываем настройки iOS...")
+                UIApplication.shared.open(url, options: [:]) { success in
+                    if success {
+                        print("✅ Настройки iOS успешно открыты")
+                        print("👤 Пользователь должен:")
+                        print("   1. Найти раздел 'Локальная сеть'")
+                        print("   2. Включить переключатель")
+                        print("   3. Вернуться в приложение")
+                    } else {
+                        print("❌ Не удалось открыть настройки")
+                        self.hasReturnedFromSettings = false
+                        // Fallback: показываем ручной ввод
+                        DispatchQueue.main.async {
+                            self.showingManualEntry = true
+                        }
                     }
-                } else {
-                    // Показать выбор из нескольких мостов
                 }
             } else {
-                // Показать сообщение, что мосты не найдены
+                print("❌ Невозможно открыть настройки - URL не поддерживается")
+                hasReturnedFromSettings = false
+                // Fallback: показываем ручной ввод
+                showingManualEntry = true
             }
+        } else {
+            print("❌ Невозможно создать URL для настроек")
+            hasReturnedFromSettings = false
+            // Fallback: показываем ручной ввод
+            showingManualEntry = true
+        }
+    }
+    
+    /// Проверить разрешение локальной сети и повторить поиск
+    private func checkLocalNetworkPermissionAndRetrySearch() {
+        print("🔄 Проверяем разрешение и повторяем поиск мостов...")
+        
+        // Очищаем предыдущие ошибки
+        viewModel.error = nil
+        
+        // Повторяем поиск мостов
+        searchForBridges()
+    }
+    
+    /// Показать выбор из нескольких мостов
+    private func showMultipleBridgesSelection(_ bridges: [Bridge]) {
+        // В реальном приложении здесь будет ActionSheet или NavigationLink
+        print("📋 Показываем список мостов для выбора:")
+        for (index, bridge) in bridges.enumerated() {
+            print("  \(index + 1). \(bridge.name ?? "Hue Bridge") - \(bridge.internalipaddress)")
+        }
+        
+        // Для демонстрации выбираем первый мост
+        selectedBridge = bridges.first
+        if let bridge = selectedBridge {
+            validateAndConnectToBridge(bridge)
+        }
+    }
+    
+    /// Валидация и подключение к мосту
+    private func validateAndConnectToBridge(_ bridge: Bridge) {
+        print("🔍 Валидируем мост: \(bridge.internalipaddress)")
+        
+        // Проверяем что это действительно Hue Bridge
+        // через запрос к /description.xml или /api/config
+        viewModel.validateBridge(bridge) {  isValid in
+            DispatchQueue.main.async {
+                if isValid {
+                    print("✅ Мост прошел валидацию")
+                    self.startLinkButtonProcess(for: bridge)
+                } else {
+                    print("❌ Мост не прошел валидацию")
+                    self.showInvalidBridgeAlert()
+                }
+            }
+        }
+    }
+    
+    /// Показать алерт о невалидном мосте
+    private func showInvalidBridgeAlert() {
+        print("⚠️ Алерт: Устройство не является Hue Bridge")
+        
+        // Предлагаем попробовать снова
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            self.searchForBridges()
         }
     }
     
