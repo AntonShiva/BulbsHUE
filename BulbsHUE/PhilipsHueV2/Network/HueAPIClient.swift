@@ -788,7 +788,71 @@ extension HueAPIClient: URLSessionDelegate, URLSessionDataDelegate {
     }
 }
 
-
+extension HueAPIClient {
+    
+    /// Создает нового пользователя с правильной обработкой локальной сети
+    func createUserWithLocalNetworkCheck(appName: String, deviceName: String) -> AnyPublisher<AuthenticationResponse, Error> {
+        // Используем HTTP вместо HTTPS для локальной сети
+        guard let url = URL(string: "http://\(bridgeIP)/api") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 5.0 // Короткий таймаут для локальной сети
+        
+        let body = [
+            "devicetype": "\(appName)#\(deviceName)",
+            "generateclientkey": true
+        ] as [String : Any]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return Fail(error: error)
+                .eraseToAnyPublisher()
+        }
+        
+        // Используем URLSession.shared для локальных запросов
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                // Логируем ответ для отладки
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("🌐 HTTP Status: \(httpResponse.statusCode)")
+                    
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("📦 Response: \(responseString)")
+                    }
+                }
+                
+                return data
+            }
+            .decode(type: [AuthenticationResponse].self, decoder: JSONDecoder())
+            .tryMap { responses in
+                // Проверяем ответ
+                if let response = responses.first {
+                    if let error = response.error {
+                        print("❌ Hue API Error: \(error.description ?? "Unknown")")
+                        
+                        // Код 101 означает что кнопка Link не нажата
+                        if error.type == 101 {
+                            throw HueAPIError.linkButtonNotPressed
+                        } else {
+                            throw HueAPIError.httpError(statusCode: error.type ?? 0)
+                        }
+                    } else if response.success != nil {
+                        print("✅ Успешная авторизация!")
+                        return response
+                    }
+                }
+                
+                throw HueAPIError.invalidResponse
+            }
+            .eraseToAnyPublisher()
+    }
+}
 
 extension HueAPIClient {
     
