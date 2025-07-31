@@ -405,11 +405,7 @@ struct OnboardingView: View {
                     .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
-                
-                // Счетчик времени
-                Text("Осталось времени: \(viewModel.linkButtonCountdown) сек")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.6))
+             
             }
             
             Button("Отмена") {
@@ -420,7 +416,7 @@ struct OnboardingView: View {
         }
         .onAppear {
             // Автоматически начинаем процесс подключения когда появляется экран
-            if viewModel.selectedBridge != nil && viewModel.linkButtonCountdown == 30 {
+            if viewModel.selectedBridge != nil  {
                 viewModel.startBridgeConnection()
             }
         }

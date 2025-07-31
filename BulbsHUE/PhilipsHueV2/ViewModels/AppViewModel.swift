@@ -105,30 +105,49 @@ class AppViewModel: ObservableObject {
         discoveredBridges.removeAll() // Очищаем предыдущие результаты
         error = nil // Сбрасываем предыдущие ошибки
         
-        // Создаем улучшенный discovery класс
-        let discovery = HueBridgeDiscovery()
-        
-        discovery.discoverBridges { [weak self] bridges in
-            DispatchQueue.main.async {
-                print("📋 Discovery завершен с результатом: \(bridges.count) мостов")
-                for bridge in bridges {
-                    print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
-                }
-                
-                self?.discoveredBridges = bridges
-                
-                if bridges.isEmpty {
-                    print("❌ Мосты не найдены")
-                    self?.connectionStatus = .disconnected
-                    #if os(iOS)
-                    self?.error = HueAPIError.localNetworkPermissionDenied
-                    #endif
-                } else {
-                    print("✅ Найдено мостов: \(bridges.count)")
-                    self?.connectionStatus = .discovered
-                    self?.error = nil
-                }
+        // Создаем улучшенный discovery класс с проверкой совместимости
+        if #available(iOS 12.0, *) {
+            let discovery = HueBridgeDiscovery()
+            discovery.discoverBridges { [weak self] bridges in
+                self?.handleDiscoveryResults(bridges)
             }
+        } else {
+            // Fallback для старых версий iOS
+            self.handleLegacyDiscovery()
+        }
+    }
+    
+    /// Обработка результатов поиска
+    private func handleDiscoveryResults(_ bridges: [Bridge]) {
+        DispatchQueue.main.async { [weak self] in
+            print("📋 Discovery завершен с результатом: \(bridges.count) мостов")
+            for bridge in bridges {
+                print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
+            }
+            
+            self?.discoveredBridges = bridges
+            
+            if bridges.isEmpty {
+                print("❌ Мосты не найдены")
+                self?.connectionStatus = .disconnected
+                #if os(iOS)
+                self?.error = HueAPIError.localNetworkPermissionDenied
+                #endif
+            } else {
+                print("✅ Найдено мостов: \(bridges.count)")
+                self?.connectionStatus = .discovered
+                self?.error = nil
+            }
+        }
+    }
+    
+    /// Fallback discovery для старых версий iOS
+    private func handleLegacyDiscovery() {
+        print("📱 Используем legacy discovery для iOS < 12.0")
+        // Здесь можно реализовать простой cloud + IP scan без Network framework
+        DispatchQueue.main.async { [weak self] in
+            self?.connectionStatus = .disconnected
+            self?.error = HueAPIError.bridgeNotFound
         }
     }
     

@@ -334,32 +334,21 @@ class OnboardingViewModel: ObservableObject {
         print("🔗 Начинаем подключение к мосту: \(bridge.id) at \(bridge.internalipaddress)")
         currentStep = .linkButton
         showLinkButtonAlert = true
-        linkButtonCountdown = 30
         
         // Сначала подключаемся к мосту
         appViewModel.connectToBridge(bridge)
         
-        // Ждем немного перед началом попыток авторизации
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            self?.startAuthenticationTimer()
+        // Сразу начинаем попытки авторизации без таймера
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.startContinuousAuthentication()
         }
     }
     
-    private func startAuthenticationTimer() {
-        // Запускаем таймер для попыток авторизации
-        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.linkButtonCountdown -= 1
-            
-            // Попытка создания пользователя каждые 3 секунды
-            if self?.linkButtonCountdown ?? 0 % 3 == 0 {
-                print("🔐 Попытка создания пользователя (осталось: \(self?.linkButtonCountdown ?? 0) сек)")
-                self?.attemptCreateUser()
-            }
-            
-            if self?.linkButtonCountdown ?? 0 <= 0 {
-                print("⏰ Время ожидания нажатия кнопки Link истекло")
-                self?.cancelLinkButton()
-            }
+    private func startContinuousAuthentication() {
+        // Запускаем непрерывные попытки авторизации каждые 2 секунды
+        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            print("🔐 Попытка создания пользователя...")
+            self?.attemptCreateUser()
         }
     }
     
@@ -372,16 +361,17 @@ class OnboardingViewModel: ObservableObject {
         
         appViewModel.createUser(appName: "BulbsHUE", completion: { [weak self] success in
             if success {
-                print("✅ Пользователь успешно создан!")
+                print("✅ Пользователь успешно создан! Подключение установлено!")
                 self?.cancelLinkButton()
                 self?.currentStep = .connected
                 
-                // Даем время на анимацию перед закрытием
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                // Мгновенно закрываем setup после успешного подключения
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self?.appViewModel.showSetup = false
                 }
             } else {
-                print("⏳ Кнопка Link еще не нажата, продолжаем попытки...")
+                // Убираем логирование для уменьшения спама в консоли
+                // print("⏳ Кнопка Link еще не нажата, продолжаем попытки...")
             }
         })
     }
@@ -390,7 +380,6 @@ class OnboardingViewModel: ObservableObject {
         linkButtonTimer?.invalidate()
         linkButtonTimer = nil
         showLinkButtonAlert = false
-        linkButtonCountdown = 30
     }
     
     // MARK: - Helpers
