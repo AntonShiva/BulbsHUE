@@ -473,30 +473,22 @@ struct BridgeSetupView: View {
     private func startLinkButtonProcess(for bridge: Bridge) {
         selectedBridge = bridge
         showingLinkButtonAlert = true
-        linkButtonCountdown = 30
         
         // Подключаемся к мосту
         viewModel.connectToBridge(bridge)
         
-        // Запускаем таймер для попыток авторизации
-        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            linkButtonCountdown -= 1
-            
-            if linkButtonCountdown % 3 == 0 {
-                // Пробуем создать пользователя каждые 3 секунды
-                attemptCreateUser()
-            }
-            
-            if linkButtonCountdown <= 0 {
-                cancelLinkButton()
-            }
+        // Запускаем непрерывные попытки авторизации без таймера обратного отсчета
+        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            // Пробуем создать пользователя каждые 2 секунды
+            attemptCreateUser()
         }
     }
     
     /// Попытка создать пользователя
     private func attemptCreateUser() {
-        viewModel.createUser(appName: "PhilipsHueV2") {  success in
+        viewModel.createUser(appName: "BulbsHUE") {  success in
             if success {
+                print("✅ Пользователь создан через BridgeSetupView!")
                 self.cancelLinkButton()
                 // Успешное подключение
             }
@@ -508,7 +500,6 @@ struct BridgeSetupView: View {
         linkButtonTimer?.invalidate()
         linkButtonTimer = nil
         showingLinkButtonAlert = false
-        linkButtonCountdown = 30
     }
 }
 

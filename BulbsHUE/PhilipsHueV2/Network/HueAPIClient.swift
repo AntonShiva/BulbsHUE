@@ -40,9 +40,11 @@ class HueAPIClient: NSObject {
         return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
     }()
     
-    /// Базовый URL для API v2 endpoint'ов
+    /// Базовый URL для API endpoint'ов
+    /// Используем HTTP для локальных подключений, HTTPS только для удаленных
     private var baseURL: URL? {
-        URL(string: "https://\(bridgeIP)")
+        // Для локальной сети используем HTTP (Hue Bridge поддерживает HTTP на порту 80)
+        URL(string: "http://\(bridgeIP)")
     }
     
     /// Combine publisher для обработки ошибок
@@ -166,10 +168,11 @@ class HueAPIClient: NSObject {
             .eraseToAnyPublisher()
     }
     
-    /// Поиск Hue Bridge через новый простой discovery
-        /// - Returns: Combine Publisher со списком найденных мостов
-        func discoverBridges() -> AnyPublisher<[Bridge], Error> {
-            return Future<[Bridge], Error> { promise in
+    /// Поиск Hue Bridge через новый SSDP discovery
+    /// - Returns: Combine Publisher со списком найденных мостов
+    func discoverBridges() -> AnyPublisher<[Bridge], Error> {
+        return Future<[Bridge], Error> { promise in
+            if #available(iOS 12.0, *) {
                 let discovery = HueBridgeDiscovery()
                 discovery.discoverBridges { bridges in
                     if bridges.isEmpty {
@@ -178,9 +181,13 @@ class HueAPIClient: NSObject {
                         promise(.success(bridges))
                     }
                 }
+            } else {
+                // Fallback для старых версий iOS
+                promise(.failure(HueAPIError.bridgeNotFound))
             }
-            .eraseToAnyPublisher()
         }
+        .eraseToAnyPublisher()
+    }
     
     // MARK: - Configuration & Capabilities
     
