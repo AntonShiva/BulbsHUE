@@ -221,21 +221,29 @@ class OnboardingViewModel: ObservableObject {
     }
     
     // MARK: - Bridge Search
-    
-    func startBridgeSearch() {
-        print("🔍 Начинаем поиск мостов в сети")
-        isSearchingBridges = true
-        appViewModel.searchForBridges()
         
-        // Таймаут поиска
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-            self?.isSearchingBridges = false
-            if self?.discoveredBridges.isEmpty ?? true {
-                print("❌ Мосты не найдены")
-                // Можно показать алерт
+        func startBridgeSearch() {
+            print("🔍 Начинаем поиск мостов в сети")
+            isSearchingBridges = true
+            discoveredBridges.removeAll()
+            
+            appViewModel.searchForBridges()
+            
+            // Таймаут поиска
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+                self?.isSearchingBridges = false
+                
+                // Проверяем результаты
+                if let error = self?.appViewModel.error as? HueAPIError,
+                   case .localNetworkPermissionDenied = error {
+                    print("🚫 Отказано в разрешении локальной сети")
+                    self?.showLocalNetworkAlert = true
+                } else if self?.discoveredBridges.isEmpty ?? true {
+                    print("❌ Мосты не найдены")
+                    // Можно показать алерт с предложением проверить подключение
+                }
             }
         }
-    }
     
     private func searchForSpecificBridge(bridgeId: String) {
         print("🔍 Ищем конкретный мост с ID: \(bridgeId)")

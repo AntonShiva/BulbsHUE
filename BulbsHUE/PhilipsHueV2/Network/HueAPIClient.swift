@@ -167,17 +167,21 @@ class HueAPIClient: NSObject {
     }
     
     /// Поиск Hue Bridge через mDNS (локальная сеть)
-    /// - Returns: Combine Publisher со списком найденных мостов
-    func discoverBridgesViaMDNS() -> AnyPublisher<[Bridge], Error> {
-        // Для реального mDNS поиска нужно использовать NetService или Network.framework
-        // Это упрощенная реализация для примера
-        return Future<[Bridge], Error> { promise in
-            // Здесь должна быть реализация mDNS поиска
-            // Сервис: _hue._tcp.local.
-            promise(.failure(HueAPIError.notImplemented))
+        /// - Returns: Combine Publisher со списком найденных мостов
+        func discoverBridgesViaMDNS() -> AnyPublisher<[Bridge], Error> {
+            return Future<[Bridge], Error> { promise in
+                let discovery = MDNSBridgeDiscovery()
+                discovery.discoverBridges { bridges in
+                    if bridges.isEmpty {
+                        // Если mDNS не нашел мосты, возможно отклонено разрешение
+                        promise(.failure(HueAPIError.localNetworkPermissionDenied))
+                    } else {
+                        promise(.success(bridges))
+                    }
+                }
+            }
+            .eraseToAnyPublisher()
         }
-        .eraseToAnyPublisher()
-    }
     
     // MARK: - Configuration & Capabilities
     
@@ -932,89 +936,204 @@ extension HueAPIClient {
     
     // MARK: - Исправление 7: mDNS Discovery с использованием Bonjour
     
-    /// Поиск Hue Bridge через mDNS - правильная реализация
-    func discoverBridgesViaMDNSV2() -> AnyPublisher<[Bridge], Error> {
-        return BonjourDiscovery().discoverBridges()
-    }
+    /// Поиск Hue Bridge через mDNS - правильная реализация (рекомендуемый метод)
+//    func discoverBridgesViaSSDPV2() -> AnyPublisher<[Bridge], Error> {
+//        return BonjourDiscovery().discoverBridges()
+//    }
 }
 
-// MARK: - Дополнительные модели для API v2
 
-/// Batch запрос
-struct BatchRequest: Codable {
-    let data: [BatchUpdate]
-}
-
-/// Batch обновление
-struct BatchUpdate: Codable {
-    let rid: String
-    let rtype: String
-    let on: OnState?
-    let dimming: Dimming?
-    let color: HueColor?
-}
-
-/// Batch ответ
-struct BatchResponse: Codable {
-    let errors: [APIError]?
-    let data: [BatchUpdateResult]?
-}
-
-/// Результат batch обновления
-struct BatchUpdateResult: Codable {
-    let rid: String
-    let rtype: String
-}
 
 // MARK: - Bonjour Discovery Helper
 
-
-/// Вспомогательный класс для mDNS поиска
-class BonjourDiscovery {
-    private let browser = NWBrowser(for: .bonjour(type: "_hue._tcp", domain: "local"), using: .tcp)
-    private var bridges: [Bridge] = []
-    private let subject = PassthroughSubject<[Bridge], Error>()
-    
-    func discoverBridges() -> AnyPublisher<[Bridge], Error> {
-        browser.browseResultsChangedHandler = { [weak self] results, changes in
-            self?.handleBrowseResults(results)
-        }
-        
-        browser.start(queue: .main)
-        
-        // Останавливаем поиск через 10 секунд
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-            self?.browser.cancel()
-            self?.subject.send(self?.bridges ?? [])
-            self?.subject.send(completion: .finished)
-        }
-        
-        return subject.eraseToAnyPublisher()
-    }
-    
-    private func handleBrowseResults(_ results: Set<NWBrowser.Result>) {
-        bridges = results.compactMap { result in
-            switch result.endpoint {
-            case .service(let name, let type, let domain, _):
-                // Извлекаем IP адрес из метаданных
-                if case .bonjour(let record) = result.metadata,
-                   let txtRecord = record.dictionary["bridgeid"] as? String {
-                    // Здесь нужно получить IP адрес из endpoint
-                    // Это требует дополнительного разрешения имени
-                    return Bridge(
-                        id: txtRecord,
-                        internalipaddress: "", // Нужно разрешить
-                        port: 443,
-                        name: name
-                    )
-                }
-            default:
-                break
-            }
-            return nil
-        }
-    }
-}
+//
+///// Вспомогательный класс для mDNS поиска Hue Bridge (правильный рекомендуемый метод)
+//class BonjourDiscovery {
+//    private let browser = NWBrowser(for: .bonjour(type: "_hue._tcp", domain: "local"), using: .tcp)
+//    private var bridges: [Bridge] = []
+//    private let subject = PassthroughSubject<[Bridge], Error>()
+//    private var connections: [NWConnection] = []
+//    private var hasPermissionDeniedError = false
+//    
+//    func discoverBridges() -> AnyPublisher<[Bridge], Error> {
+//        print("🔍 Начинаем mDNS поиск Hue Bridge (_hue._tcp.local)...")
+//        
+//        browser.browseResultsChangedHandler = { [weak self] results, changes in
+//            print("📡 Обнаружены изменения в результатах mDNS: \(results.count) устройств")
+//            self?.handleBrowseResults(results)
+//        }
+//        
+//        browser.stateUpdateHandler = { [weak self] state in
+//            switch state {
+//            case .ready:
+//                print("✅ mDNS браузер готов к работе")
+//            case .failed(let error):
+//                print("❌ Ошибка mDNS браузера: \(error)")
+//                self?.subject.send(completion: .failure(error))
+//            case .waiting(let error):
+//                print("⏳ mDNS браузер ожидает: \(error)")
+//                // Проверяем код ошибки для определения отказа в разрешении
+//                let nsError = error as NSError
+//                if nsError.code == Int(kDNSServiceErr_PolicyDenied) {
+//                    print("🚫 Разрешение на локальную сеть отклонено пользователем")
+//                    self?.hasPermissionDeniedError = true
+//                    self?.subject.send(completion: .failure(HueAPIError.localNetworkPermissionDenied))
+//                } else {
+//                    print("⏳ Ожидание других условий: \(error.localizedDescription)")
+//                }
+//            default:
+//                break
+//            }
+//        }
+//        
+//        browser.start(queue: .main)
+//        
+//        // Останавливаем поиск через 10 секунд
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+//            print("⏰ Завершаем mDNS поиск, найдено мостов: \(self?.bridges.count ?? 0)")
+//            self?.browser.cancel()
+//            self?.closeAllConnections()
+//            self?.subject.send(self?.bridges ?? [])
+//            self?.subject.send(completion: .finished)
+//        }
+//        
+//        return subject.eraseToAnyPublisher()
+//    }
+//    
+//    private func handleBrowseResults(_ results: Set<NWBrowser.Result>) {
+//        for result in results {
+//            switch result.endpoint {
+//            case .service(name: let name, type: _, domain: _, interface: _):
+//                print("🎯 Найден mDNS сервис: \(name)")
+//                resolveServiceEndpoint(result)
+//            default:
+//                break
+//            }
+//        }
+//    }
+//    
+//    private func resolveServiceEndpoint(_ result: NWBrowser.Result) {
+//        let connection = NWConnection(to: result.endpoint, using: .tcp)
+//        connections.append(connection)
+//        
+//        connection.stateUpdateHandler = { [weak self] state in
+//            switch state {
+//            case .ready:
+//                if let endpoint = connection.currentPath?.remoteEndpoint {
+//                    self?.extractBridgeInfo(from: result, endpoint: endpoint)
+//                }
+//                connection.cancel()
+//            case .failed(let error):
+//                print("❌ Не удалось подключиться к \(result.endpoint): \(error)")
+//                connection.cancel()
+//            default:
+//                break
+//            }
+//        }
+//        
+//        connection.start(queue: .main)
+//    }
+//    
+//    private func extractBridgeInfo(from result: NWBrowser.Result, endpoint: NWEndpoint) {
+//        // Извлекаем IP адрес
+//        var ipAddress = ""
+//        switch endpoint {
+//        case .hostPort(let host, _):
+//            switch host {
+//            case .ipv4(let ipv4):
+//                ipAddress = ipv4.debugDescription
+//            case .ipv6(let ipv6):
+//                ipAddress = ipv6.debugDescription
+//            case .name(let hostname, _):
+//                ipAddress = hostname
+//            @unknown default:
+//                return
+//            }
+//        default:
+//            return
+//        }
+//        
+//        // ИСПРАВЛЕНИЕ: НЕ парсим TXT записи как JSON!
+//        // mDNS TXT записи содержат key=value пары, а НЕ JSON
+//        var bridgeId = ""
+//        
+//        // Используем имя сервиса как Bridge ID по умолчанию
+//        if case .service(let name, _, _, _) = result.endpoint {
+//            bridgeId = name
+//            print("🏷️ Используем имя сервиса как Bridge ID: \(bridgeId)")
+//        }
+//        
+//        // Пытаемся получить реальный Bridge ID через HTTP API (без аутентификации)
+//        validateAndGetBridgeInfo(ipAddress: ipAddress, fallbackId: bridgeId)
+//    }
+//    
+//    private func validateAndGetBridgeInfo(ipAddress: String, fallbackId: String) {
+//        // Получаем конфигурацию Bridge для валидации и извлечения реального ID
+//        let configURL = URL(string: "https://\(ipAddress)/api/config")!
+//        
+//        print("🔍 Проверяем Bridge по адресу: \(configURL)")
+//        
+//        var request = URLRequest(url: configURL)
+//        request.setValue("application/json", forHTTPHeaderField: "Accept")
+//        request.timeoutInterval = 5
+//        
+//        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+//            if let error = error {
+//                print("❌ Ошибка подключения к Bridge \(ipAddress): \(error)")
+//                // Все равно добавляем Bridge с fallback ID
+//                self?.addBridge(id: fallbackId, ip: ipAddress)
+//                return
+//            }
+//            
+//            guard let data = data else {
+//                print("❌ Нет данных от Bridge \(ipAddress)")
+//                self?.addBridge(id: fallbackId, ip: ipAddress)
+//                return
+//            }
+//            
+//            // Пытаемся парсить JSON конфигурацию
+//            do {
+//                if let config = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+//                    let realBridgeId = config["bridgeid"] as? String ?? fallbackId
+//                    let name = config["name"] as? String ?? "Philips Hue Bridge"
+//                    
+//                    print("✅ Найден настоящий Hue Bridge: ID=\(realBridgeId), IP=\(ipAddress)")
+//                    self?.addBridge(id: realBridgeId, ip: ipAddress, name: name)
+//                } else {
+//                    print("⚠️ Неожиданный формат ответа от \(ipAddress)")
+//                    self?.addBridge(id: fallbackId, ip: ipAddress)
+//                }
+//            } catch {
+//                print("❌ Ошибка парсинга JSON от \(ipAddress): \(error)")
+//                // Это НЕ критическая ошибка - добавляем Bridge с fallback ID
+//                self?.addBridge(id: fallbackId, ip: ipAddress)
+//            }
+//        }.resume()
+//    }
+//    
+//    private func addBridge(id: String, ip: String, name: String = "Philips Hue Bridge") {
+//        let bridge = Bridge(
+//            id: id,
+//            internalipaddress: ip,
+//            port: 443,
+//            name: name
+//        )
+//        
+//        DispatchQueue.main.async { [weak self] in
+//            // Проверяем, что мост еще не добавлен
+//            if let bridges = self?.bridges,
+//               !bridges.contains(where: { $0.id == bridge.id || $0.internalipaddress == bridge.internalipaddress }) {
+//                self?.bridges.append(bridge)
+//                print("🎉 Добавлен Bridge: \(bridge)")
+//            }
+//        }
+//    }
+//    
+//    private func closeAllConnections() {
+//        connections.forEach { $0.cancel() }
+//        connections.removeAll()
+//    }
+//}
 
 // MARK: - Safe Array Extension
 

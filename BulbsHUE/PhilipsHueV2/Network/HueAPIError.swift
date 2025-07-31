@@ -21,6 +21,7 @@ enum HueAPIError: LocalizedError {
     case conflictingRules
     case loopDetected
     case outdatedBridge
+    case localNetworkPermissionDenied
     
     var errorDescription: String? {
         switch self {
@@ -46,6 +47,8 @@ enum HueAPIError: LocalizedError {
             return "Обнаружен цикл в правилах. Правило не может изменять тот же сенсор, который его запускает."
         case .outdatedBridge:
             return "Мост требует обновления прошивки для поддержки API v2"
+        case .localNetworkPermissionDenied:
+            return "Разрешение на доступ к локальной сети отклонено. Перейдите в Настройки > Конфиденциальность и безопасность > Локальная сеть и включите разрешение для этого приложения."
         }
     }
 }
