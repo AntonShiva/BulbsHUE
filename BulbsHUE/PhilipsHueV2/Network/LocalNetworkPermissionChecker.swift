@@ -16,14 +16,25 @@ class LocalNetworkPermissionChecker {
     private var connection: NWConnection?
     
     /// Проверяет доступ к локальной сети
+    /// ИСПРАВЛЕНИЕ: Улучшенная проверка для iOS 17+ совместимости
     func checkLocalNetworkPermission(completion: @escaping (Bool) -> Void) {
         self.completion = completion
         
-        // Создаем тестовое подключение к локальному адресу
+        // Создаем тестовое подключение к локальному адресу (роутер)
         let host = NWEndpoint.Host("192.168.1.1")
         let port = NWEndpoint.Port(80)
         
-        connection = NWConnection(host: host, port: port, using: .udp)
+        // ИСПРАВЛЕНИЕ: Используем улучшенные параметры для iOS 17+
+        let parameters = NWParameters.udp
+        if #available(iOS 16.0, *) {
+            parameters.allowLocalEndpointReuse = true
+            parameters.acceptLocalOnly = true
+            // Отключаем multipath для предотвращения ошибок сокета
+            parameters.multipathServiceType = .disabled
+        }
+        parameters.requiredInterfaceType = .wifi
+        
+        connection = NWConnection(host: host, port: port, using: parameters)
         
         connection?.stateUpdateHandler = { [weak self] state in
             switch state {

@@ -8,6 +8,7 @@ import UIKit
 import AppKit
 #endif
 
+
 /// Главный ViewModel приложения
 /// Управляет состоянием подключения и координирует другие ViewModels
 class AppViewModel: ObservableObject {
@@ -105,6 +106,28 @@ class AppViewModel: ObservableObject {
         discoveredBridges.removeAll() // Очищаем предыдущие результаты
         error = nil // Сбрасываем предыдущие ошибки
         
+        // ИСПРАВЛЕНИЕ: Добавляем проверку разрешений локальной сети для iOS 14+
+        if #available(iOS 14.0, *) {
+            let permissionChecker = LocalNetworkPermissionChecker()
+            permissionChecker.checkLocalNetworkPermission { [weak self] hasPermission in
+                if hasPermission {
+                    self?.startDiscoveryProcess()
+                } else {
+                    print("❌ Отсутствует разрешение локальной сети")
+                    DispatchQueue.main.async {
+                        self?.connectionStatus = .disconnected
+                        self?.error = HueAPIError.localNetworkPermissionDenied
+                    }
+                }
+            }
+        } else {
+            // Для iOS < 14 запускаем напрямую
+            startDiscoveryProcess()
+        }
+    }
+    
+    /// Внутренний метод для запуска поиска после проверки разрешений
+    private func startDiscoveryProcess() {
         // Создаем улучшенный discovery класс с проверкой совместимости
         if #available(iOS 12.0, *) {
             let discovery = HueBridgeDiscovery()
@@ -338,20 +361,31 @@ class AppViewModel: ObservableObject {
     }
     
     /// Пересоздает API клиент с новым IP
+    /// ИСПРАВЛЕНИЕ: Добавлено логирование и правильное обновление ViewModels
     private func recreateAPIClient(with ip: String) {
+        print("🔄 Пересоздаем API клиент с IP: \(ip)")
+        
         // Создаем новый клиент
         apiClient = HueAPIClient(bridgeIP: ip)
         
-        // Обновляем ссылки в дочерних ViewModels
-        lightsViewModel = LightsViewModel(apiClient: apiClient)
-        scenesViewModel = ScenesViewModel(apiClient: apiClient)
-        groupsViewModel = GroupsViewModel(apiClient: apiClient)
-        sensorsViewModel = SensorsViewModel(apiClient: apiClient)
-        rulesViewModel = RulesViewModel(apiClient: apiClient)
-        
-        // Устанавливаем application key если есть
-        if let key = applicationKey {
-            apiClient.setApplicationKey(key)
+        // ИСПРАВЛЕНИЕ: Обновляем ссылки в дочерних ViewModels и принудительно обновляем UI
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            print("🔄 Обновляем дочерние ViewModels...")
+            self.lightsViewModel = LightsViewModel(apiClient: self.apiClient)
+            self.scenesViewModel = ScenesViewModel(apiClient: self.apiClient)
+            self.groupsViewModel = GroupsViewModel(apiClient: self.apiClient)
+            self.sensorsViewModel = SensorsViewModel(apiClient: self.apiClient)
+            self.rulesViewModel = RulesViewModel(apiClient: self.apiClient)
+            
+            print("✅ ViewModels обновлены с новым API клиентом")
+            
+            // Устанавливаем application key если есть
+            if let key = self.applicationKey {
+                print("🔑 Устанавливаем application key в новый клиент")
+                self.apiClient.setApplicationKey(key)
+            }
         }
     }
     
@@ -747,6 +781,7 @@ extension AppViewModel {
             .store(in: &cancellables)
     }
 }
+
 extension AppViewModel {
     
     /// Создает пользователя с обработкой локальной сети
