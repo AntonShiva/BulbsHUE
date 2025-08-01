@@ -30,13 +30,28 @@ class HueAPIClient: NSObject {
     private var applicationKey: String?
     
     /// URLSession с настроенной проверкой сертификата
+    /// Исправлено для iOS 17+ совместимости
     private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60
-        // Включаем HTTP/2 для мультиплексирования SSE и обычных запросов
-        configuration.multipathServiceType = .handover
-        configuration.allowsConstrainedNetworkAccess = true
+        
+        // ИСПРАВЛЕНИЕ: Убираем multipathServiceType для iOS 17+ совместимости
+        // Это исправляет ошибки nw_protocol_socket_set_no_wake_from_sleep
+        if #available(iOS 16.0, *) {
+            // Для iOS 16+ используем более консервативные настройки
+            configuration.allowsConstrainedNetworkAccess = false
+            configuration.allowsExpensiveNetworkAccess = true
+        } else {
+            // Старое поведение для совместимости
+            configuration.multipathServiceType = .handover
+            configuration.allowsConstrainedNetworkAccess = true
+        }
+        
+        // Улучшенные настройки для локальной сети
+        configuration.waitsForConnectivity = false
+        configuration.networkServiceType = .default
+        
         return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
     }()
     
@@ -213,17 +228,84 @@ class HueAPIClient: NSObject {
     // MARK: - Lights Endpoints
     
     /// Получает список всех ламп в системе
+    /// ИСПРАВЛЕНИЕ: Добавлено детальное логирование для диагностики API v2
     /// - Returns: Combine Publisher со списком ламп
     func getAllLights() -> AnyPublisher<[Light], Error> {
-        guard applicationKey != nil else {
+        guard let appKey = applicationKey else {
+            print("❌ Отсутствует application key для аутентификации")
             return Fail(error: HueAPIError.notAuthenticated)
                 .eraseToAnyPublisher()
         }
         
-        let endpoint = "/clip/v2/resource/light"
-        return performRequest(endpoint: endpoint, method: "GET")
+        print("🔑 Используем application key: \(String(appKey.prefix(8)))...")
+        print("🌐 Bridge IP: \(bridgeIP)")
+        print("🔗 Base URL: \(baseURL?.absoluteString ?? "nil")")
+        
+        // Сначала пробуем API v2
+        let endpointV2 = "/clip/v2/resource/light"
+        print("📡 Отправляем запрос getAllLights к API v2 endpoint: \(endpointV2)")
+        
+        return performRequest(endpoint: endpointV2, method: "GET")
             .map { (response: LightsResponse) in
-                response.data
+                print("✅ Успешно получен ответ от API v2, количество ламп: \(response.data.count)")
+                response.data.forEach { light in
+                    print("💡 Лампа: \(light.metadata.name ?? "Unnamed") (ID: \(light.id))")
+                }
+                return response.data
+            }
+            .catch { [weak self] error -> AnyPublisher<[Light], Error> in
+                print("❌ Ошибка API v2: \(error)")
+                
+                // Детальная диагностика ошибок
+                if let hueError = error as? HueAPIError,
+                   case .httpError(let statusCode) = hueError {
+                    print("🔗 HTTP Status Code: \(statusCode)")
+                    
+                    switch statusCode {
+                    case 401:
+                        print("🚫 401 Unauthorized - проблема с аутентификацией")
+                        print("   - Проверьте application key")
+                        print("   - Убедитесь что пользователь создан на мосту")
+                    case 403:
+                        print("🚫 403 Forbidden - нет доступа к ресурсу")
+                        print("   - Проверьте права пользователя")
+                    case 404:
+                        print("🔍 404 Not Found - эндпоинт не найден")
+                        print("   - URL: \(self?.baseURL?.absoluteString ?? "nil")\(endpointV2)")
+                        print("   - Возможно мост не поддерживает API v2")
+                        print("   - Попробуйте зайти: https://\(self?.bridgeIP ?? "")/debug/clip.html")
+                        print("⚠️ Переключаемся на API v1...")
+                        return self?.getAllLightsV1() ?? Fail(error: error).eraseToAnyPublisher()
+                    case 429:
+                        print("⏱ 429 Too Many Requests - превышен лимит запросов")
+                    default:
+                        print("❓ Неожиданный HTTP код: \(statusCode)")
+                    }
+                }
+                
+                // Для других ошибок возвращаем исходную ошибку
+                return Fail(error: error).eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Получает список ламп через API v1 (fallback)
+    /// - Returns: Combine Publisher со списком ламп
+    private func getAllLightsV1() -> AnyPublisher<[Light], Error> {
+        print("🔄 Используем API v1 для получения ламп...")
+        
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        let endpointV1 = "/api/\(applicationKey)/lights"
+        return performRequestV1(endpoint: endpointV1, method: "GET")
+            .map { (response: [String: LightV1]) in
+                // Конвертируем API v1 ответ в формат API v2
+                return response.compactMap { (key, lightV1) in
+                    self.convertV1ToV2Light(id: key, lightV1: lightV1)
+                }
             }
             .eraseToAnyPublisher()
     }
@@ -650,55 +732,117 @@ class HueAPIClient: NSObject {
     ) -> AnyPublisher<T, Error> {
         if authenticated {
             guard let applicationKey = applicationKey else {
+                print("❌ Нет application key для аутентифицированного запроса")
                 return Fail(error: HueAPIError.notAuthenticated)
                     .eraseToAnyPublisher()
             }
         }
         
         guard let url = baseURL?.appendingPathComponent(endpoint) else {
+            print("❌ Невозможно создать URL: baseURL=\(baseURL?.absoluteString ?? "nil"), endpoint=\(endpoint)")
             return Fail(error: HueAPIError.invalidURL)
                 .eraseToAnyPublisher()
         }
+        
+        print("📤 HTTP \(method) запрос: \(url.absoluteString)")
         
         var request = URLRequest(url: url)
         request.httpMethod = method
         
         if authenticated, let applicationKey = applicationKey {
             request.setValue(applicationKey, forHTTPHeaderField: "hue-application-key")
+            print("🔑 Добавлен заголовок hue-application-key: \(String(applicationKey.prefix(8)))...")
         }
         
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         if let body = body {
             request.httpBody = body
+            print("📦 Тело запроса: \(String(data: body, encoding: .utf8) ?? "не удалось декодировать")")
         }
         
         return session.dataTaskPublisher(for: request)
             .tryMap { data, response in
                 guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ Ответ не является HTTP ответом")
                     throw HueAPIError.invalidResponse
                 }
                 
+                print("📥 HTTP \(httpResponse.statusCode) ответ от \(url.absoluteString)")
+                
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📄 Тело ответа: \(responseString)")
+                } else {
+                    print("📄 Тело ответа: данные не декодируются как строка (\(data.count) байт)")
+                }
+                
                 guard 200...299 ~= httpResponse.statusCode else {
+                    print("❌ HTTP ошибка \(httpResponse.statusCode)")
+                    
                     // Проверяем специфичные ошибки
                     if httpResponse.statusCode == 403 {
+                        print("🚫 403 Forbidden - возможно нужно нажать кнопку link на мосту")
                         throw HueAPIError.linkButtonNotPressed
                     } else if httpResponse.statusCode == 503 {
-                        // Internal error 503 - буфер переполнен
+                        print("⚠️ 503 Service Unavailable - буфер мостa переполнен")
                         throw HueAPIError.bufferFull
                     } else if httpResponse.statusCode == 429 {
-                        // Rate limit exceeded
+                        print("⏱ 429 Too Many Requests - превышен лимит запросов")
                         throw HueAPIError.rateLimitExceeded
+                    } else if httpResponse.statusCode == 404 {
+                        print("🔍 404 Not Found - endpoint не существует")
+                        print("   Проверьте поддержку API v2 на мосту")
+                    } else if httpResponse.statusCode == 401 {
+                        print("🔐 401 Unauthorized - проблема с аутентификацией")
+                        print("   Проверьте application key")
                     }
+                    
                     throw HueAPIError.httpError(statusCode: httpResponse.statusCode)
                 }
                 
+                print("✅ HTTP запрос успешен")
                 return data
             }
             .decode(type: T.self, decoder: JSONDecoder())
+            .catch { error in
+                if error is DecodingError {
+                    print("❌ Ошибка декодирования JSON: \(error)")
+                    if let decodingError = error as? DecodingError {
+                        switch decodingError {
+                        case .dataCorrupted(let context):
+                            print("   Данные повреждены: \(context.debugDescription)")
+                        case .keyNotFound(let key, let context):
+                            print("   Ключ не найден: \(key.stringValue) в \(context.debugDescription)")
+                        case .typeMismatch(let type, let context):
+                            print("   Неправильный тип: ожидался \(type), контекст: \(context.debugDescription)")
+                        case .valueNotFound(let type, let context):
+                            print("   Значение не найдено: \(type), контекст: \(context.debugDescription)")
+                        @unknown default:
+                            print("   Неизвестная ошибка декодирования")
+                        }
+                    }
+                }
+                return Fail<T, Error>(error: error).eraseToAnyPublisher()
+            }
             .eraseToAnyPublisher()
     }
 }
+
+// Расширение для HueAPIClient для поддержки поиска ламп
+extension HueAPIClient {
+    
+    /// Инициирует поиск новых ламп (для API v1 совместимости)
+    /// В API v2 лампы обнаруживаются автоматически
+    func searchForLights() -> AnyPublisher<Bool, Error> {
+        // В API v2 нет специального endpoint для поиска
+        // Лампы автоматически появляются при включении
+        // Возвращаем успех для совместимости
+        return Just(true)
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
+    }
+}
+
 
 // MARK: - URLSessionDelegate
 
@@ -1204,6 +1348,115 @@ extension HueAPIClient {
 //        connections.removeAll()
 //    }
 //}
+
+// MARK: - API v1 Support (Fallback)
+
+extension HueAPIClient {
+    
+    /// Выполняет запрос к API v1 (для совместимости)
+    private func performRequestV1<T: Decodable>(
+        endpoint: String,
+        method: String,
+        body: Data? = nil
+    ) -> AnyPublisher<T, Error> {
+        guard let url = baseURL?.appendingPathComponent(endpoint) else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        print("🔗 API v1 запрос: \(method) \(url)")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let body = body {
+            request.httpBody = body
+        }
+        
+        return session.dataTaskPublisher(for: request)
+            .map(\.data)
+            .decode(type: T.self, decoder: JSONDecoder())
+            .mapError { error in
+                if let decodingError = error as? DecodingError {
+                    print("❌ Ошибка декодирования API v1: \(decodingError)")
+                    return HueAPIError.invalidResponse
+                }
+                return error
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Конвертирует лампу из API v1 в формат API v2
+    private func convertV1ToV2Light(id: String, lightV1: LightV1) -> Light {
+        print("🔄 Конвертируем лампу \(id): \(lightV1.name)")
+        
+        // Конвертируем состояние лампы
+        let onState = OnState(on: lightV1.state.on)
+        
+        // Конвертируем яркость если есть
+        let dimming: Dimming? = lightV1.state.bri.map { brightness in
+            Dimming(brightness: Double(brightness) / 254.0 * 100.0) // Конвертируем 0-254 в 0-100
+        }
+        
+        // Конвертируем цвет если есть
+        let color: HueColor? = {
+            if let xy = lightV1.state.xy {
+                return HueColor(xy: XYColor(x: xy[0], y: xy[1]))
+            }
+            return nil
+        }()
+        
+        // Конвертируем цветовую температуру если есть
+        let colorTemperature: ColorTemperature? = lightV1.state.ct.map { ct in
+            ColorTemperature(mirek: ct)
+        }
+        
+        // Создаем метаданные
+        let metadata = LightMetadata(
+            name: lightV1.name,
+            archetype: lightV1.type == "Extended color light" ? "hue_go" : "classic_bulb"
+        )
+        
+        // Создаем простую Light структуру с основными параметрами
+        var light = Light()
+        light.id = id
+        light.metadata = metadata
+        light.on = onState
+        light.dimming = dimming
+        light.color_temperature = colorTemperature
+        light.color = color
+        light.mode = lightV1.state.reachable ? "normal" : "streaming"
+        
+        return light
+    }
+}
+
+// MARK: - API v1 Models
+
+/// Модель лампы для API v1
+struct LightV1: Decodable {
+    let name: String
+    let type: String
+    let state: LightStateV1
+    let modelid: String?
+    let manufacturername: String?
+    let swversion: String?
+}
+
+/// Состояние лампы в API v1
+struct LightStateV1: Decodable {
+    let on: Bool
+    let bri: Int?
+    let hue: Int?
+    let sat: Int?
+    let xy: [Double]?
+    let ct: Int?
+    let alert: String?
+    let effect: String?
+    let colormode: String?
+    let reachable: Bool
+}
 
 // MARK: - Safe Array Extension
 

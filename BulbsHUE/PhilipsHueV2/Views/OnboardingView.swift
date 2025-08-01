@@ -538,20 +538,6 @@ struct OnboardingView: View {
 
 // MARK: - Button Styles
 
-/// Стиль основной кнопки (синяя)
-struct PrimaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(Color.blue)
-            .cornerRadius(25)
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
 
 /// Стиль вторичной кнопки (прозрачная с обводкой)
 struct SecondaryButtonStyle: ButtonStyle {

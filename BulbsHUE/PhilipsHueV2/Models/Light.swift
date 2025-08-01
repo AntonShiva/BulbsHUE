@@ -66,7 +66,16 @@ extension Light {
     }
 }
 
-
+// Также добавьте поддержку идентификации новых ламп
+extension Light {
+    /// Проверяет, является ли лампа новой (не настроенной)
+    var isNewLight: Bool {
+        // Новые лампы обычно имеют стандартное имя типа "Hue light 1"
+        return metadata.name.hasPrefix("Hue light") ||
+               metadata.name.hasPrefix("Hue color lamp") ||
+               metadata.name.hasPrefix("Hue white lamp")
+    }
+}
 /// Состояние лампы для обновления
 struct LightState: Codable {
     /// Включение/выключение
@@ -261,3 +270,4 @@ struct OnState: Codable {
     /// Флаг включения
     var on: Bool = false
 }
+

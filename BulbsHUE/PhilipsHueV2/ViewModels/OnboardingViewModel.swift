@@ -272,23 +272,33 @@ class OnboardingViewModel: ObservableObject {
             
             appViewModel.searchForBridges()
             
-            // Таймаут поиска
+            // Таймаут поиска - исправлено для предотвращения сброса после успешного подключения
             DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
-                self?.isSearchingBridges = false
+                guard let self = self else { return }
                 
-                // Проверяем результаты
-                if let error = self?.appViewModel.error as? HueAPIError,
+                // ИСПРАВЛЕНИЕ: Проверяем не подключились ли мы уже к мосту
+                // Если мост уже подключен, не сбрасываем состояние
+                if self.appViewModel.connectionStatus == .connected ||
+                   self.appViewModel.connectionStatus == .needsAuthentication {
+                    print("✅ Мост уже найден и подключен, пропускаем таймаут")
+                    return
+                }
+                
+                self.isSearchingBridges = false
+                
+                // Проверяем результаты только если мост еще не подключен
+                if let error = self.appViewModel.error as? HueAPIError,
                    case .localNetworkPermissionDenied = error {
                     print("🚫 Отказано в разрешении локальной сети")
-                    self?.showLocalNetworkAlert = true
-                } else if self?.discoveredBridges.isEmpty ?? true {
+                    self.showLocalNetworkAlert = true
+                } else if self.discoveredBridges.isEmpty {
                     print("❌ Поиск завершен: мосты не найдены в локальной сети")
                     print("💡 Проверьте:")
                     print("   1. Мост подключен к той же Wi-Fi сети")
                     print("   2. Мост включен и работает")
                     print("   3. Разрешения локальной сети в настройках iOS")
                 } else {
-                    print("✅ Поиск завершен: найдено мостов: \(self?.discoveredBridges.count ?? 0)")
+                    print("✅ Поиск завершен: найдено мостов: \(self.discoveredBridges.count)")
                     // Остаемся на экране поиска, но показываем кнопку "Далее" вместо "Поиск"
                     // Переход к bridgeFound будет только по нажатию кнопки
                 }

@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct EnvironmentView: View {
-    @State var selectedSetting: Bool = false
-    @State var breageStatus: Bool = false
+    @State var addButton: Bool = false
+   
    @EnvironmentObject var viewModel: AppViewModel
     var body: some View {
         ZStack {
@@ -17,11 +17,12 @@ struct EnvironmentView: View {
             
             Header(title: "ENVIRONMENT") {
                             // Левая кнопка - ваше меню
-                         MenuButton { selectedSetting.toggle()}
-                        } rightView: {
-                            // Правая кнопка - плюс
-                            AddHeaderButton{ breageStatus.toggle()}
-                        }
+                         MenuButton { }
+            } rightView: {
+                // Правая кнопка - плюс
+                AddHeaderButton{
+                }
+            }
                         .adaptiveOffset(y: -330)
             
             SelectorTabEnviromentView()
@@ -36,21 +37,21 @@ struct EnvironmentView: View {
               .textCase(.uppercase)
             
             AddButton(text: "add bulb", width: 427, height: 295) {
-                
+                addButton.toggle()
             }
             .adaptiveOffset(y: 195)
         }
-        .sheet(isPresented: $selectedSetting) {
-            OnboardingView(appViewModel: viewModel)
+        .sheet(isPresented: $addButton) {
+           
+            LightsListView()
         }
-        .sheet(isPresented: $breageStatus) {
-            BridgeStatusView(viewModel: viewModel)
-        }
+       
     }
 }
 #Preview {
     MasterView()
         .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=64-207&t=hGUwQNy3BUo6l6lB-4")!)
         .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }

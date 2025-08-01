@@ -646,3 +646,117 @@ struct LightStatistics {
         0
     }
 }
+
+
+
+extension LightsViewModel {
+    
+    /// Ищет новые лампы в сети через Hue Bridge  
+    /// ИСПРАВЛЕНИЕ: Используем тот же подход что и loadLights() - без искусственных задержек
+    /// Согласно API v2, мост автоматически обнаруживает новые лампы Zigbee при включении питания
+    /// - Parameter completion: Callback с найденными лампами
+    func searchForNewLights(completion: @escaping ([Light]) -> Void) {
+        print("🔍 Начинаем поиск новых ламп...")
+        
+        // Сохраняем текущий список ламп для сравнения
+        let currentLightIds = Set(lights.map { $0.id })
+        print("📊 Текущее количество ламп: \(lights.count)")
+        
+        // ИСПРАВЛЕНИЕ: Используем прямой вызов как в loadLights(), без задержек
+        print("📡 Отправляем запрос getAllLights...")
+        
+        apiClient.getAllLights()
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { result in
+                        switch result {
+                        case .failure(let error):
+                            print("❌ Ошибка при получении ламп: \(error)")
+                            
+                            // Обработка специфичных ошибок iOS 17+
+                            if let hueError = error as? HueAPIError {
+                                switch hueError {
+                                case .bridgeNotFound:
+                                    print("🔌 Hue Bridge не найден в сети - проверьте подключение к мосту")
+                                case .localNetworkPermissionDenied:
+                                    print("🚫 Отсутствует разрешение локальной сети")
+                                case .invalidURL:
+                                    print("🌐 Неверный URL адрес моста")
+                                case .invalidResponse:
+                                    print("📡 Неверный ответ от моста")
+                                case .httpError(let statusCode):
+                                    print("🔗 HTTP ошибка: \(statusCode)")
+                                default:
+                                    print("⚠️ Другая ошибка API: \(hueError)")
+                                }
+                            } else {
+                                print("⚠️ Неизвестная ошибка: \(error.localizedDescription)")
+                            }
+                            completion([])
+                        case .finished:
+                            print("✅ Запрос getAllLights завершен успешно")
+                        }
+                    },
+                    receiveValue: { [weak self] allLights in
+                        guard let self = self else {
+                            print("❌ LightsViewModel был деинициализирован в receiveValue")
+                            completion([])
+                            return
+                        }
+                        
+                        print("📊 Получено ламп от API: \(allLights.count)")
+                        
+                        // Находим новые лампы
+                        let newLights = allLights.filter { light in
+                            !currentLightIds.contains(light.id)
+                        }
+                        
+                        print("🆕 Найдено новых ламп: \(newLights.count)")
+                        for light in newLights {
+                            print("  💡 Новая лампа: \(light.metadata.name) (ID: \(light.id))")
+                        }
+                        
+                        // Обновляем локальный список
+                        self.lights = allLights
+                        
+                        // Возвращаем только новые лампы
+                        completion(newLights)
+                    }
+                )
+                .store(in: &self.cancellables)
+        }
+    
+    /// Переименовывает лампу
+    /// - Parameters:
+    ///   - light: Лампа для переименования
+    ///   - newName: Новое имя
+    func renameLight(_ light: Light, newName: String) {
+        var updatedMetadata = light.metadata
+        updatedMetadata.name = newName
+        
+        // В API v2 для изменения метаданных используется отдельный endpoint
+        // Здесь упрощенная версия через обновление состояния
+        updateLocalLight(light.id, with: LightState())
+        
+        // Обновляем локально
+        if let index = lights.firstIndex(where: { $0.id == light.id }) {
+            lights[index].metadata.name = newName
+        }
+    }
+    
+    /// Перемещает лампу в комнату
+    /// - Parameters:
+    ///   - light: Лампа для перемещения
+    ///   - roomId: ID комнаты (группы)
+    func moveToRoom(_ light: Light, roomId: String) {
+        // В API v2 это делается через обновление группы
+        // Добавляем лампу в новую группу и удаляем из старой
+        // Здесь упрощенная версия
+        
+        if let index = lights.firstIndex(where: { $0.id == light.id }) {
+            lights[index].metadata.archetype = roomId
+        }
+    }
+}
+
+

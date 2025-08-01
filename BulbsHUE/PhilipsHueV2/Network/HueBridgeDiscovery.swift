@@ -132,13 +132,30 @@ class HueBridgeDiscovery {
         }
         
         // Создаем UDP соединение для multicast
+        // ИСПРАВЛЕНИЕ: Используем улучшенную конфигурацию для iOS 17+
         let host = NWEndpoint.Host("239.255.255.250")
         let port = NWEndpoint.Port(1900)
+        
+        // Создаем параметры UDP с правильными настройками для iOS 17+
+        let parameters = NWParameters.udp
+        
+        // Исправляем настройки для предотвращения ошибок SO_NOWAKEFROMSLEEP
+        if #available(iOS 16.0, *) {
+            parameters.allowLocalEndpointReuse = true
+            parameters.acceptLocalOnly = true
+            // Отключаем multipath для предотвращения ошибок сокета
+            parameters.multipathServiceType = .disabled
+        }
+        
+        // Настраиваем интерфейс только для Wi-Fi
+        parameters.requiredInterfaceType = .wifi
+        // Примечание: prohibitExpensiveInterfaceType не существует в NWParameters
+        // Вместо этого используем requiredInterfaceType = .wifi для ограничения
         
         udpConnection = NWConnection(
             host: host,
             port: port,
-            using: .udp
+            using: parameters
         )
         
         // SSDP M-SEARCH запрос для поиска UPnP устройств
