@@ -72,16 +72,20 @@ class LightsViewModel: ObservableObject {
         isLoading = true
         error = nil
         
+        print("🚀 Загружаем лампы через API v2 HTTPS...")
+        
         apiClient.getAllLights()
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
                     if case .failure(let error) = completion {
+                        print("❌ Ошибка загрузки ламп: \(error)")
                         self?.error = error
                     }
                 },
                 receiveValue: { [weak self] lights in
+                    print("✅ Загружено \(lights.count) ламп")
                     self?.lights = lights
                 }
             )
@@ -275,16 +279,15 @@ class LightsViewModel: ObservableObject {
     ///   - state: Новое состояние
     ///   - currentLight: Текущее состояние лампы для оптимизации
     private func updateLight(_ lightId: String, state: LightState, currentLight: Light? = nil) {
-        // Проверяем лимит активных запросов
         guard activeRequests < maxActiveRequests else {
-            print("Предупреждение: Слишком много активных запросов. Подождите.")
+            print("⚠️ Слишком много активных запросов. Подождите.")
             return
         }
         
         activeRequests += 1
-        
-        // Оптимизируем состояние перед отправкой
         let optimizedState = state.optimizedState(currentLight: currentLight)
+        
+        print("🚀 Обновляем лампу \(lightId) через API v2 HTTPS...")
         
         apiClient.updateLight(id: lightId, state: optimizedState)
             .receive(on: DispatchQueue.main)
@@ -294,13 +297,16 @@ class LightsViewModel: ObservableObject {
                     
                     if case .failure(let error) = completion {
                         self?.error = error
+                        print("❌ Не удалось обновить лампу \(lightId): \(error)")
                         
-                        // Обработка специфичных ошибок производительности
+                        // Обработка специфичных ошибок
                         switch error {
                         case HueAPIError.rateLimitExceeded:
-                            print("Ошибка: Превышен лимит запросов. Снизьте частоту обновлений.")
+                            print("⚠️ Превышен лимит запросов")
                         case HueAPIError.bufferFull:
-                            print("Ошибка: Буфер моста переполнен. Подождите перед отправкой новых команд.")
+                            print("⚠️ Буфер моста переполнен")
+                        case HueAPIError.notAuthenticated:
+                            print("🔐 Проблема с авторизацией")
                         default:
                             break
                         }
@@ -308,8 +314,10 @@ class LightsViewModel: ObservableObject {
                 },
                 receiveValue: { [weak self] success in
                     if success {
-                        // Обновляем локальное состояние
+                        print("✅ Лампа \(lightId) успешно обновлена")
                         self?.updateLocalLight(lightId, with: optimizedState)
+                    } else {
+                        print("❌ Не удалось обновить лампу \(lightId)")
                     }
                 }
             )

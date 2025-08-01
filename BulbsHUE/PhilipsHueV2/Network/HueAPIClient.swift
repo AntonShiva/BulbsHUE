@@ -98,6 +98,25 @@ class HueAPIClient: NSObject {
     /// Набор подписок
     private var cancellables = Set<AnyCancellable>()
     
+    /// Специальная HTTPS сессия с правильной проверкой сертификата Hue Bridge
+    private lazy var sessionHTTPS: URLSession = {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 60
+        
+        // Оптимизации для iOS 16+
+        if #available(iOS 16.0, *) {
+            configuration.allowsConstrainedNetworkAccess = false
+            configuration.allowsExpensiveNetworkAccess = true
+            configuration.multipathServiceType = .handover // Правильное значение
+        }
+        
+        configuration.waitsForConnectivity = false
+        configuration.networkServiceType = .default
+        
+        return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+    }()
+    
     // MARK: - Initialization
     
     /// Инициализирует клиент с IP адресом моста
@@ -228,152 +247,37 @@ class HueAPIClient: NSObject {
     // MARK: - Lights Endpoints
     
     /// Получает список всех ламп в системе
-    /// ИСПРАВЛЕНИЕ: Добавлено детальное логирование для диагностики API v2
+    /// ИСПРАВЛЕННЫЙ getAllLights - использует только API v2 через HTTPS
     /// - Returns: Combine Publisher со списком ламп
     func getAllLights() -> AnyPublisher<[Light], Error> {
-        guard let appKey = applicationKey else {
-            print("❌ Отсутствует application key для аутентификации")
-            return Fail(error: HueAPIError.notAuthenticated)
-                .eraseToAnyPublisher()
-        }
-        
-        print("🔑 Используем application key: \(String(appKey.prefix(8)))...")
-        print("🌐 Bridge IP: \(bridgeIP)")
-        print("🔗 Base URL: \(baseURL?.absoluteString ?? "nil")")
-        
-        // Сначала пробуем API v2
-        let endpointV2 = "/clip/v2/resource/light"
-        print("📡 Отправляем запрос getAllLights к API v2 endpoint: \(endpointV2)")
-        
-        return performRequest(endpoint: endpointV2, method: "GET")
-            .map { (response: LightsResponse) in
-                print("✅ Успешно получен ответ от API v2, количество ламп: \(response.data.count)")
-                response.data.forEach { light in
-                    print("💡 Лампа: \(light.metadata.name ?? "Unnamed") (ID: \(light.id))")
-                }
-                return response.data
-            }
-            .catch { [weak self] error -> AnyPublisher<[Light], Error> in
-                print("❌ Ошибка API v2: \(error)")
-                
-                // Детальная диагностика ошибок
-                if let hueError = error as? HueAPIError,
-                   case .httpError(let statusCode) = hueError {
-                    print("🔗 HTTP Status Code: \(statusCode)")
-                    
-                    switch statusCode {
-                    case 401:
-                        print("🚫 401 Unauthorized - проблема с аутентификацией")
-                        print("   - Проверьте application key")
-                        print("   - Убедитесь что пользователь создан на мосту")
-                    case 403:
-                        print("🚫 403 Forbidden - нет доступа к ресурсу")
-                        print("   - Проверьте права пользователя")
-                    case 404:
-                        print("🔍 404 Not Found - эндпоинт не найден")
-                        print("   - URL: \(self?.baseURL?.absoluteString ?? "nil")\(endpointV2)")
-                        print("   - Возможно мост не поддерживает API v2")
-                        print("   - Попробуйте зайти: https://\(self?.bridgeIP ?? "")/debug/clip.html")
-                        print("⚠️ Переключаемся на API v1...")
-                        return self?.getAllLightsV1() ?? Fail(error: error).eraseToAnyPublisher()
-                    case 429:
-                        print("⏱ 429 Too Many Requests - превышен лимит запросов")
-                    default:
-                        print("❓ Неожиданный HTTP код: \(statusCode)")
-                    }
-                }
-                
-                // Для других ошибок возвращаем исходную ошибку
-                return Fail(error: error).eraseToAnyPublisher()
-            }
-            .eraseToAnyPublisher()
+        print("🚀 Используем API v2 через HTTPS...")
+        return getAllLightsV2HTTPS()
     }
     
-    /// Получает список ламп через API v1 (fallback)
-    /// - Returns: Combine Publisher со списком ламп
-    private func getAllLightsV1() -> AnyPublisher<[Light], Error> {
-        print("🔄 Используем API v1 для получения ламп...")
-        
-        guard let applicationKey = applicationKey else {
-            return Fail(error: HueAPIError.notAuthenticated)
-                .eraseToAnyPublisher()
-        }
-        
-        let endpointV1 = "/api/\(applicationKey)/lights"
-        return performRequestV1(endpoint: endpointV1, method: "GET")
-            .map { (response: [String: LightV1]) in
-                // Конвертируем API v1 ответ в формат API v2
-                return response.compactMap { (key, lightV1) in
-                    self.convertV1ToV2Light(id: key, lightV1: lightV1)
-                }
-            }
-            .eraseToAnyPublisher()
-    }
+
+    
+
     
     /// Получает информацию о конкретной лампе
     /// - Parameter id: Уникальный идентификатор лампы
     /// - Returns: Combine Publisher с информацией о лампе
     func getLight(id: String) -> AnyPublisher<Light, Error> {
         let endpoint = "/clip/v2/resource/light/\(id)"
-        return performRequest(endpoint: endpoint, method: "GET")
+        return performRequestHTTPS<LightResponse>(endpoint: endpoint, method: "GET")
             .map { (response: LightResponse) in
                 response.data.first ?? Light()
             }
             .eraseToAnyPublisher()
     }
     
-    /// Обновляет состояние лампы с учетом ограничений производительности
+    /// ИСПРАВЛЕННЫЙ updateLight - использует только API v2 через HTTPS
     /// - Parameters:
     ///   - id: Уникальный идентификатор лампы
     ///   - state: Новое состояние лампы
     /// - Returns: Combine Publisher с результатом операции
     func updateLight(id: String, state: LightState) -> AnyPublisher<Bool, Error> {
-        return Future<Bool, Error> { [weak self] promise in
-            self?.throttleQueue.async {
-                guard let self = self else {
-                    promise(.failure(HueAPIError.invalidResponse))
-                    return
-                }
-                
-                // Проверяем ограничение скорости для lights
-                let now = Date()
-                let timeSinceLastRequest = now.timeIntervalSince(self.lastLightRequestTime)
-                
-                if timeSinceLastRequest < self.lightRequestInterval {
-                    // Ждем оставшееся время
-                    let delay = self.lightRequestInterval - timeSinceLastRequest
-                    Thread.sleep(forTimeInterval: delay)
-                }
-                
-                self.lastLightRequestTime = Date()
-                
-                let endpoint = "/clip/v2/resource/light/\(id)"
-                
-                do {
-                    let encoder = JSONEncoder()
-                    let data = try encoder.encode(state)
-                    
-                    self.performRequest(endpoint: endpoint, method: "PUT", body: data)
-                        .sink(
-                            receiveCompletion: { completion in
-                                if case .failure(let error) = completion {
-                                    print("Error updating light: \(error)")
-                                    promise(.success(false))
-                                } else {
-                                    promise(.success(true))
-                                }
-                            },
-                            receiveValue: { (_: GenericResponse) in
-                                promise(.success(true))
-                            }
-                        )
-                        .store(in: &self.cancellables)
-                } catch {
-                    promise(.failure(error))
-                }
-            }
-        }
-        .eraseToAnyPublisher()
+        print("🚀 Управление лампой через API v2 HTTPS...")
+        return updateLightV2HTTPS(id: id, state: state)
     }
     
     // MARK: - Scenes Endpoints
@@ -382,7 +286,7 @@ class HueAPIClient: NSObject {
     /// - Returns: Combine Publisher со списком сцен
     func getAllScenes() -> AnyPublisher<[HueScene], Error> {
         let endpoint = "/clip/v2/resource/scene"
-        return performRequest(endpoint: endpoint, method: "GET")
+        return performRequestHTTPS<ScenesResponse>(endpoint: endpoint, method: "GET")
             .map { (response: ScenesResponse) in
                 response.data
             }
@@ -401,7 +305,7 @@ class HueAPIClient: NSObject {
             let encoder = JSONEncoder()
             let data = try encoder.encode(body)
             
-            return performRequest(endpoint: endpoint, method: "PUT", body: data)
+            return performRequestHTTPS<GenericResponse>(endpoint: endpoint, method: "PUT", body: data)
                 .map { (_: GenericResponse) in true }
                 .catch { error -> AnyPublisher<Bool, Error> in
                     print("Error activating scene: \(error)")
@@ -442,7 +346,7 @@ class HueAPIClient: NSObject {
             let encoder = JSONEncoder()
             let data = try encoder.encode(scene)
             
-            return performRequest(endpoint: endpoint, method: "POST", body: data)
+            return performRequestHTTPS<SceneResponse>(endpoint: endpoint, method: "POST", body: data)
                 .map { (response: SceneResponse) in
                     response.data.first ?? HueScene()
                 }
@@ -459,7 +363,7 @@ class HueAPIClient: NSObject {
     /// - Returns: Combine Publisher со списком групп
     func getAllGroups() -> AnyPublisher<[HueGroup], Error> {
         let endpoint = "/clip/v2/resource/grouped_light"
-        return performRequest(endpoint: endpoint, method: "GET")
+        return performRequestHTTPS<GroupsResponse>(endpoint: endpoint, method: "GET")
             .map { (response: GroupsResponse) in
                 response.data
             }
@@ -526,7 +430,7 @@ class HueAPIClient: NSObject {
     /// - Returns: Combine Publisher со списком сенсоров
     func getAllSensors() -> AnyPublisher<[HueSensor], Error> {
         let endpoint = "/clip/v2/resource/device"
-        return performRequest(endpoint: endpoint, method: "GET")
+        return performRequestHTTPS<SensorsResponse>(endpoint: endpoint, method: "GET")
             .map { (response: SensorsResponse) in
                 response.data.filter { device in
                     // Фильтруем только устройства с сенсорами
@@ -543,7 +447,7 @@ class HueAPIClient: NSObject {
     /// - Returns: Combine Publisher с информацией о сенсоре
     func getSensor(id: String) -> AnyPublisher<HueSensor, Error> {
         let endpoint = "/clip/v2/resource/device/\(id)"
-        return performRequest(endpoint: endpoint, method: "GET")
+        return performRequestHTTPS<SensorResponse>(endpoint: endpoint, method: "GET")
             .map { (response: SensorResponse) in
                 response.data.first ?? HueSensor()
             }
@@ -556,7 +460,7 @@ class HueAPIClient: NSObject {
     /// - Returns: Combine Publisher со списком правил
     func getAllRules() -> AnyPublisher<[HueRule], Error> {
         let endpoint = "/clip/v2/resource/behavior_script"
-        return performRequest(endpoint: endpoint, method: "GET")
+        return performRequestHTTPS<RulesResponse>(endpoint: endpoint, method: "GET")
             .map { (response: RulesResponse) in
                 response.data
             }
@@ -583,7 +487,7 @@ class HueAPIClient: NSObject {
             let encoder = JSONEncoder()
             let data = try encoder.encode(rule)
             
-            return performRequest(endpoint: endpoint, method: "POST", body: data)
+            return performRequestHTTPS<RuleResponse>(endpoint: endpoint, method: "POST", body: data)
                 .map { (response: RuleResponse) in
                     response.data.first ?? HueRule()
                 }
@@ -607,7 +511,7 @@ class HueAPIClient: NSObject {
         do {
             let data = try JSONSerialization.data(withJSONObject: body)
             
-            return performRequest(endpoint: endpoint, method: "PUT", body: data)
+            return performRequestHTTPS<GenericResponse>(endpoint: endpoint, method: "PUT", body: data)
                 .map { (_: GenericResponse) in true }
                 .eraseToAnyPublisher()
         } catch {
@@ -1088,7 +992,7 @@ extension HueAPIClient {
     /// Удаляет ресурс
     func deleteResource<T: Decodable>(type: String, id: String) -> AnyPublisher<T, Error> {
         let endpoint = "/clip/v2/resource/\(type)/\(id)"
-        return performRequest(endpoint: endpoint, method: "DELETE")
+        return performRequestHTTPS<T>(endpoint: endpoint, method: "DELETE")
     }
     
     // MARK: - Исправление 5: Batch операции для оптимизации
@@ -1103,7 +1007,7 @@ extension HueAPIClient {
             let encoder = JSONEncoder()
             let data = try encoder.encode(body)
             
-            return performRequest(endpoint: endpoint, method: "PUT", body: data)
+            return performRequestHTTPS<BatchResponse>(endpoint: endpoint, method: "PUT", body: data)
         } catch {
             return Fail(error: error)
                 .eraseToAnyPublisher()
@@ -1141,7 +1045,7 @@ extension HueAPIClient {
             let encoder = JSONEncoder()
             let data = try encoder.encode(config)
             
-            return performRequest(endpoint: endpoint, method: "POST", body: data)
+            return performRequestHTTPS<EntertainmentConfiguration>(endpoint: endpoint, method: "POST", body: data)
         } catch {
             return Fail(error: error)
                 .eraseToAnyPublisher()
@@ -1349,114 +1253,177 @@ extension HueAPIClient {
 //    }
 //}
 
-// MARK: - API v1 Support (Fallback)
+
+
+// MARK: - ПРАВИЛЬНОЕ ИСПРАВЛЕНИЕ: API v2 через HTTPS
 
 extension HueAPIClient {
     
-    /// Выполняет запрос к API v1 (для совместимости)
-    private func performRequestV1<T: Decodable>(
+    /// Правильный базовый URL для API v2 (ОБЯЗАТЕЛЬНО HTTPS)
+    private var baseURLHTTPS: URL? {
+        URL(string: "https://\(bridgeIP)")
+    }
+    
+    /// ИСПРАВЛЕННАЯ версия performRequest для API v2 (HTTPS)
+    private func performRequestHTTPS<T: Decodable>(
         endpoint: String,
         method: String,
-        body: Data? = nil
+        body: Data? = nil,
+        authenticated: Bool = true
     ) -> AnyPublisher<T, Error> {
-        guard let url = baseURL?.appendingPathComponent(endpoint) else {
+        
+        guard authenticated else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let applicationKey = applicationKey else {
+            print("❌ Нет application key для HTTPS запроса")
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let url = baseURLHTTPS?.appendingPathComponent(endpoint) else {
+            print("❌ Невозможно создать HTTPS URL: endpoint=\(endpoint)")
             return Fail(error: HueAPIError.invalidURL)
                 .eraseToAnyPublisher()
         }
         
-        print("🔗 API v1 запрос: \(method) \(url)")
+        print("📤 HTTPS \(method) запрос: \(url.absoluteString)")
         
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: API v2 использует hue-application-key header
+        request.setValue(applicationKey, forHTTPHeaderField: "hue-application-key")
+        print("🔑 Установлен hue-application-key: \(String(applicationKey.prefix(8)))...")
+        
         if let body = body {
             request.httpBody = body
+            if let bodyString = String(data: body, encoding: .utf8) {
+                print("📦 HTTPS тело запроса: \(bodyString)")
+            }
         }
         
-        return session.dataTaskPublisher(for: request)
-            .map(\.data)
-            .decode(type: T.self, decoder: JSONDecoder())
-            .mapError { error in
-                if let decodingError = error as? DecodingError {
-                    print("❌ Ошибка декодирования API v1: \(decodingError)")
-                    return HueAPIError.invalidResponse
+        return sessionHTTPS.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    print("❌ HTTPS ответ не является HTTP ответом")
+                    throw HueAPIError.invalidResponse
                 }
-                return error
+                
+                print("📥 HTTPS \(httpResponse.statusCode) ответ от \(url.absoluteString)")
+                
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📄 HTTPS тело ответа: \(responseString)")
+                }
+                
+                guard 200...299 ~= httpResponse.statusCode else {
+                    print("❌ HTTPS ошибка \(httpResponse.statusCode)")
+                    
+                    switch httpResponse.statusCode {
+                    case 401:
+                        print("🔐 401 Unauthorized - проблема с application key")
+                        throw HueAPIError.notAuthenticated
+                    case 403:
+                        print("🚫 403 Forbidden - возможно нужна повторная авторизация")
+                        throw HueAPIError.linkButtonNotPressed
+                    case 404:
+                        print("🔍 404 Not Found - неверный endpoint API v2")
+                        throw HueAPIError.invalidURL
+                    case 503:
+                        print("⚠️ 503 Service Unavailable - мост перегружен")
+                        throw HueAPIError.bufferFull
+                    case 429:
+                        print("⏱ 429 Too Many Requests - превышен лимит")
+                        throw HueAPIError.rateLimitExceeded
+                    default:
+                        break
+                    }
+                    
+                    throw HueAPIError.httpError(statusCode: httpResponse.statusCode)
+                }
+                
+                print("✅ HTTPS запрос успешен")
+                return data
+            }
+            .decode(type: T.self, decoder: JSONDecoder())
+            .eraseToAnyPublisher()
+    }
+    
+    /// ИСПРАВЛЕННАЯ версия getAllLights для API v2 через HTTPS
+    func getAllLightsV2HTTPS() -> AnyPublisher<[Light], Error> {
+        print("🚀 Запрос ламп через API v2 HTTPS...")
+        
+        let endpoint = "/clip/v2/resource/light"
+        
+        return performRequestHTTPS<LightsResponse>(endpoint: endpoint, method: "GET")
+            .map { (response: LightsResponse) in
+                print("✅ API v2 HTTPS: получено \(response.data.count) ламп")
+                return response.data
             }
             .eraseToAnyPublisher()
     }
     
-    /// Конвертирует лампу из API v1 в формат API v2
-    private func convertV1ToV2Light(id: String, lightV1: LightV1) -> Light {
-        print("🔄 Конвертируем лампу \(id): \(lightV1.name)")
-        
-        // Конвертируем состояние лампы
-        let onState = OnState(on: lightV1.state.on)
-        
-        // Конвертируем яркость если есть
-        let dimming: Dimming? = lightV1.state.bri.map { brightness in
-            Dimming(brightness: Double(brightness) / 254.0 * 100.0) // Конвертируем 0-254 в 0-100
-        }
-        
-        // Конвертируем цвет если есть
-        let color: HueColor? = {
-            if let xy = lightV1.state.xy {
-                return HueColor(xy: XYColor(x: xy[0], y: xy[1]))
+    /// ИСПРАВЛЕННАЯ версия updateLight для API v2 через HTTPS
+    func updateLightV2HTTPS(id: String, state: LightState) -> AnyPublisher<Bool, Error> {
+        return Future<Bool, Error> { [weak self] promise in
+            self?.throttleQueue.async {
+                guard let self = self else {
+                    promise(.failure(HueAPIError.invalidResponse))
+                    return
+                }
+                
+                // Ограничение скорости
+                let now = Date()
+                let timeSinceLastRequest = now.timeIntervalSince(self.lastLightRequestTime)
+                
+                if timeSinceLastRequest < self.lightRequestInterval {
+                    let delay = self.lightRequestInterval - timeSinceLastRequest
+                    Thread.sleep(forTimeInterval: delay)
+                }
+                
+                self.lastLightRequestTime = Date()
+                
+                let endpoint = "/clip/v2/resource/light/\(id)"
+                
+                do {
+                    let encoder = JSONEncoder()
+                    let data = try encoder.encode(state)
+                    
+                    print("🔧 API v2 HTTPS команда: PUT \(endpoint)")
+                    
+                    self.performRequestHTTPS<GenericResponse>(endpoint: endpoint, method: "PUT", body: data)
+                        .sink(
+                            receiveCompletion: { (completion: Subscribers.Completion<Error>) in
+                                if case .failure(let error) = completion {
+                                    print("❌ Ошибка обновления лампы API v2: \(error)")
+                                    promise(.success(false))
+                                } else {
+                                    print("✅ Лампа успешно обновлена через API v2 HTTPS")
+                                    promise(.success(true))
+                                }
+                            },
+                            receiveValue: { (_: GenericResponse) in
+                                promise(.success(true))
+                            }
+                        )
+                        .store(in: &self.cancellables)
+                } catch {
+                    promise(.failure(error))
+                }
             }
-            return nil
-        }()
-        
-        // Конвертируем цветовую температуру если есть
-        let colorTemperature: ColorTemperature? = lightV1.state.ct.map { ct in
-            ColorTemperature(mirek: ct)
         }
-        
-        // Создаем метаданные
-        let metadata = LightMetadata(
-            name: lightV1.name,
-            archetype: lightV1.type == "Extended color light" ? "hue_go" : "classic_bulb"
-        )
-        
-        // Создаем простую Light структуру с основными параметрами
-        var light = Light()
-        light.id = id
-        light.metadata = metadata
-        light.on = onState
-        light.dimming = dimming
-        light.color_temperature = colorTemperature
-        light.color = color
-        light.mode = lightV1.state.reachable ? "normal" : "streaming"
-        
-        return light
+        .eraseToAnyPublisher()
     }
+    
+
 }
 
-// MARK: - API v1 Models
 
-/// Модель лампы для API v1
-struct LightV1: Decodable {
-    let name: String
-    let type: String
-    let state: LightStateV1
-    let modelid: String?
-    let manufacturername: String?
-    let swversion: String?
-}
 
-/// Состояние лампы в API v1
-struct LightStateV1: Decodable {
-    let on: Bool
-    let bri: Int?
-    let hue: Int?
-    let sat: Int?
-    let xy: [Double]?
-    let ct: Int?
-    let alert: String?
-    let effect: String?
-    let colormode: String?
-    let reachable: Bool
-}
+
 
 // MARK: - Safe Array Extension
 

@@ -24,15 +24,8 @@ class LocalNetworkPermissionChecker {
         let host = NWEndpoint.Host("192.168.1.1")
         let port = NWEndpoint.Port(80)
         
-        // ИСПРАВЛЕНИЕ: Используем улучшенные параметры для iOS 17+
+        // Используем простую UDP конфигурацию
         let parameters = NWParameters.udp
-        if #available(iOS 16.0, *) {
-            parameters.allowLocalEndpointReuse = true
-            parameters.acceptLocalOnly = true
-            // Отключаем multipath для предотвращения ошибок сокета
-            parameters.multipathServiceType = .disabled
-        }
-        parameters.requiredInterfaceType = .wifi
         
         connection = NWConnection(host: host, port: port, using: parameters)
         
