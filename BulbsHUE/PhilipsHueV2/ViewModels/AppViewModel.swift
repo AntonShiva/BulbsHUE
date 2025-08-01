@@ -106,7 +106,8 @@ class AppViewModel: ObservableObject {
         discoveredBridges.removeAll() // Очищаем предыдущие результаты
         error = nil // Сбрасываем предыдущие ошибки
         
-        // ИСПРАВЛЕНИЕ: Добавляем проверку разрешений локальной сети для iOS 14+
+        // ИСПРАВЛЕНИЕ: SSDP недоступен без multicast entitlement
+        // Используем Cloud Discovery и IP scan (не требуют специальных entitlements)
         if #available(iOS 14.0, *) {
             let permissionChecker = LocalNetworkPermissionChecker()
             permissionChecker.checkLocalNetworkPermission { [weak self] hasPermission in

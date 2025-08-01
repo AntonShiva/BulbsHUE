@@ -160,11 +160,29 @@ struct EffectsV2: Codable {
     /// Дополнительные: "candle", "fireplace", "prism", "glisten", "opal", "sparkle"
     var effect_values: [String]?
     
-    /// Статус эффекта
-    var status: String?
+    /// Статус эффекта (теперь объект)
+    var status: EffectStatus?
+    
+    /// Действие эффекта
+    var action: EffectAction?
     
     /// Длительность эффекта в миллисекундах
     var duration: Int?
+}
+
+/// Статус эффекта v2
+struct EffectStatus: Codable {
+    /// Текущий эффект
+    var effect: String?
+    
+    /// Доступные эффекты
+    var effect_values: [String]?
+}
+
+/// Действие эффекта v2
+struct EffectAction: Codable {
+    /// Доступные эффекты для действия
+    var effect_values: [String]?
 }
 
 

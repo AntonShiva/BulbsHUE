@@ -54,7 +54,7 @@ class HueBridgeDiscovery {
         var allFoundBridges: [Bridge] = []
         let lock = NSLock()
         var completedTasks = 0
-        let totalTasks = 3
+        let totalTasks = 2 // Cloud + IP scan (SSDP отключен из-за multicast entitlement)
         
         // Безопасный wrapper для завершения задач
         func safeTaskCompletion(bridges: [Bridge], taskName: String) {
@@ -81,17 +81,15 @@ class HueBridgeDiscovery {
             }
         }
         
-        // 1. SSDP Discovery (основной метод)
-        ssdpDiscovery { bridges in
-            safeTaskCompletion(bridges: bridges, taskName: "SSDP Discovery")
-        }
+        // ИСПРАВЛЕНИЕ: SSDP требует multicast entitlement от Apple
+        // Используем только Cloud Discovery и IP scan
         
-        // 2. Cloud Discovery (запасной)
+        // 1. Cloud Discovery (основной метод)
         cloudDiscovery { bridges in
             safeTaskCompletion(bridges: bridges, taskName: "Cloud Discovery")
         }
         
-        // 3. IP Scan (последний резерв)
+        // 2. IP Scan (резервный метод)
         ipScanDiscovery { bridges in
             safeTaskCompletion(bridges: bridges, taskName: "IP Scan Discovery")
         }
@@ -136,21 +134,8 @@ class HueBridgeDiscovery {
         let host = NWEndpoint.Host("239.255.255.250")
         let port = NWEndpoint.Port(1900)
         
-        // Создаем параметры UDP с правильными настройками для iOS 17+
+        // Используем простую UDP конфигурацию для multicast
         let parameters = NWParameters.udp
-        
-        // Исправляем настройки для предотвращения ошибок SO_NOWAKEFROMSLEEP
-        if #available(iOS 16.0, *) {
-            parameters.allowLocalEndpointReuse = true
-            parameters.acceptLocalOnly = true
-            // Отключаем multipath для предотвращения ошибок сокета
-            parameters.multipathServiceType = .disabled
-        }
-        
-        // Настраиваем интерфейс только для Wi-Fi
-        parameters.requiredInterfaceType = .wifi
-        // Примечание: prohibitExpensiveInterfaceType не существует в NWParameters
-        // Вместо этого используем requiredInterfaceType = .wifi для ограничения
         
         udpConnection = NWConnection(
             host: host,
@@ -158,13 +143,13 @@ class HueBridgeDiscovery {
             using: parameters
         )
         
-        // SSDP M-SEARCH запрос для поиска UPnP устройств
+        // Стандартный SSDP M-SEARCH запрос для Hue Bridge
         let ssdpRequest = """
         M-SEARCH * HTTP/1.1\r
         HOST: 239.255.255.250:1900\r
         MAN: "ssdp:discover"\r
         MX: 3\r
-        ST: upnp:rootdevice\r
+        ST: urn:schemas-upnp-org:device:basic:1\r
         \r
         
         """.data(using: .utf8)!
@@ -172,12 +157,52 @@ class HueBridgeDiscovery {
         udpConnection?.stateUpdateHandler = { [weak self] state in
             switch state {
             case .ready:
-                print("📡 SSDP соединение готово, отправляем запрос...")
+                print("📡 SSDP соединение готово, отправляем запросы...")
+                
+                // Отправляем основной запрос
                 self?.udpConnection?.send(content: ssdpRequest, completion: .contentProcessed { error in
                     if let error = error {
-                        print("❌ SSDP ошибка отправки: \(error)")
+                        print("❌ SSDP ошибка отправки основного запроса: \(error)")
                     } else {
-                        print("✅ SSDP запрос отправлен")
+                        print("✅ SSDP основной запрос отправлен")
+                    }
+                })
+                
+                // Отправляем дополнительный запрос для rootdevice (как раньше)
+                let rootDeviceRequest = """
+                M-SEARCH * HTTP/1.1\r
+                HOST: 239.255.255.250:1900\r
+                MAN: "ssdp:discover"\r
+                MX: 3\r
+                ST: upnp:rootdevice\r
+                \r
+                
+                """.data(using: .utf8)!
+                
+                self?.udpConnection?.send(content: rootDeviceRequest, completion: .contentProcessed { error in
+                    if let error = error {
+                        print("❌ SSDP ошибка отправки rootdevice запроса: \(error)")
+                    } else {
+                        print("✅ SSDP rootdevice запрос отправлен")
+                    }
+                })
+                
+                // Отправляем специальный запрос для Philips Hue
+                let hueRequest = """
+                M-SEARCH * HTTP/1.1\r
+                HOST: 239.255.255.250:1900\r
+                MAN: "ssdp:discover"\r
+                MX: 3\r
+                ST: urn:schemas-upnp-org:device:IpBridge:1\r
+                \r
+                
+                """.data(using: .utf8)!
+                
+                self?.udpConnection?.send(content: hueRequest, completion: .contentProcessed { error in
+                    if let error = error {
+                        print("❌ SSDP ошибка отправки Hue запроса: \(error)")
+                    } else {
+                        print("✅ SSDP Hue-специфичный запрос отправлен")
                     }
                 })
                 
@@ -190,9 +215,36 @@ class HueBridgeDiscovery {
                 
             case .failed(let error):
                 print("❌ SSDP соединение провалилось: \(error)")
+                if let nwError = error as? NWError {
+                    switch nwError {
+                    case .posix(let code):
+                        print("🔍 POSIX ошибка: \(code) (\(code.rawValue))")
+                    case .dns(let dnsError):
+                        print("🔍 DNS ошибка: \(dnsError)")
+                    case .tls(let tlsError):
+                        print("🔍 TLS ошибка: \(tlsError)")
+                    default:
+                        print("🔍 Другая ошибка: \(nwError)")
+                    }
+                }
                 safeCompletion([])
                 
-            default:
+            case .waiting(let error):
+                print("⏳ SSDP ожидание: \(error)")
+                // Не завершаем, продолжаем ждать
+                
+            case .preparing:
+                print("🔄 SSDP подготовка соединения...")
+                
+            case .setup:
+                print("⚙️ SSDP настройка соединения...")
+                
+            case .cancelled:
+                print("🚫 SSDP соединение отменено")
+                safeCompletion([])
+                
+            @unknown default:
+                print("❓ SSDP неизвестное состояние: \(state)")
                 break
             }
         }
@@ -291,6 +343,8 @@ class HueBridgeDiscovery {
     
     /// Cloud Discovery через Philips сервис
     private func cloudDiscovery(completion: @escaping ([Bridge]) -> Void) {
+        print("☁️ Запускаем Cloud Discovery...")
+        
         var hasCompleted = false
         let cloudLock = NSLock()
         
@@ -304,6 +358,7 @@ class HueBridgeDiscovery {
         }
         
         guard let url = URL(string: "https://discovery.meethue.com") else {
+            print("❌ Невозможно создать URL для Cloud Discovery")
             safeCompletion([])
             return
         }
@@ -351,17 +406,21 @@ class HueBridgeDiscovery {
             completion(bridges)
         }
         
-        // Расширенный список популярных IP адресов для роутеров
+        // Расширенное сканирование популярных IP адресов
+        // ИСПРАВЛЕНИЕ: Без SSDP это основной метод поиска
         let commonIPs = [
-            // Обычные диапазоны
-            "192.168.1.2", "192.168.1.3", "192.168.1.4", "192.168.1.5", "192.168.1.6",
-            "192.168.0.2", "192.168.0.3", "192.168.0.4", "192.168.0.5", "192.168.0.6",
-            "192.168.0.103", // IP из вашего лога
-            "192.168.1.103", "192.168.2.103", "192.168.100.103",
-            // Другие популярные диапазоны
-            "192.168.100.2", "192.168.100.3", "192.168.86.2", "192.168.86.3",
-            "10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.1.2", "10.0.1.3",
-            "172.16.0.2", "172.16.0.3", "172.16.1.2"
+            // 192.168.1.x диапазон (самый популярный)
+            "192.168.1.2", "192.168.1.3", "192.168.1.4", "192.168.1.5", "192.168.1.6", "192.168.1.7", "192.168.1.8", "192.168.1.10",
+            // 192.168.0.x диапазон
+            "192.168.0.2", "192.168.0.3", "192.168.0.4", "192.168.0.5", "192.168.0.6", "192.168.0.7", "192.168.0.8", "192.168.0.10",
+            // 192.168.100.x (популярный у некоторых роутеров)
+            "192.168.100.2", "192.168.100.3", "192.168.100.4", "192.168.100.5",
+            // Google Nest WiFi
+            "192.168.86.2", "192.168.86.3", "192.168.86.4", "192.168.86.5",
+            // 10.0.0.x корпоративные сети
+            "10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5", "10.0.1.2", "10.0.1.3",
+            // 172.16.x.x корпоративные
+            "172.16.0.2", "172.16.0.3", "172.16.1.2", "172.16.1.3"
         ]
         
         var foundBridges: [Bridge] = []
@@ -369,17 +428,21 @@ class HueBridgeDiscovery {
         let totalIPs = commonIPs.count
         
         for ip in commonIPs {
+            print("🔍 Проверяем IP: \(ip)")
             checkIP(ip) { bridge in
                 ipScanLock.lock()
                 if let bridge = bridge {
                     foundBridges.append(bridge)
                     print("✅ Найден мост на \(ip): \(bridge.id)")
+                } else {
+                    print("❌ Мост не найден на \(ip)")
                 }
                 
                 completedIPs += 1
                 
                 // Если все IP проверены, завершаем
                 if completedIPs >= totalIPs {
+                    print("🏁 IP сканирование завершено. Найдено мостов: \(foundBridges.count)")
                     ipScanLock.unlock()
                     safeCompletion(foundBridges)
                     return
@@ -396,6 +459,64 @@ class HueBridgeDiscovery {
     
     /// Проверяет один IP адрес на наличие Hue Bridge - улучшенная версия
     private func checkIP(_ ip: String, completion: @escaping (Bridge?) -> Void) {
+        // Сначала пробуем /api/0/config (более надежный)
+        checkIPViaConfig(ip) { bridge in
+            if bridge != nil {
+                completion(bridge)
+            } else {
+                // Если не удалось, пробуем /description.xml  
+                self.checkIPViaXML(ip, completion: completion)
+            }
+        }
+    }
+    
+    /// Проверка через /api/0/config (основной метод)
+    private func checkIPViaConfig(_ ip: String, completion: @escaping (Bridge?) -> Void) {
+        guard let url = URL(string: "http://\(ip)/api/0/config") else {
+            completion(nil)
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 2.0
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data,
+                  let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200,
+                  error == nil else {
+                print("🔍 /api/0/config не отвечает на \(ip)")
+                completion(nil)
+                return
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let bridgeID = json["bridgeid"] as? String,
+                   let name = json["name"] as? String {
+                    
+                    print("✅ Найден Hue Bridge через /api/0/config на \(ip): \(bridgeID)")
+                    let bridge = Bridge(
+                        id: bridgeID,
+                        internalipaddress: ip,
+                        port: 80,
+                        name: name
+                    )
+                    completion(bridge)
+                } else {
+                    print("❌ Неверный формат ответа /api/0/config на \(ip)")
+                    completion(nil)
+                }
+            } catch {
+                print("❌ Ошибка парсинга JSON на \(ip): \(error)")
+                completion(nil)
+            }
+        }.resume()
+    }
+    
+    /// Проверка через /description.xml (резервный метод)
+    private func checkIPViaXML(_ ip: String, completion: @escaping (Bridge?) -> Void) {
         guard let url = URL(string: "http://\(ip)/description.xml") else {
             completion(nil)
             return
