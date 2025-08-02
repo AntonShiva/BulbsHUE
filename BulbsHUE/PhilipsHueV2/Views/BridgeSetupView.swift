@@ -292,7 +292,7 @@ struct BridgeSetupView: View {
         viewModel.discoveredBridges.removeAll()
         
         // Запускаем поиск (mDNS + N-UPnP параллельно)
-        viewModel.discoverBridges()
+        viewModel.searchForBridges()
         
         // Таймаут поиска согласно рекомендациям:
         // - UPnP/mDNS: максимум 5 секунд
@@ -453,7 +453,7 @@ struct BridgeSetupView: View {
     private func connectToBridge(withId bridgeId: String) {
         // Сначала ищем мост в сети
         isSearching = true
-        viewModel.discoverBridges()
+        viewModel.searchForBridges()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             isSearching = false
