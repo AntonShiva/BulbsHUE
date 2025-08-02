@@ -1,4 +1,3 @@
-
 //
 //  LightDiscoveryView.swift
 //  BulbsHUE
@@ -91,7 +90,11 @@ struct LightsListView: View {
                                 ForEach(lightsViewModel.lights) { light in
                                     LightRowView(
                                         light: light,
-                                        roomName: getRoomName(for: light)
+                                        roomName: getRoomName(for: light),
+                                        onToggle: { isOn in
+                                            // Обработка переключения прямо из списка
+                                            lightsViewModel.toggleLight(light)
+                                        }
                                     )
                                     .onTapGesture {
                                         selectedLight = light
@@ -119,6 +122,11 @@ struct LightsListView: View {
             lightsViewModel.loadLights()
             groupsViewModel.loadGroups()
         }
+        // ИСПРАВЛЕНИЕ: Обновляем список при возвращении из модального окна
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // Обновляем при возвращении в приложение
+            lightsViewModel.loadLights()
+        }
     }
     
     // Получение названия комнаты для лампы
@@ -131,16 +139,29 @@ struct LightsListView: View {
 
 /// Строка с информацией о лампе
 struct LightRowView: View {
+    @ObservedObject var lightsViewModel: LightsViewModel = AppViewModel().lightsViewModel
     let light: Light
     let roomName: String
+    let onToggle: (Bool) -> Void
+    
+    // ИСПРАВЛЕНИЕ: Используем @State для отслеживания состояния
+    @State private var isOn: Bool
+    
+    init(light: Light, roomName: String, onToggle: @escaping (Bool) -> Void) {
+        self.light = light
+        self.roomName = roomName
+        self.onToggle = onToggle
+        self._isOn = State(initialValue: light.on.on)
+    }
     
     var body: some View {
         HStack(spacing: 16) {
             // Иконка состояния
-            Image(systemName: light.on.on ? "lightbulb.fill" : "lightbulb")
+            Image(systemName: isOn ? "lightbulb.fill" : "lightbulb")
                 .font(.title2)
-                .foregroundColor(light.on.on ? .yellow : .white.opacity(0.3))
+                .foregroundColor(isOn ? .yellow : .white.opacity(0.3))
                 .frame(width: 40)
+                .animation(.easeInOut(duration: 0.2), value: isOn)
             
             // Информация о лампе
             VStack(alignment: .leading, spacing: 4) {
@@ -155,14 +176,22 @@ struct LightRowView: View {
             
             Spacer()
             
-            // Переключатель
-            Toggle("", isOn: .constant(light.on.on))
+            // ИСПРАВЛЕНИЕ: Интерактивный переключатель
+            Toggle("", isOn: $isOn)
                 .labelsHidden()
-                .disabled(true) // Только для отображения
+                .onChange(of: isOn) { newValue in
+                    onToggle(newValue)
+                }
         }
         .padding()
         .background(Color.white.opacity(0.1))
         .cornerRadius(12)
+        // ИСПРАВЛЕНИЕ: Обновляем локальное состояние при изменении внешнего
+        .onReceive(lightsViewModel.$lights) { lights in
+            if let updatedLight = lights.first(where: { $0.id == light.id }) {
+                isOn = updatedLight.on.on
+            }
+        }
     }
 }
 
@@ -615,4 +644,3 @@ struct PrimaryButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
     }
 }
-
