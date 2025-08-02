@@ -94,10 +94,7 @@ class AppViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Начинает поиск мостов в сети (старый метод для совместимости)
-    func discoverBridges() {
-        searchForBridges()
-    }
+
     
     /// Начинает комплексный поиск мостов с использованием всех доступных методов
     func searchForBridges() {
@@ -342,8 +339,9 @@ class AppViewModel: ObservableObject {
             recreateAPIClient(with: savedIP)
             applicationKey = savedKey
             
-            // Загружаем client key для Entertainment API
-            if let clientKey = UserDefaults.standard.string(forKey: "HueClientKey") {
+            // Загружаем client key для Entertainment API из Keychain
+            if let bridgeId = UserDefaults.standard.string(forKey: "HueBridgeID"),
+               let clientKey = HueKeychainManager.shared.getClientKey(for: bridgeId) {
                 setupEntertainmentClient(clientKey: clientKey)
             }
             
@@ -690,7 +688,7 @@ extension AppViewModel {
         guard let bridge = currentBridge,
               let appKey = applicationKey else { return }
         
-        let clientKey = UserDefaults.standard.string(forKey: "HueClientKey")
+        let clientKey = HueKeychainManager.shared.getClientKey(for: bridge.id)
         
         let credentials = HueKeychainManager.BridgeCredentials(
             bridgeId: bridge.id,
@@ -829,10 +827,13 @@ extension AppViewModel {
                         
                         self?.applicationKey = username
                         
-                        // Сохраняем client key для Entertainment API
+                        // Сохраняем client key для Entertainment API в Keychain
                         if let clientKey = success.clientkey {
                             print("🔑 Client key: \(clientKey)")
-                            UserDefaults.standard.set(clientKey, forKey: "HueClientKey")
+                            // Сохраняем в Keychain вместо UserDefaults для безопасности
+                            if let bridgeId = self?.currentBridge?.id {
+                                _ = HueKeychainManager.shared.saveClientKey(clientKey, for: bridgeId)
+                            }
                             self?.setupEntertainmentClient(clientKey: clientKey)
                         }
                         

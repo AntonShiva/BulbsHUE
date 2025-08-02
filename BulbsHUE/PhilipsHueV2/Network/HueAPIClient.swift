@@ -104,11 +104,16 @@ class HueAPIClient: NSObject {
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60
         
-        // Оптимизации для iOS 16+
+        // ИСПРАВЛЕНИЕ: Убираем multipathServiceType для iOS 17+ совместимости
+        // Это исправляет ошибки nw_protocol_socket_set_no_wake_from_sleep
         if #available(iOS 16.0, *) {
+            // Для iOS 16+ используем более консервативные настройки
             configuration.allowsConstrainedNetworkAccess = false
             configuration.allowsExpensiveNetworkAccess = true
-            configuration.multipathServiceType = .handover // Правильное значение
+        } else {
+            // Старое поведение для совместимости
+            configuration.multipathServiceType = .handover
+            configuration.allowsConstrainedNetworkAccess = true
         }
         
         configuration.waitsForConnectivity = false
