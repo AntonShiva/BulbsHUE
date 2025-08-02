@@ -5,6 +5,8 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>DMSans.ttf</string>
+        <string>DMSans-Light</string>
+       
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Приложению нужно разрешение для использования камеры для сканирования QR-кодов</string>
