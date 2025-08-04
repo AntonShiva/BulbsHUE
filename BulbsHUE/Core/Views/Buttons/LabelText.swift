@@ -23,7 +23,7 @@ struct LabelText: View {
                 
             
             Text(text)
-              .font(Font.custom("DM Sans", size: 12))
+              .font(Font.custom("DMSans-Light", size: 12))
               .tracking(2.04)
               .foregroundColor(.primColor)
               .textCase(.uppercase)

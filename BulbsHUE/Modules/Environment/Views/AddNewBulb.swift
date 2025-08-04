@@ -10,12 +10,37 @@ import SwiftUI
 struct AddNewBulb: View {
     var body: some View {
         ZStack {
-            BG()
+            BGLight()
+            HeaderAddNew(title: "NEW BULB"){
+                DismissButton{
+                    
+                }
+            }
+            .adaptiveOffset(y: -323)
+            
             Image("BigBulb")
                 .resizable()
                 .scaledToFit()
-                .adaptiveFrame(width: 142, height: 136)
-                .adaptiveOffset(y: -200)
+                .adaptiveFrame(width: 176, height: 170)
+                .adaptiveOffset(y: -181)
+                .blur(radius: 1)
+            
+            
+            Text("important")
+              .font( Font.custom("DMSans-Bold", size: 14))
+              .kerning(2.1)
+              .multilineTextAlignment(.center)
+              .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+             
+              .adaptiveOffset(y: -83)
+            
+            Text("make sure the lights \nand smart plugs you want to add \nare connected to power")
+              .font( Font.custom("DMSans-Light", size: 12))
+              .kerning(1.8)
+              .lineSpacing(2)
+              .multilineTextAlignment(.center)
+              .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+              .adaptiveOffset(y: -40)
             
             ZStack{
                 Rectangle()
@@ -37,26 +62,26 @@ struct AddNewBulb: View {
                 )
                 
                 Text("use serial number")
-                    .font(Font.custom("DMSans-9ptRegular_Light", size: 16))
-                  .kerning(2.4)
+                    .font(Font.custom("DMSans-Light", size: 16))
+                  .kerning(2.6)
                   .multilineTextAlignment(.center)
                   .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                  .textCase(.uppercase)
+                  
         }
+            .adaptiveOffset(y: 96)
             
             Text("on the lamp or label")
-              .font(
-                Font.custom("DM Sans", size: 10)
-                  .weight(.light)
-              )
+              .font(Font.custom("DMSans-Light", size: 10))
               .kerning(1.5)
               .multilineTextAlignment(.center)
               .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-              .textCase(.uppercase)
+              
+              .adaptiveOffset(y: 147)
+              
             
             HStack {
                 Rectangle()
-                  .frame(width: 112, height: 1)
+                 .adaptiveFrame(width: 115, height: 1)
                   .overlay(
                     Rectangle()
                       .stroke(Color(red: 0.79, green: 1, blue: 1), lineWidth: 1)
@@ -64,29 +89,36 @@ struct AddNewBulb: View {
                   .opacity(0.4)
                 
                 Text("or")
-                  .font(
-                    Font.custom("DM Sans", size: 16)
-                      .weight(.light)
-                  )
+                  .font(Font.custom("DMSans-Light", size: 16))
                   .kerning(2.4)
                   .multilineTextAlignment(.center)
                   .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                  .textCase(.uppercase)
+                 
                 Rectangle()
-                  .frame(width: 112, height: 1)
+                 .adaptiveFrame(width: 115, height: 1)
                   .overlay(
                     Rectangle()
                       .stroke(Color(red: 0.79, green: 1, blue: 1), lineWidth: 1)
                   )
                   .opacity(0.4)
              }
-            .adaptiveOffset(y: 200)
+            .adaptiveOffset(y: 191)
+            
+            CostumButton(text: "search in network", width: 377, height: 291) {
+                
+            }
+            .adaptiveOffset(y: 290)
         }
+        .textCase(.uppercase)
     }
 }
 
 #Preview {
     AddNewBulb()
+        .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
+        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=140-1857&m=dev")!)
+        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
 
 
