@@ -29,7 +29,7 @@ struct EnvironmentView: View {
                 .adaptiveOffset(y: -264)
             
             Text("You don’t have \nany bulbs yet")
-              .font(Font.custom("DM Sans", size: 16))
+              .font(Font.custom("DMSans-Regular", size: 16))
               .kerning(3.2)
               .multilineTextAlignment(.center)
               .foregroundColor(Color(red: 0.75, green: 0.85, blue: 1))

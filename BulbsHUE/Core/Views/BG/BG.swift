@@ -11,6 +11,18 @@ struct BG: View {
     var body: some View {
    Image("BG")
             .resizable()
+            .scaledToFit()
+            .frame(width: UIScreen.width, height: UIScreen.height)
+            .edgesIgnoringSafeArea(.all)
+    }
+}
+
+struct BGLight: View {
+    var body: some View {
+   Image("BGLigth")
+            .resizable()
+            .scaledToFit()
+            .frame(width: UIScreen.width, height: UIScreen.height)
             .edgesIgnoringSafeArea(.all)
     }
 }

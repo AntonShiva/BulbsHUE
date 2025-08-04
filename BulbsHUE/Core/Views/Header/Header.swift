@@ -19,7 +19,7 @@ struct Header<LeftView: View, RightView: View>: View {
                 .adaptiveOffset(x: -140)
             // Заголовок по центру
             Text(title)
-                .font(Font.custom("DM Sans", size: 16).weight(.regular))
+                .font(Font.custom("DMSans-Regular", size: 16))
                 .kerning(4.3)
                 .foregroundColor(.primColor)
               .blur(radius: 0.2)
@@ -27,10 +27,7 @@ struct Header<LeftView: View, RightView: View>: View {
             rightView
                 .adaptiveOffset(x: 140)
         }
-       
-       
-    
-    }
+     }
 }
 
 #Preview {

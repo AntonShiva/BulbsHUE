@@ -48,7 +48,7 @@ struct TabBarButton: View {
                     
                     // Title
                     Text(title)
-                        .font(Font.custom("DMSans-9ptRegular_Light", size: 10))
+                        .font(Font.custom("DMSans-Light", size: 10))
                         .kerning(2.2)
                         .multilineTextAlignment(.center)
                         .foregroundColor(isSelected ? activeColor : inactiveColor)
