@@ -8,42 +8,38 @@
 import SwiftUI
 
 struct EnvironmentView: View {
-    @State var addButton: Bool = false
-   
-   @EnvironmentObject var viewModel: AppViewModel
+    @EnvironmentObject var nav: NavigationManager
+    @EnvironmentObject var viewModel: AppViewModel
     var body: some View {
         ZStack {
             BG()
             
             Header(title: "ENVIRONMENT") {
-                            // Левая кнопка - ваше меню
-                         MenuButton { }
+                // Левая кнопка - ваше меню
+                MenuButton { }
             } rightView: {
                 // Правая кнопка - плюс
-                AddHeaderButton{
+                AddHeaderButton {
+                    nav.go(.addNewBulb)
                 }
             }
-                        .adaptiveOffset(y: -330)
+            .adaptiveOffset(y: -330)
             
             SelectorTabEnviromentView()
                 .adaptiveOffset(y: -264)
             
-            Text("You don’t have \nany bulbs yet")
-              .font(Font.custom("DMSans-Regular", size: 16))
-              .kerning(3.2)
-              .multilineTextAlignment(.center)
-              .foregroundColor(Color(red: 0.75, green: 0.85, blue: 1))
-              .opacity(0.3)
-              .textCase(.uppercase)
+            Text("You don't have \nany bulbs yet")
+                .font(Font.custom("DMSans-Regular", size: 16))
+                .kerning(3.2)
+                .multilineTextAlignment(.center)
+                .foregroundColor(Color(red: 0.75, green: 0.85, blue: 1))
+                .opacity(0.3)
+                .textCase(.uppercase)
             
             AddButton(text: "add bulb", width: 427, height: 295) {
-                addButton.toggle()
+                nav.go(.addNewBulb)
             }
             .adaptiveOffset(y: 195)
-        }
-        .sheet(isPresented: $addButton) {
-           
-            LightsListView()
         }
        
     }

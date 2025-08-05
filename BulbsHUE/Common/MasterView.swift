@@ -26,15 +26,6 @@ struct MasterView: View {
                     .adaptiveOffset(y: 20)
             }
         }
-        .onAppear {
-              //  проверка шрифтов
-              for family in UIFont.familyNames {
-                  print("== \(family)")
-                  for name in UIFont.fontNames(forFamilyName: family) {
-                      print("   - \(name)")
-                  }
-              }
-          }
 
     }
 }
@@ -47,3 +38,12 @@ struct MasterView: View {
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
 
+//        .onAppear {
+//              //  проверка шрифтов
+//              for family in UIFont.familyNames {
+//                  print("== \(family)")
+//                  for name in UIFont.fontNames(forFamilyName: family) {
+//                      print("   - \(name)")
+//                  }
+//              }
+//          }
