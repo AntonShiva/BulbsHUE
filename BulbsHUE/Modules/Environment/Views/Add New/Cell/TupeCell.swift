@@ -6,33 +6,22 @@
 //
 
 import SwiftUI
-// MARK: - Модель данных для подтипа лампы
-struct LampSubtype {
-    let id = UUID()
-    let name: String
-    let iconName: String
-    let isSelected: Bool
-}
 
-// MARK: - Расширяемая ячейка
+// MARK: - Расширяемая ячейка типа лампы
 struct TupeCell: View {
-    var text: String
-    var image: String
-    var width: CGFloat
-    var height: CGFloat
+    let bulbType: BulbType
+    @ObservedObject var typeManager: BulbTypeManager
     var cellHeight: CGFloat = 64 // Настраиваемая высота
-    var subtypes: [LampSubtype] = [] // Подтипы для развернутого состояния
-    var onTap: () -> Void = {}
-    var onSubtypeSelect: (LampSubtype) -> Void = { _ in }
     
     @State private var isExpanded: Bool = false
     
+    // Вычисляет общую высоту ячейки в зависимости от развернутого состояния
     private var totalHeight: CGFloat {
-        if isExpanded {
+        if isExpanded && !bulbType.subtypes.isEmpty {
             let subtypeHeight: CGFloat = 40 // Высота каждого подтипа
             let spacing: CGFloat = 8 // Отступ между подтипами
             let padding: CGFloat = 16 // Отступы сверху и снизу
-            return cellHeight + (CGFloat(subtypes.count) * subtypeHeight) + (CGFloat(subtypes.count - 1) * spacing) + padding
+            return cellHeight + (CGFloat(bulbType.subtypes.count) * subtypeHeight) + (CGFloat(bulbType.subtypes.count - 1) * spacing) + padding
         } else {
             return cellHeight
         }
@@ -55,30 +44,30 @@ struct TupeCell: View {
                 ZStack {
                     HStack {
                         HStack(spacing: 0) {
-                            // Иконка - фиксированная позиция слева
-                            Image(image)
+                            // Иконка типа лампы - автоматически берется из bulbType
+                            Image(bulbType.iconName)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: width, height: height)
-                                .frame(width: 66)
+                                .frame(width: bulbType.iconWidth, height: bulbType.iconHeight)
+                                .frame(width: 66) // Фиксированная область для иконки
                             
-                            // Текст - начинается в фиксированной позиции
-                            Text(text)
+                            // Название типа лампы - берется из bulbType
+                            Text(bulbType.name)
                                 .font(Font.custom("DMSans-Regular", size: 14))
                                 .kerning(3)
                                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                                 .textCase(.uppercase)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             
-                         
-                            // Кнопка с поворотом
+                            // Кнопка с поворотом - поворачивается только если есть подтипы
                             SelectCategoryButton{
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    isExpanded.toggle()
+                                if !bulbType.subtypes.isEmpty {
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        isExpanded.toggle()
+                                    }
                                 }
-                                onTap()
                             }
-                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                            .rotationEffect(.degrees(isExpanded && !bulbType.subtypes.isEmpty ? 90 : 0))
                             .adaptiveFrame(width: 50)
                         }
                         .padding(.trailing, 10)
@@ -86,14 +75,16 @@ struct TupeCell: View {
                     .frame(width: 332, height: cellHeight)
                 }
                 
-                // Развернутый список подтипов
-                if isExpanded && !subtypes.isEmpty {
+                // Развернутый список подтипов с реальными данными
+                if isExpanded && !bulbType.subtypes.isEmpty {
                     VStack(spacing: 8) {
-                        ForEach(subtypes, id: \.id) { subtype in
+                        ForEach(bulbType.subtypes, id: \.id) { subtype in
                             LampSubtypeCell(
                                 subtype: subtype,
+                                isSelected: typeManager.isSubtypeSelected(subtype),
                                 onSelect: {
-                                    onSubtypeSelect(subtype)
+                                    // Выбираем только один подтип (отменяя предыдущий)
+                                    typeManager.selectSubtype(subtype)
                                 }
                             )
                         }
@@ -108,6 +99,7 @@ struct TupeCell: View {
 }
 
 
+// MARK: - Простая ячейка без расширения (для SearchResultsSheet)
 struct BulbCell: View {
     var text: String
     var image: String
@@ -145,7 +137,7 @@ struct BulbCell: View {
                       
                     // Кнопка - фиксированная позиция справа
                     SelectCategoryButton {
-                                            onTap()
+                        onTap()
                     }
                     .adaptiveFrame(width: 50) // Фиксированная ширина для кнопки
                 }
@@ -155,29 +147,22 @@ struct BulbCell: View {
         }
     }
 }
-struct ExpandableCellTestView_Previews1: PreviewProvider {
-    static var previews: some View {
-        ExpandableCellTestView()
-    }
-}
 
-
+// MARK: - Preview для TupeCell с реальными данными
 #Preview {
     ZStack {
-       BG()
-       BulbCell(text: "Bulb name", image: "lightBulb", width: 32, height: 32)
-            .adaptiveOffset(y: -70)
+        BG()
+        VStack(spacing: 16) {
+            // Создаем тестовый typeManager
+            let typeManager = BulbTypeManager()
+            let tableType = typeManager.bulbTypes.first { $0.name == "TABLE" }!
+            
+            TupeCell(
+                bulbType: tableType,
+                typeManager: typeManager
+            )
+        }
     }
     .environmentObject(NavigationManager.shared)
     .environmentObject(AppViewModel())
-    .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2010-2&t=N7aN39c57LpreKLv-4")!)
-    .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
-}
-
-#Preview {
-    SearchResultsSheet()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
-        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2010-2&t=N7aN39c57LpreKLv-4")!)
-        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }

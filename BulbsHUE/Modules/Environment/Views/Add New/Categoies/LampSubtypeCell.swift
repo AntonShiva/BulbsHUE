@@ -10,32 +10,33 @@ import SwiftUI
 // MARK: - Ячейка подтипа лампы
 struct LampSubtypeCell: View {
     let subtype: LampSubtype
+    let isSelected: Bool
     let onSelect: () -> Void
     
     var body: some View {
         HStack(spacing: 16) {
-            // Иконка подтипа
+            // Иконка подтипа - автоматически подставляется правильная иконка из Assets
             Image(subtype.iconName)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 24, height: 24)
                 .frame(width: 40) // Фиксированная область для иконки
             
-            // Название подтипа
+            // Название подтипа - берется из модели данных
             Text(subtype.name)
-                .font(Font.custom("DM Sans", size: 12))
+                .font(Font.custom("DMSans-Light", size: 12))
                 .kerning(2.4)
                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
-            // Индикатор выбора
-            SelectionIndicator(isSelected: subtype.isSelected)
+            // Индикатор выбора - показывает реальное состояние выбора
+            SelectionIndicator(isSelected: isSelected)
         }
         .frame(width: 274, height: 28)
-        .contentShape(Rectangle())
+        .contentShape(Rectangle()) // Вся область ячейки кликабельна
         .onTapGesture {
-            onSelect()
+            onSelect() // Вызывает callback для переключения состояния
         }
     }
 }
@@ -43,8 +44,11 @@ struct LampSubtypeCell: View {
 #Preview {
     ZStack {
         BG()
-        LampSubtypeCell(subtype: LampSubtype(name: "Floor Type 1", iconName: "f1", isSelected: true)){
-            
+        LampSubtypeCell(
+            subtype: LampSubtype(name: "TRADITIONAL LAMP", iconName: "t1"),
+            isSelected: true
+        ) {
+            print("Subtype selected")
         }
     }
 }
