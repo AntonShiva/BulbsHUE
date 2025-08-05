@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SelectCategoriesSheet: View {
+    @EnvironmentObject var nav: NavigationManager
     @StateObject private var typeManager = BulbTypeManager()
     @State private var selectedBulbType: BulbType?
     
@@ -30,7 +31,7 @@ struct SelectCategoriesSheet: View {
                 VStack(spacing: 0) {
                     HStack {
                         ChevronButton {
-                            
+                            nav.hideCategoriesSelection()
                         }
                         .rotationEffect(.degrees(180))
                         

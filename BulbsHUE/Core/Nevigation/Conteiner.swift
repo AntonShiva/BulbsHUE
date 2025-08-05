@@ -13,11 +13,20 @@ struct MainContainer: View {
     var body: some View {
         Group {
             switch nav.currentRoute {
-            case .environment: EnvironmentView()
-            case .schedule: ScheduleView()
-            case .music: MusicView()
-//            default:
-//                EmptyView()
+            case .environment: 
+                EnvironmentView()
+            case .schedule: 
+                ScheduleView()
+            case .music: 
+                MusicView()
+            case .addNewBulb:
+                AddNewBulb()
+            case .searchResults:
+                // Этот экран больше не нужен как отдельный, так как состояние отслеживается в AddNewBulb
+                AddNewBulb()
+            case .selectCategories:
+                // Этот экран также управляется состоянием в AddNewBulb
+                AddNewBulb()
             }
         }
         .transition(.opacity)

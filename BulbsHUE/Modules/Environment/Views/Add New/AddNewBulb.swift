@@ -8,16 +8,19 @@
 import SwiftUI
 
 struct AddNewBulb: View {
+    @EnvironmentObject var nav: NavigationManager
+    
     var body: some View {
         ZStack {
             BGLight()
             HeaderAddNew(title: "NEW BULB"){
                 DismissButton{
-                    
+                    nav.resetAddBulbState()
+                    nav.go(.environment)
                 }
             }
             .adaptiveOffset(y: -323)
-            if !true {
+            if !nav.isSearching {
             Image("BigBulb")
                 .resizable()
                 .scaledToFit()
@@ -105,7 +108,7 @@ struct AddNewBulb: View {
             .adaptiveOffset(y: 191)
             
             CostumButton(text: "search in network", width: 377, height: 291) {
-                
+                nav.startSearch()
             }
             .adaptiveOffset(y: 290)
             
@@ -114,8 +117,11 @@ struct AddNewBulb: View {
                     .adaptiveOffset(y: -162)
                 SearchResultsSheet()
                     .adaptiveOffset(y: 235)
+                if nav.showSelectCategories {
+                    SelectCategoriesSheet()
+                }
             }
-            SelectCategoriesSheet()
+           
         }
         .textCase(.uppercase)
     }

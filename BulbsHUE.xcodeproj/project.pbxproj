@@ -11,6 +11,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3E8CAAE12E426048008B4B6E /* DirectRouteNavigationSwiftui.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = DirectRouteNavigationSwiftui.xcodeproj; sourceTree = "<group>"; };
 		3ECA0B352E33871D00FCA975 /* BulbsHUE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BulbsHUE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -47,6 +48,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		3E8CAAE32E426048008B4B6E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		3ECA0B2C2E33871D00FCA975 = {
 			isa = PBXGroup;
 			children = (
@@ -119,6 +127,12 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3ECA0B362E33871D00FCA975 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 3E8CAAE32E426048008B4B6E /* Products */;
+					ProjectRef = 3E8CAAE12E426048008B4B6E /* DirectRouteNavigationSwiftui.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				3ECA0B342E33871D00FCA975 /* BulbsHUE */,

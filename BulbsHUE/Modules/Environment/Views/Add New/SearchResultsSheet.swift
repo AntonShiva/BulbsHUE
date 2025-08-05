@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct SearchResultsSheet: View {
+    @EnvironmentObject var nav: NavigationManager
+    
     var body: some View {
         ZStack {
             UnevenRoundedRectangle(
@@ -27,8 +29,22 @@ struct SearchResultsSheet: View {
               .textCase(.uppercase)
               .adaptiveOffset(y: -130)
             
-            BulbCell(text: "Bulb name", image: "lightBulb", width: 32, height: 32)
-                .adaptiveOffset(y: -70)
+            // Здесь должен быть список найденных устройств
+            VStack(spacing: 8) {
+                // Пример найденных устройств - в реальности здесь будет ForEach с данными
+                BulbCell(text: "Philips Hue Color", image: "lightBulb", width: 32, height: 32) {
+                    nav.showCategoriesSelection()
+                }
+                
+                BulbCell(text: "IKEA TRÅDFRI", image: "lightBulb", width: 32, height: 32) {
+                    nav.showCategoriesSelection()
+                }
+                
+                BulbCell(text: "Xiaomi Yeelight", image: "lightBulb", width: 32, height: 32) {
+                    nav.showCategoriesSelection()
+                }
+            }
+            .adaptiveOffset(y: -40)
         }
         
     }
