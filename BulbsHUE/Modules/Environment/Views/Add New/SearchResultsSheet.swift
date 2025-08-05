@@ -27,7 +27,7 @@ struct SearchResultsSheet: View {
               .textCase(.uppercase)
               .adaptiveOffset(y: -130)
             
-            TupeCell(text: "Bulb name", image: "lightBulb", width: 32, height: 32)
+            BulbCell(text: "Bulb name", image: "lightBulb", width: 32, height: 32)
                 .adaptiveOffset(y: -70)
         }
         
