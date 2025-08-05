@@ -115,6 +115,7 @@ struct AddNewBulb: View {
                 SearchResultsSheet()
                     .adaptiveOffset(y: 235)
             }
+            SelectCategoriesSheet()
         }
         .textCase(.uppercase)
     }
@@ -123,9 +124,9 @@ struct AddNewBulb: View {
 #Preview {
     AddNewBulb()
         .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
-        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=144-1954&m=dev")!)
-        .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
+//        .environmentObject(AppViewModel())
+//        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=144-1954&m=dev")!)
+//        .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
 #Preview {
     AddNewBulb()

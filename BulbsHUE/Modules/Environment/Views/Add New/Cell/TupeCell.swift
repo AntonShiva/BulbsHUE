@@ -60,7 +60,7 @@ struct TupeCell: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             
                             // Кнопка с поворотом - поворачивается только если есть подтипы
-                            SelectCategoryButton{
+                            ChevronButton{
                                 if !bulbType.subtypes.isEmpty {
                                     withAnimation(.easeInOut(duration: 0.15)) {
                                         isExpanded.toggle()
@@ -136,7 +136,7 @@ struct BulbCell: View {
                         .frame(maxWidth: .infinity, alignment: .leading) // Выравнивание по левому краю
                       
                     // Кнопка - фиксированная позиция справа
-                    SelectCategoryButton {
+                    ChevronButton {
                         onTap()
                     }
                     .adaptiveFrame(width: 50) // Фиксированная ширина для кнопки
