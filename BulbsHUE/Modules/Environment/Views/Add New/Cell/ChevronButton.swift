@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct SelectCategoryButton: View {
+struct ChevronButton: View {
     var action: () -> Void
     var body: some View {
         Button {
@@ -29,7 +29,7 @@ struct SelectCategoryButton: View {
 #Preview {
     ZStack {
         BG()
-        SelectCategoryButton{
+        ChevronButton{
             
         }
     }
