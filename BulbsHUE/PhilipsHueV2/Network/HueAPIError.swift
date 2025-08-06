@@ -23,6 +23,9 @@ enum HueAPIError: LocalizedError {
     case outdatedBridge
     case localNetworkPermissionDenied
     case bridgeNotFound
+    case encodingError
+    case networkError(Error)
+    case unknown(String)
     
     var errorDescription: String? {
         switch self {
@@ -52,6 +55,12 @@ enum HueAPIError: LocalizedError {
             return "Разрешение на доступ к локальной сети отклонено. Перейдите в Настройки > Конфиденциальность и безопасность > Локальная сеть и включите разрешение для этого приложения."
         case .bridgeNotFound:
             return "Hue Bridge не найден в сети. Убедитесь что мост подключен к той же Wi-Fi сети."
+        case .encodingError:
+            return "Ошибка кодирования данных запроса"
+        case .networkError(let error):
+            return "Ошибка сети: \(error.localizedDescription)"
+        case .unknown(let message):
+            return "Неизвестная ошибка: \(message)"
         }
     }
 }

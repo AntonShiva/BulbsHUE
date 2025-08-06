@@ -750,6 +750,257 @@ extension HueAPIClient {
             .setFailureType(to: Error.self)
             .eraseToAnyPublisher()
     }
+    
+    /// Ищет новые лампы используя Hue Bridge API v1
+    /// - Parameter serialNumbers: Массив серийных номеров для поиска (необязательно)
+    /// - Returns: Publisher с результатом поиска
+    func searchForLightsV1(serialNumbers: [String]? = nil) -> AnyPublisher<Bool, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "https://\(bridgeIP)/api/\(applicationKey)/lights") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Создаем тело запроса
+        var requestBody: [String: Any] = [:]
+        if let serialNumbers = serialNumbers, !serialNumbers.isEmpty {
+            requestBody["deviceid"] = serialNumbers
+        }
+        // Если serialNumbers пустой - ищем все новые лампы
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
+            request.httpBody = jsonData
+        } catch {
+            return Fail(error: HueAPIError.encodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        return sessionHTTPS.dataTaskPublisher(for: request)
+            .map(\.data)
+            .decode(type: [HueAPIResponse].self, decoder: JSONDecoder())
+            .map { responses in
+                // Проверяем успешность ответа
+                return responses.contains { response in
+                    response.success != nil
+                }
+            }
+            .mapError { error in
+                print("❌ Ошибка поиска ламп: \(error)")
+                return HueAPIError.networkError(error)
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Получает результаты поиска новых ламп (API v1)
+    /// - Returns: Publisher с найденными лампами
+    func getNewLightsV1() -> AnyPublisher<[Light], Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "https://\(bridgeIP)/api/\(applicationKey)/lights/new") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        return sessionHTTPS.dataTaskPublisher(for: request)
+            .map(\.data)
+            .decode(type: NewLightsResponse.self, decoder: JSONDecoder())
+            .map { response in
+                // Преобразуем найденные лампы в массив Light
+                return response.lights
+            }
+            .mapError { error in
+                print("❌ Ошибка получения новых ламп: \(error)")
+                return HueAPIError.networkError(error)
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Сбрасывает и добавляет лампу по серийному номеру (процесс аналогичный официальному приложению)
+    /// - Parameter serialNumber: Серийный номер лампы для сброса и добавления
+    /// - Returns: Publisher с результатом операции
+    func resetAndAddLightBySerialNumber(_ serialNumber: String) -> AnyPublisher<Bool, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "https://\(bridgeIP)/api/\(applicationKey)/lights") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Создаем запрос для сброса и поиска лампы по серийному номеру
+        let requestBody: [String: Any] = [
+            "deviceid": [serialNumber.uppercased()]
+        ]
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
+            request.httpBody = jsonData
+            
+            print("🚀 Отправляем запрос сброса лампы с серийным номером: \(serialNumber)")
+            print("📡 URL: \(url)")
+            print("📦 Body: \(String(data: jsonData, encoding: .utf8) ?? "nil")")
+        } catch {
+            return Fail(error: HueAPIError.encodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        return sessionHTTPS.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                // Проверяем HTTP статус
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("📡 HTTP Response Status: \(httpResponse.statusCode)")
+                    
+                    if httpResponse.statusCode == 404 {
+                        throw HueAPIError.bridgeNotFound
+                    } else if httpResponse.statusCode >= 400 {
+                        throw HueAPIError.httpError(statusCode: httpResponse.statusCode)
+                    }
+                }
+                
+                // Логируем ответ
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📥 Bridge Response: \(responseString)")
+                }
+                
+                return data
+            }
+            .decode(type: [HueAPIResponse].self, decoder: JSONDecoder())
+            .tryMap { responses in
+                print("🔍 Обрабатываем ответ Bridge: \(responses)")
+                
+                // Проверяем на ошибки
+                if let firstResponse = responses.first {
+                    if let error = firstResponse.error {
+                        print("❌ Bridge Error: \(error.description)")
+                        if error.type == 101 {
+                            throw HueAPIError.linkButtonNotPressed
+                        } else {
+                            throw HueAPIError.unknown("Bridge error: \(error.description)")
+                        }
+                    }
+                    
+                    if let success = firstResponse.success {
+                        print("✅ Поиск запущен успешно: \(success)")
+                        return true
+                    }
+                }
+                
+                // Если нет явного успеха или ошибки, считаем это успехом
+                return true
+            }
+            .mapError { error in
+                print("❌ Ошибка при сбросе лампы: \(error)")
+                if let hueError = error as? HueAPIError {
+                    return hueError
+                } else {
+                    return HueAPIError.networkError(error)
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Получает детальную информацию об устройстве по ID для извлечения серийного номера
+    /// - Parameter deviceId: ID устройства
+    /// - Returns: Publisher с информацией об устройстве
+    func getDeviceDetails(_ deviceId: String) -> AnyPublisher<DeviceDetails, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "https://\(bridgeIP)/clip/v2/resource/device/\(deviceId)") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(applicationKey, forHTTPHeaderField: "hue-application-key")
+        
+        return sessionHTTPS.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                if let httpResponse = response as? HTTPURLResponse {
+                    if httpResponse.statusCode == 404 {
+                        throw HueAPIError.bridgeNotFound
+                    } else if httpResponse.statusCode >= 400 {
+                        throw HueAPIError.httpError(statusCode: httpResponse.statusCode)
+                    }
+                }
+                return data
+            }
+            .decode(type: DeviceDetailsResponse.self, decoder: JSONDecoder())
+            .map { $0.data.first }
+            .compactMap { $0 }
+            .mapError { error in
+                HueAPIError.networkError(error)
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Получает список всех ламп через API v1 (может содержать серийные номера)
+    /// - Returns: Publisher с информацией о лампах v1
+    func getLightsV1() -> AnyPublisher<[String: LightV1Data], Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        print("📤 HTTP GET запрос v1: \(url)")
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("📥 HTTP \(httpResponse.statusCode) ответ от \(url)")
+                    
+                    if httpResponse.statusCode == 404 {
+                        throw HueAPIError.bridgeNotFound
+                    } else if httpResponse.statusCode >= 400 {
+                        throw HueAPIError.httpError(statusCode: httpResponse.statusCode)
+                    }
+                }
+                
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📄 HTTPS тело ответа v1: \(responseString.prefix(500))...")
+                }
+                
+                return data
+            }
+            .decode(type: [String: LightV1Data].self, decoder: JSONDecoder())
+            .mapError { error in
+                print("❌ Ошибка получения ламп v1: \(error)")
+                return HueAPIError.networkError(error)
+            }
+            .eraseToAnyPublisher()
+    }
 }
 
 

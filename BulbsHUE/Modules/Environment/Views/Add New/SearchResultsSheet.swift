@@ -36,32 +36,94 @@ struct SearchResultsSheet: View {
 
             ScrollView {
                 LazyVStack(spacing: 12) {
-                    // Показываем разные списки в зависимости от типа поиска
-                    ForEach(getLightsToShow()) { light in
-                        BulbCell(text: light.metadata.name, image: "lightBulb", width: 32, height: 32) {
-                            nav.showCategoriesSelection(for: light)
-                        }
-                    }
-                    
-                    // Показываем сообщение если ничего не найдено при поиске по серийнику
-                    if nav.searchType == .serialNumber && lightsViewModel.serialNumberFoundLights.isEmpty {
+                    // Показываем индикатор загрузки при поиске по серийному номеру
+                    if nav.searchType == .serialNumber && lightsViewModel.isLoading {
                         VStack(spacing: 16) {
-                            Text("lamp not found")
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.79, green: 1, blue: 1)))
+                                .scaleEffect(1.2)
+                            
+                            Text("adding lamp...")
                                 .font(Font.custom("DMSans-Light", size: 16))
                                 .kerning(2.4)
                                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                                 .textCase(.uppercase)
                             
-                            Text("check serial number format\n(6 characters)")
-                                .font(Font.custom("DMSans-Light", size: 12))
-                                .kerning(1.8)
+                            Text("lamp should flash to confirm reset")
+                                .font(Font.custom("DMSans-Light", size: 10))
+                                .kerning(1.0)
                                 .lineSpacing(2)
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                                 .opacity(0.7)
-                                .textCase(.uppercase)
                         }
                         .padding(.top, 40)
+                    } else {
+                        // Показываем разные списки в зависимости от типа поиска
+                        ForEach(getLightsToShow()) { light in
+                            VStack(alignment: .leading, spacing: 8) {
+                                if nav.searchType == .serialNumber {
+                                    // Для добавления по серийному номеру показываем информацию о новой лампе
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("lamp added successfully")
+                                            .font(Font.custom("DMSans-Light", size: 12))
+                                            .kerning(1.8)
+                                            .foregroundColor(Color.green)
+                                            .textCase(.uppercase)
+                                            .opacity(0.8)
+                                        
+                                        Text("ready to assign category and type")
+                                            .font(Font.custom("DMSans-Light", size: 10))
+                                            .kerning(1.0)
+                                            .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                            .opacity(0.7)
+                                    }
+                                    .padding(.bottom, 4)
+                                }
+                                
+                                BulbCell(text: light.metadata.name, image: "lightBulb", width: 32, height: 32) {
+                                    nav.showCategoriesSelection(for: light)
+                                }
+                            }
+                        }
+                        
+                        // Показываем сообщение если ничего не найдено при поиске по серийнику
+                        if nav.searchType == .serialNumber && lightsViewModel.serialNumberFoundLights.isEmpty && !lightsViewModel.isLoading {
+                            VStack(spacing: 16) {
+                                if let error = lightsViewModel.error {
+                                    // Показываем конкретную ошибку
+                                    Text("connection error")
+                                        .font(Font.custom("DMSans-Light", size: 16))
+                                        .kerning(2.4)
+                                        .foregroundColor(Color.red)
+                                        .textCase(.uppercase)
+                                    
+                                    Text(error.localizedDescription)
+                                        .font(Font.custom("DMSans-Light", size: 10))
+                                        .kerning(1.0)
+                                        .lineSpacing(2)
+                                        .multilineTextAlignment(.center)
+                                        .foregroundColor(Color.red)
+                                        .opacity(0.8)
+                                } else {
+                                    // Стандартное сообщение
+                                    Text("lamp not found")
+                                        .font(Font.custom("DMSans-Light", size: 16))
+                                        .kerning(2.4)
+                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                        .textCase(.uppercase)
+                                    
+                                    Text("• ensure lamp is within 1m of bridge\n• check serial number (6 characters)\n• make sure lamp is powered on")
+                                        .font(Font.custom("DMSans-Light", size: 10))
+                                        .kerning(1.0)
+                                        .lineSpacing(2)
+                                        .multilineTextAlignment(.center)
+                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                        .opacity(0.7)
+                                }
+                            }
+                            .padding(.top, 40)
+                        }
                     }
                 }
                 .padding()
