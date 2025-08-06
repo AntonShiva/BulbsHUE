@@ -165,7 +165,11 @@ struct AddNewBulb: View {
     
     // MARK: - Serial Number Functions
     private func addLampBySerialNumber() {
+        print("🎯 НАЧАЛО addLampBySerialNumber - сырой ввод: '\(serialNumber)'")
+        
         let cleanSerialNumber = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        print("🎯 Очищенный серийный номер: '\(cleanSerialNumber)'")
         
         guard !cleanSerialNumber.isEmpty else {
             print("❌ Серийный номер пуст")
@@ -184,12 +188,8 @@ struct AddNewBulb: View {
         // Очищаем предыдущие результаты поиска по серийному номеру
         appViewModel.lightsViewModel.clearSerialNumberFoundLights()
         
-        // Создаем фиктивную лампу для демонстрации
-        // В реальном приложении здесь был бы API-запрос для поиска лампы по серийнику
-        let foundLight = LightsViewModel.createLightFromSerialNumber(cleanSerialNumber)
-        
-        // Добавляем найденную лампу в отдельный список для серийных номеров
-        appViewModel.lightsViewModel.addSerialNumberFoundLight(foundLight)
+        // Сначала ищем среди уже подключенных ламп, затем пытаемся добавить новую
+        appViewModel.lightsViewModel.addLightBySerialNumber(cleanSerialNumber)
         
         // Скрываем клавиатуру
         isSerialNumberFocused = false

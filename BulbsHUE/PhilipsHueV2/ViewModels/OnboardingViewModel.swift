@@ -364,6 +364,13 @@ class OnboardingViewModel: ObservableObject {
     
     /// Попытка создать пользователя
         private func attemptCreateUser() {
+            // Проверяем - может пользователь уже создан
+            if appViewModel.connectionStatus == .connected {
+                print("✅ Пользователь уже создан - останавливаем попытки")
+                cancelLinkButton()
+                return
+            }
+            
             #if canImport(UIKit)
             let deviceName = UIDevice.current.name
             #else
@@ -416,6 +423,13 @@ extension OnboardingViewModel {
     
     /// Улучшенная попытка создания пользователя
     func attemptCreateUserImproved() {
+        // Проверяем - может пользователь уже создан
+        if appViewModel.connectionStatus == .connected {
+            print("✅ Пользователь уже создан - останавливаем улучшенные попытки")
+            cancelLinkButton()
+            return
+        }
+        
         guard let bridge = selectedBridge else {
             print("❌ Не выбран мост для подключения")
             return
