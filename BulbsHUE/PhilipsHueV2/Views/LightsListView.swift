@@ -62,7 +62,7 @@ struct LightsListView: View {
                     }
                     .padding()
                     
-                    if lightsViewModel.lights.isEmpty {
+                    if !lightsViewModel.lights.isEmpty {
                         // Пустое состояние
                         VStack(spacing: 20) {
                             Spacer()

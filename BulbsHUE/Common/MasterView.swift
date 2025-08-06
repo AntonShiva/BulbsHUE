@@ -9,12 +9,12 @@ import SwiftUI
 
 struct MasterView: View {
     @EnvironmentObject var appViewModel: AppViewModel
-    
+    @EnvironmentObject var navigationManager: NavigationManager
     var body: some View {
         ZStack(alignment: .bottom) {
             BG()
             
-            if appViewModel.showSetup {
+            if !appViewModel.showSetup {
                 // Показываем онбординг для настройки Hue Bridge
                 OnboardingView(appViewModel: appViewModel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -22,8 +22,14 @@ struct MasterView: View {
                 // Показываем основной интерфейс
                 MainContainer()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                TabBarView()
-                    .adaptiveOffset(y: 20)
+                    .onChange(of: navigationManager.currentRoute) {
+                        navigationManager.togleTabBarVisible()
+                    }
+                
+                if navigationManager.isTabBarVisible {
+                    TabBarView()
+                        .adaptiveOffset(y: 20)
+                }
             }
         }
 

@@ -9,11 +9,11 @@ import SwiftUI
 
 struct BG: View {
     var body: some View {
-   Image("BG")
+        Image("BG")
             .resizable()
-            .scaledToFit()
+            .scaledToFill()
             .frame(width: UIScreen.width, height: UIScreen.height)
-            .edgesIgnoringSafeArea(.all)
+            .ignoresSafeArea(.all)
     }
 }
 
@@ -21,9 +21,9 @@ struct BGLight: View {
     var body: some View {
    Image("BGLigth")
             .resizable()
-            .scaledToFit()
+            .scaledToFill()
             .frame(width: UIScreen.width, height: UIScreen.height)
-            .edgesIgnoringSafeArea(.all)
+            .ignoresSafeArea(.all)
     }
 }
 
@@ -32,7 +32,7 @@ struct BGLight: View {
 }
 
 #Preview {
-    MasterView()
+    BGLight()
 }
 
 

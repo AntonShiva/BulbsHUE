@@ -29,6 +29,13 @@ class NavigationManager: ObservableObject {
     // Переменная для отслеживания состояний в AddNewBulb
     @Published var isSearching: Bool = false
     @Published var showSelectCategories: Bool = false
+    /// Флаг показа TabBar
+    @Published var isTabBarVisible: Bool = true
+    
+    /// Проверка, находимся ли мы на главном экране вкладки
+   func togleTabBarVisible() {
+      isTabBarVisible = currentRoute == .environment || currentRoute == .schedule || currentRoute == .music
+       }
     
     static let shared = NavigationManager()
     private init() {}
