@@ -44,6 +44,9 @@ class LightsViewModel: ObservableObject {
     /// Фильтр для отображения ламп
     @Published var filter: LightFilter = .all
     
+    /// Лампы найденные по серийному номеру (отдельно от основного списка)
+    @Published var serialNumberFoundLights: [Light] = []
+    
     // MARK: - Private Properties
     
     /// Клиент для работы с API
@@ -104,6 +107,72 @@ class LightsViewModel: ObservableObject {
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    /// Добавляет найденную лампу в список (для поиска по серийному номеру)
+    /// - Parameter light: Найденная лампа для добавления
+    func addFoundLight(_ light: Light) {
+        print("💡 Добавляем найденную лампу: \(light.metadata.name)")
+        
+        // Проверяем, нет ли уже такой лампы в списке
+        if !lights.contains(where: { $0.id == light.id }) {
+            lights.append(light)
+            print("✅ Лампа добавлена в список найденных ламп")
+        } else {
+            print("⚠️ Лампа с таким ID уже существует в списке")
+        }
+    }
+    
+    /// Добавляет лампу найденную по серийному номеру в отдельный список
+    /// - Parameter light: Лампа найденная по серийному номеру
+    func addSerialNumberFoundLight(_ light: Light) {
+        print("🔍 Добавляем лампу найденную по серийному номеру: \(light.metadata.name)")
+        
+        // Очищаем предыдущий результат и добавляем только эту лампу
+        serialNumberFoundLights = [light]
+        print("✅ Лампа по серийному номеру добавлена")
+    }
+    
+    /// Очищает список ламп найденных по серийному номеру
+    func clearSerialNumberFoundLights() {
+        serialNumberFoundLights = []
+    }
+    
+    /// Создает новый Light объект на основе серийного номера
+    /// - Parameter serialNumber: Серийный номер лампы (должен быть 6 символов)
+    /// - Returns: Новый Light объект
+    static func createLightFromSerialNumber(_ serialNumber: String) -> Light {
+        let cleanSerialNumber = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let lightId = "light_\(cleanSerialNumber)"
+        let lightName = "Hue Bulb \(cleanSerialNumber)"
+        
+        return Light(
+            id: lightId,
+            type: "light",
+            metadata: LightMetadata(
+                name: lightName,
+                archetype: "desk_lamp"
+            ),
+            on: OnState(on: false),
+            dimming: Dimming(brightness: 100),
+            color: HueColor(
+                xy: XYColor(x: 0.3, y: 0.3),
+                gamut: Gamut(
+                    red: XYColor(x: 0.7, y: 0.3),
+                    green: XYColor(x: 0.17, y: 0.7),
+                    blue: XYColor(x: 0.15, y: 0.06)
+                ),
+                gamut_type: "C"
+            )
+        )
+    }
+    
+    /// Валидирует серийный номер Philips Hue (должен быть 6 символов)
+    /// - Parameter serialNumber: Серийный номер для проверки
+    /// - Returns: true если серийный номер валидный
+    static func isValidSerialNumber(_ serialNumber: String) -> Bool {
+        let cleanSerial = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleanSerial.count == 6 && cleanSerial.allSatisfy { $0.isHexDigit }
     }
     
     /// Включает/выключает лампу
