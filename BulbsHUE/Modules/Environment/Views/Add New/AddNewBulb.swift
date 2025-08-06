@@ -7,8 +7,25 @@
 
 import SwiftUI
 
+// MARK: - TextField Placeholder Extension
+extension View {
+    func placeholder<Content: View>(
+        when shouldShow: Bool,
+        alignment: Alignment = .leading,
+        @ViewBuilder placeholder: () -> Content) -> some View {
+        
+        ZStack(alignment: alignment) {
+            placeholder().opacity(shouldShow ? 1 : 0)
+            self
+        }
+    }
+}
+
 struct AddNewBulb: View {
     @EnvironmentObject var nav: NavigationManager
+    @EnvironmentObject var appViewModel: AppViewModel
+    @State private var serialNumber: String = ""
+    @FocusState private var isSerialNumberFocused: Bool
     
     var body: some View {
         ZStack {
@@ -46,32 +63,51 @@ struct AddNewBulb: View {
                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                 .adaptiveOffset(y: -40)
             
-            ZStack{
-                Rectangle()
-                    .foregroundColor(.clear)
-                    .adaptiveFrame(width: 244, height: 68)
-                    .background(Color(red: 0.4, green: 0.49, blue: 0.68))
-                    .cornerRadius(14)
-                    .blur(radius: 44.55)
-                    .rotationEffect(Angle(degrees: 13.02))
-                
-                Rectangle()
-                    .foregroundColor(.clear)
-                    .adaptiveFrame(width: 280, height: 72)
-                    .cornerRadius(50)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 50)
-                            .inset(by: 0.5)
-                            .stroke(Color(red: 0.32, green: 0.44, blue: 0.46), lineWidth: 1)
-                    )
-                
-                Text("use serial number")
-                    .font(Font.custom("DMSans-Light", size: 16))
-                    .kerning(2.6)
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                
+            Button(action: {
+                isSerialNumberFocused = true
+            }) {
+                ZStack{
+                    Rectangle()
+                        .foregroundColor(.clear)
+                        .adaptiveFrame(width: 244, height: 68)
+                        .background(Color(red: 0.4, green: 0.49, blue: 0.68))
+                        .cornerRadius(14)
+                        .blur(radius: 44.55)
+                        .rotationEffect(Angle(degrees: 13.02))
+                    
+                    Rectangle()
+                        .foregroundColor(.clear)
+                        .adaptiveFrame(width: 280, height: 72)
+                        .cornerRadius(50)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 50)
+                                .inset(by: 0.5)
+                                .stroke(Color(red: 0.32, green: 0.44, blue: 0.46), lineWidth: 1)
+                        )
+                    
+                    TextField("", text: $serialNumber)
+                        .font(Font.custom("DMSans-Light", size: 16))
+                        .kerning(2.6)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                        .textCase(.uppercase)
+                        .focused($isSerialNumberFocused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            addLampBySerialNumber()
+                        }
+                        .placeholder(when: serialNumber.isEmpty, alignment: .center) {
+                            Text("use serial number")
+                                .font(Font.custom("DMSans-Light", size: 16))
+                                .kerning(2.6)
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                .textCase(.uppercase)
+                        }
+                    
+                }
             }
+            .buttonStyle(PlainButtonStyle())
             .adaptiveOffset(y: 96)
             
             Text("on the lamp or label")
@@ -126,12 +162,51 @@ struct AddNewBulb: View {
         }
         .textCase(.uppercase)
     }
+    
+    // MARK: - Serial Number Functions
+    private func addLampBySerialNumber() {
+        let cleanSerialNumber = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !cleanSerialNumber.isEmpty else {
+            print("❌ Серийный номер пуст")
+            return
+        }
+        
+        // Валидируем серийный номер (должен быть 6 символов hex)
+        guard LightsViewModel.isValidSerialNumber(cleanSerialNumber) else {
+            print("❌ Неверный формат серийного номера. Должен быть 6 символов (hex)")
+            // Можно добавить alert пользователю
+            return
+        }
+        
+        print("🔍 Поиск лампы по серийному номеру: \(cleanSerialNumber)")
+        
+        // Очищаем предыдущие результаты поиска по серийному номеру
+        appViewModel.lightsViewModel.clearSerialNumberFoundLights()
+        
+        // Создаем фиктивную лампу для демонстрации
+        // В реальном приложении здесь был бы API-запрос для поиска лампы по серийнику
+        let foundLight = LightsViewModel.createLightFromSerialNumber(cleanSerialNumber)
+        
+        // Добавляем найденную лампу в отдельный список для серийных номеров
+        appViewModel.lightsViewModel.addSerialNumberFoundLight(foundLight)
+        
+        // Скрываем клавиатуру
+        isSerialNumberFocused = false
+        
+        // Показываем результаты поиска по серийному номеру
+        nav.startSerialNumberSearch()
+        
+        // Очищаем поле ввода
+        serialNumber = ""
+    }
+
 }
 
 #Preview {
     AddNewBulb()
         .environmentObject(NavigationManager.shared)
-//        .environmentObject(AppViewModel())
+        .environmentObject(AppViewModel())
 //        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=144-1954&m=dev")!)
 //        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }

@@ -14,7 +14,7 @@ struct MasterView: View {
         ZStack(alignment: .bottom) {
             BG()
             
-            if !appViewModel.showSetup {
+            if appViewModel.showSetup {
                 // Показываем онбординг для настройки Hue Bridge
                 OnboardingView(appViewModel: appViewModel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -28,14 +28,19 @@ struct MasterView: View {
                 
                 if navigationManager.isTabBarVisible {
                     TabBarView()
-                        .adaptiveOffset(y: 20)
+                       
                 }
             }
         }
 
     }
 }
-
+#Preview {
+    MasterView()
+        .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
+        
+}
 #Preview {
     MasterView()
         .environmentObject(NavigationManager.shared)

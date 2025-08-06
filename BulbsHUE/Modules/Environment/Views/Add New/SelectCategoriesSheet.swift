@@ -40,13 +40,25 @@ struct SelectCategoriesSheet: View {
                     .padding(.horizontal, 25)
                     .padding(.top, 20)
                     
-                    Text("new bulb")
-                        .font(Font.custom("DMSans-Light", size: 14))
-                        .kerning(2.8)
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                        .textCase(.uppercase)
-                        .padding(.top, 5)
+                    VStack(spacing: 4) {
+                        Text("new bulb")
+                            .font(Font.custom("DMSans-Light", size: 14))
+                            .kerning(2.8)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                            .textCase(.uppercase)
+                        
+                        if let selectedLight = nav.selectedLight {
+                            Text(selectedLight.metadata.name)
+                                .font(Font.custom("DMSans-Regular", size: 12))
+                                .kerning(1.8)
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                .opacity(0.8)
+                                .textCase(.uppercase)
+                        }
+                    }
+                    .padding(.top, 5)
                     
                     // Селектор типа
                     ZStack {
@@ -95,10 +107,23 @@ struct SelectCategoriesSheet: View {
                         }
                     }
                     .padding(.top, 20)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 100) // Добавляем место для кнопки
                 }
-                .frame(maxHeight: 575) // Ограничиваем высоту скролла
+                .frame(maxHeight: 475) // Уменьшаем высоту для кнопки
                 .clipped() // Обрезаем содержимое по границам
+                
+                // Кнопка сохранения
+                VStack {
+                    Spacer()
+                    
+                    if typeManager.hasSelection {
+                        CostumButton(text: "save lamp", width: 250, height: 190) {
+                            saveLampWithCategory()
+                        }
+                        .padding(.bottom, 20)
+                    }
+                }
+                .frame(height: 100)
             }
             .adaptiveFrame(width: 375, height: 785)
             .adaptiveOffset(y: 20)
@@ -124,7 +149,28 @@ struct SelectCategoriesSheet: View {
             return "No subtype selected"
         }
     }
+    
+    // MARK: - Сохранение лампы с категорией
+    private func saveLampWithCategory() {
+        guard let selectedLight = nav.selectedLight,
+              let selectedSubtype = typeManager.getSelectedSubtype() else {
+            print("❌ Missing selected light or subtype")
+            return
+        }
+        
+        print("💡 Сохраняем лампу: \(selectedLight.metadata.name)")
+        print("📂 Выбранная категория: \(selectedSubtype.name)")
+        print("🖼️ Иконка: \(selectedSubtype.iconName)")
+        
+        // Здесь можно добавить логику сохранения в локальное хранилище
+        // или отправки на сервер для ассоциации лампы с категорией
+        
+        // Возвращаемся к основному экрану
+        nav.resetAddBulbState()
+        nav.go(.environment)
+    }
 }
 #Preview {
     SelectCategoriesSheet()
+        .environmentObject(NavigationManager.shared)
 }

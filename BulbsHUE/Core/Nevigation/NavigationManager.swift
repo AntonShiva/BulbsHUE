@@ -32,6 +32,17 @@ class NavigationManager: ObservableObject {
     /// Флаг показа TabBar
     @Published var isTabBarVisible: Bool = true
     
+    // Выбранная лампа для настройки категории
+    @Published var selectedLight: Light? = nil
+    
+    // Тип поиска ламп
+    @Published var searchType: SearchType = .network
+    
+    enum SearchType {
+        case network        // Автоматический поиск в сети
+        case serialNumber   // Поиск по серийному номеру
+    }
+    
     /// Проверка, находимся ли мы на главном экране вкладки
    func togleTabBarVisible() {
       isTabBarVisible = currentRoute == .environment || currentRoute == .schedule || currentRoute == .music
@@ -49,6 +60,7 @@ class NavigationManager: ObservableObject {
             if route != .addNewBulb {
                 isSearching = false
                 showSelectCategories = false
+                selectedLight = nil
             }
         }
     }
@@ -58,11 +70,27 @@ class NavigationManager: ObservableObject {
         withAnimation(.easeInOut(duration: 0.15)) {
             isSearching = true
             showSelectCategories = false
+            searchType = .network
+        }
+    }
+    
+    func startSerialNumberSearch() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            isSearching = true
+            showSelectCategories = false
+            searchType = .serialNumber
         }
     }
     
     func showCategoriesSelection() {
         withAnimation(.easeInOut(duration: 0.15)) {
+            showSelectCategories = true
+        }
+    }
+    
+    func showCategoriesSelection(for light: Light) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            selectedLight = light
             showSelectCategories = true
         }
     }
@@ -77,6 +105,8 @@ class NavigationManager: ObservableObject {
         withAnimation(.easeInOut(duration: 0.15)) {
             isSearching = false
             showSelectCategories = false
+            selectedLight = nil
+            searchType = .network
         }
     }
 }
