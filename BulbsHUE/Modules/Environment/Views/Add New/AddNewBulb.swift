@@ -13,6 +13,7 @@ struct AddNewBulb: View {
     var body: some View {
         ZStack {
             BGLight()
+            
             HeaderAddNew(title: "NEW BULB"){
                 DismissButton{
                     nav.resetAddBulbState()

@@ -44,7 +44,7 @@ struct SearchResultsSheet: View {
                     nav.showCategoriesSelection()
                 }
             }
-            .adaptiveOffset(y: -40)
+           
         }
         
     }
