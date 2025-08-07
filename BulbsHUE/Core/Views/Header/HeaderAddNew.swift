@@ -44,5 +44,5 @@ struct HeaderAddNew<RightView: View>: View {
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=140-1857&m=dev")!)
-        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
+        .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
