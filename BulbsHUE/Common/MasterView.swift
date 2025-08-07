@@ -46,7 +46,7 @@ struct MasterView: View {
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=w7kYvAzD6FTnifyZ-4")!)
-        .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
+        // .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
 
 //        .onAppear {
