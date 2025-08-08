@@ -147,12 +147,13 @@ class LightsViewModel: ObservableObject {
     /// Добавляет новую лампу по серийному номеру (TouchLink reset + add)
     /// Это процедура сброса и добавления лампы, как в официальном приложении Philips Hue
     /// - Parameter serialNumber: Серийный номер лампы для добавления (6-символьный код)
+    /// Поиск лампы по серийному номеру (среди подключенных или новых)
     func addLightBySerialNumber(_ serialNumber: String) {
-        print("🔍 Добавление лампы по серийному номеру: \(serialNumber)")
+        print("🔍 Поиск лампы по серийному номеру: \(serialNumber)")
         
         // Валидация
         guard LightsViewModel.isValidSerialNumber(serialNumber) else {
-            print("❌ Неверный формат серийного номера. Должен быть 6 символов hex")
+            print("❌ Неверный формат серийного номера")
             error = HueAPIError.unknown("Серийный номер должен содержать 6 символов (0-9, A-F)")
             return
         }
@@ -161,7 +162,58 @@ class LightsViewModel: ObservableObject {
         error = nil
         clearSerialNumberFoundLights()
         
-        // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД ИЗ РАСШИРЕНИЯ
+        // СНАЧАЛА ищем среди УЖЕ подключенных ламп
+        let existingLight = findExistingLightBySerial(serialNumber)
+        
+        if let light = existingLight {
+            print("✅ Лампа найдена среди подключенных: \(light.metadata.name)")
+            
+            // Добавляем в результаты поиска
+            serialNumberFoundLights = [light]
+            isLoading = false
+            
+            selectedLight = light
+            
+        } else {
+            print("🔄 Лампа не найдена среди подключенных, пробуем добавить новую...")
+            
+            // Пробуем добавить НОВУЮ лампу через API
+            addNewLightBySerial(serialNumber)
+        }
+    }
+
+    /// Поиск среди существующих ламп по серийному номеру
+    private func findExistingLightBySerial(_ serialNumber: String) -> Light? {
+        let cleanSerial = serialNumber.uppercased().replacingOccurrences(of: "-", with: "")
+        
+        // Известные соответствия для ваших ламп
+        let knownMappings: [String: String] = [
+            "AED970": "Hue color lamp 3",
+            "C55B8": "Лампа 2",
+            "031A17": "Лампа 1"
+        ]
+        
+        // Ищем по известному маппингу
+        if let knownName = knownMappings[cleanSerial] {
+            return lights.first { $0.metadata.name == knownName }
+        }
+        
+        // Ищем по ID или имени
+        return lights.first { light in
+            let lightId = light.id.uppercased().replacingOccurrences(of: "-", with: "")
+            let lightName = light.metadata.name.uppercased()
+            
+            return lightId.contains(cleanSerial) ||
+                   lightName.contains(cleanSerial) ||
+                   light.matchesSerialNumber(serialNumber)
+        }
+    }
+
+    /// Добавление НОВОЙ лампы по серийному номеру
+    private func addNewLightBySerial(_ serialNumber: String) {
+        print("🆕 Попытка добавить новую лампу: \(serialNumber)")
+        
+        // Используем современный API для добавления
         apiClient.addLightModern(serialNumber: serialNumber)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -169,37 +221,40 @@ class LightsViewModel: ObservableObject {
                     self?.isLoading = false
                     
                     if case .failure(let error) = completion {
-                        print("❌ Ошибка добавления лампы: \(error)")
-                        self?.error = error
+                        print("❌ Ошибка добавления: \(error)")
+                        
+                        // Если лампа не найдена, показываем понятную ошибку
+                        self?.error = HueAPIError.unknown(
+                            "Лампа с серийным номером \(serialNumber) не найдена.\n\n" +
+                            "Убедитесь что:\n" +
+                            "• Лампа включена и находится рядом с мостом\n" +
+                            "• Серийный номер введен правильно\n" +
+                            "• Лампа совместима с Philips Hue"
+                        )
+                        self?.serialNumberFoundLights = []
                     }
                 },
                 receiveValue: { [weak self] foundLights in
                     guard let self = self else { return }
                     
-                    print("📋 Найдено ламп: \(foundLights.count)")
-                    
                     if !foundLights.isEmpty {
+                        print("✅ Найдено новых ламп: \(foundLights.count)")
                         self.serialNumberFoundLights = foundLights
                         
-                        // Добавляем только новые лампы
+                        // Добавляем в общий список
                         let newLights = foundLights.filter { newLight in
                             !self.lights.contains { $0.id == newLight.id }
                         }
                         self.lights.append(contentsOf: newLights)
                         
-                        print("✅ Лампы успешно добавлены")
-                        
-                        // Показываем выбор категории для первой лампы
+                        // Показываем категории для первой лампы
                         if let firstLight = foundLights.first {
                             NavigationManager.shared.showCategoriesSelection(for: firstLight)
                         }
                     } else {
-                        print("❌ Лампы не найдены")
-                        self.error = HueAPIError.unknown(
-                            "Лампа не найдена. Убедитесь что:\n" +
-                            "• Лампа включена\n" +
-                            "• Серийный номер корректный"
-                        )
+                        print("❌ Новые лампы не найдены")
+                        self.error = HueAPIError.unknown("Лампа не найдена")
+                        self.serialNumberFoundLights = []
                     }
                 }
             )

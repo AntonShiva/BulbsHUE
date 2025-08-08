@@ -75,6 +75,36 @@ extension Light {
                metadata.name.hasPrefix("Hue color lamp") ||
                metadata.name.hasPrefix("Hue white lamp")
     }
+    /// Проверяет соответствие серийному номеру
+    func matchesSerialNumber(_ serial: String) -> Bool {
+        let cleanSerial = serial.uppercased()
+            .replacingOccurrences(of: ":", with: "")
+            .replacingOccurrences(of: "-", with: "")
+        
+        // Проверяем ID
+        let cleanId = id.uppercased()
+            .replacingOccurrences(of: ":", with: "")
+            .replacingOccurrences(of: "-", with: "")
+        
+        if cleanId.contains(cleanSerial) {
+            return true
+        }
+        
+        // Проверяем имя
+        if metadata.name.uppercased().contains(cleanSerial) {
+            return true
+        }
+        
+        // Проверяем последние 6 символов ID (часто это серийный номер)
+        if cleanId.count >= 6 {
+            let lastSix = String(cleanId.suffix(6))
+            if lastSix == cleanSerial {
+                return true
+            }
+        }
+        
+        return false
+    }
 }
 /// Состояние лампы для обновления
 struct LightState: Codable {
@@ -178,6 +208,7 @@ struct EffectStatus: Codable {
     /// Доступные эффекты
     var effect_values: [String]?
 }
+
 
 /// Действие эффекта v2
 struct EffectAction: Codable {

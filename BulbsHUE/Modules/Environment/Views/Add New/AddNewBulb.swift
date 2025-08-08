@@ -95,8 +95,17 @@ struct AddNewBulb: View {
                         .submitLabel(.done)
                         .onSubmit {
                             if !serialNumber.isEmpty {
+                                print("📝 Введен серийный номер: \(serialNumber)")
+                                
+                                // Запускаем поиск
                                 appViewModel.lightsViewModel.addLightBySerialNumber(serialNumber)
+                                
+                                // Переключаем NavigationManager для показа результатов
+                                nav.startSerialNumberSearch()
+                                
+                                // Очищаем поле
                                 serialNumber = ""
+                                isSerialNumberFocused = false
                             }
                         }
                         .placeholder(when: serialNumber.isEmpty, alignment: .center) {

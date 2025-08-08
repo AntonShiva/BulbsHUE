@@ -74,17 +74,14 @@ class NavigationManager: ObservableObject {
         }
     }
     
+ 
+    /// Запуск поиска по серийному номеру с показом результатов
     func startSerialNumberSearch() {
         withAnimation(.easeInOut(duration: 0.15)) {
             isSearching = true
             showSelectCategories = false
             searchType = .serialNumber
-        }
-    }
-    
-    func showCategoriesSelection() {
-        withAnimation(.easeInOut(duration: 0.15)) {
-            showSelectCategories = true
+          
         }
     }
     
@@ -92,6 +89,7 @@ class NavigationManager: ObservableObject {
         withAnimation(.easeInOut(duration: 0.15)) {
             selectedLight = light
             showSelectCategories = true
+            print("📂 Показываем выбор категории для лампы: \(light.metadata.name)")
         }
     }
     

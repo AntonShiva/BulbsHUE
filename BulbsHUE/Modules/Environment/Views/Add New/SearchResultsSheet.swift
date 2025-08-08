@@ -62,24 +62,6 @@ struct SearchResultsSheet: View {
                         // Показываем разные списки в зависимости от типа поиска
                         ForEach(getLightsToShow()) { light in
                             VStack(alignment: .leading, spacing: 8) {
-                                if nav.searchType == .serialNumber {
-                                    // Для добавления по серийному номеру показываем информацию о новой лампе
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("lamp added successfully")
-                                            .font(Font.custom("DMSans-Light", size: 12))
-                                            .kerning(1.8)
-                                            .foregroundColor(Color.green)
-                                            .textCase(.uppercase)
-                                            .opacity(0.8)
-                                        
-                                        Text("ready to assign category and type")
-                                            .font(Font.custom("DMSans-Light", size: 10))
-                                            .kerning(1.0)
-                                            .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                                            .opacity(0.7)
-                                    }
-                                    .padding(.bottom, 4)
-                                }
                                 
                                 BulbCell(text: light.metadata.name, image: "lightBulb", width: 32, height: 32) {
                                     nav.showCategoriesSelection(for: light)
@@ -132,16 +114,22 @@ struct SearchResultsSheet: View {
         }
         
     }
-    
     // MARK: - Helper Functions
     private func getLightsToShow() -> [Light] {
         switch nav.searchType {
         case .network:
-            return lightsViewModel.lights
+            return lightsViewModel.lights.filter { $0.isNewLight }
         case .serialNumber:
-            return lightsViewModel.serialNumberFoundLights
+            // Показываем результаты поиска по серийному номеру
+            if !lightsViewModel.serialNumberFoundLights.isEmpty {
+                return lightsViewModel.serialNumberFoundLights
+            }
+            // Если поиск еще идет, показываем пустой массив
+            return lightsViewModel.isLoading ? [] : lightsViewModel.serialNumberFoundLights
         }
     }
+    
+
 }
 
 #Preview {
