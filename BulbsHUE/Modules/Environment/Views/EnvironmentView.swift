@@ -24,6 +24,7 @@ struct EnvironmentView: View {
                 }
             }
             .adaptiveOffset(y: -330)
+            Frame9()
             
             SelectorTabEnviromentView()
                 .adaptiveOffset(y: -264)
@@ -56,4 +57,37 @@ struct EnvironmentView: View {
     @Previewable @EnvironmentObject var viewModel: AppViewModel
     EnvironmentView(viewModel: _viewModel)
         .environmentObject(AppViewModel())
+}
+struct Frame9: View {
+  var body: some View {
+    ZStack() {
+      ZStack() {
+        Rectangle()
+          .foregroundColor(.clear)
+          .frame(width: 278, height: 140)
+          .background(Color(red: 0.60, green: 0.60, blue: 0.93))
+          .cornerRadius(20)
+          .offset(x: 0, y: 0)
+        Ellipse()
+          .foregroundColor(.clear)
+          .frame(width: 266.72, height: 444.10)
+          .background(Color(red: 0.55, green: 0.19, blue: 0.69))
+          .offset(x: -76.64, y: 157.68)
+          .blur(radius: 93.80)
+        Ellipse()
+          .foregroundColor(.clear)
+          .frame(width: 181, height: 251)
+          .background(Color(red: 0.80, green: 0.38, blue: 0.95))
+          .offset(x: -33.50, y: -7.50)
+          .blur(radius: 93.80)
+      }
+      .frame(width: 278, height: 140)
+      .cornerRadius(26)
+      .offset(x: 0, y: 0)
+    }
+    .frame(width: 278, height: 140)
+    .shadow(
+      color: Color(red: 0, green: 0, blue: 0, opacity: 0.20), radius: 20
+    );
+  }
 }
