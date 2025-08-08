@@ -133,90 +133,8 @@ class LightsViewModel: ObservableObject {
         print("✅ Лампа по серийному номеру добавлена")
     }
     
-    /// Ищет лампы по серийным номерам используя реальный Hue Bridge API
-    /// - Parameter serialNumbers: Массив серийных номеров
-    func searchLightsBySerialNumbers(_ serialNumbers: [String]) {
-        isLoading = true
-        error = nil
-        
-        print("🔍 Начинаем поиск ламп по серийным номерам: \(serialNumbers)")
-        
-        // Сначала запускаем поиск
-        apiClient.searchForLightsV1(serialNumbers: serialNumbers)
-            .delay(for: .seconds(3), scheduler: RunLoop.main) // Даем время Bridge найти лампы
-            .flatMap { success -> AnyPublisher<[Light], Error> in
-                if success {
-                    print("✅ Поиск запущен успешно, получаем результаты...")
-                    return self.apiClient.getNewLightsV1()
-                } else {
-                    print("❌ Ошибка запуска поиска")
-                    return Fail(error: HueAPIError.unknown("Не удалось запустить поиск ламп"))
-                        .eraseToAnyPublisher()
-                }
-            }
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        print("❌ Ошибка поиска ламп: \(error)")
-                        self?.error = error
-                    }
-                },
-                receiveValue: { [weak self] foundLights in
-                    print("🎉 Найдено ламп: \(foundLights.count)")
-                    foundLights.forEach { light in
-                        print("💡 Найдена лампа: \(light.metadata.name)")
-                    }
-                    
-                    // Обновляем список найденных ламп по серийному номеру
-                    self?.serialNumberFoundLights = foundLights
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
-    /// Сбрасывает и добавляет лампу по серийному номеру (как в официальном приложении)
-    /// - Parameter serialNumber: Серийный номер лампы
-    func resetAndAddLightBySerialNumber(_ serialNumber: String) {
-        isLoading = true
-        error = nil
-        
-        print("🔄 Начинаем сброс и добавление лампы по серийному номеру: \(serialNumber)")
-        
-        apiClient.resetAndAddLightBySerialNumber(serialNumber)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let error) = completion {
-                        print("❌ Ошибка сброса лампы: \(error)")
-                        self?.error = error
-                        self?.isLoading = false
-                        // Очищаем список если произошла ошибка
-                        self?.serialNumberFoundLights = []
-                    }
-                },
-                receiveValue: { [weak self] success in
-                    if success {
-                        print("✅ Лампа сброшена и процесс добавления запущен")
-                        print("💡 Лампа должна моргнуть, если процесс прошел успешно")
-                        
-                        // Перезагружаем общий список ламп чтобы увидеть добавленную лампу
-                        self?.loadLights()
-                        
-                        // После загрузки ищем добавленную лампу
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            self?.searchForAddedLight(serialNumber)
-                        }
-                    } else {
-                        print("❌ Не удалось сбросить лампу")
-                        self?.isLoading = false
-                        self?.serialNumberFoundLights = []
-                    }
-                }
-            )
-            .store(in: &cancellables)
-    }
+
+
     
     /// Ищет добавленную лампу после сброса
     private func searchForAddedLight(_ serialNumber: String) {
@@ -232,169 +150,64 @@ class LightsViewModel: ObservableObject {
     func addLightBySerialNumber(_ serialNumber: String) {
         print("🔍 Добавление лампы по серийному номеру: \(serialNumber)")
         
+        // Валидация
+        guard LightsViewModel.isValidSerialNumber(serialNumber) else {
+            print("❌ Неверный формат серийного номера. Должен быть 6 символов hex")
+            error = HueAPIError.unknown("Серийный номер должен содержать 6 символов (0-9, A-F)")
+            return
+        }
+        
         isLoading = true
         error = nil
         clearSerialNumberFoundLights()
         
-        // Сначала проверяем, нет ли лампы уже среди подключенных
-        // Для серийных номеров вашего набора: AED970, C55B8, 031A17
-        print("🔍 Проверяем, не подключена ли лампа уже...")
-        
-        // Попробуем найти лампу по серийному номеру среди уже подключенных
-        checkExistingLightBySerial(serialNumber) { [weak self] found in
-            guard let self = self else { return }
-            
-            if found {
-                print("✅ Лампа найдена среди подключенных! Готова для назначения категории")
-            } else {
-                print("🔄 Лампа не найдена - запускаем TouchLink reset процедуру")
-                print("💡 Лампа должна моргнуть и добавиться как новая")
-                
-                // Шаг 1: Сброс лампы по серийному номеру (TouchLink reset)
-                self.resetLightBySerialNumber(serialNumber)
-            }
-        }
-    }
-    
-    /// Проверяет, есть ли лампа с данным серийным номером среди подключенных
-    private func checkExistingLightBySerial(_ serialNumber: String, completion: @escaping (Bool) -> Void) {
-        print("🔍 Ищем лампу \(serialNumber) среди 3 подключенных ламп...")
-        
-        // Для ваших серийных номеров: AED970, C55B8, 031A17
-        // Проверяем по известным соответствиям:
-        var targetLightName: String?
-        
-        switch serialNumber.uppercased() {
-        case "AED970":
-            targetLightName = "Hue color lamp 3"
-        case "C55B8":
-            targetLightName = "Лампа 2" 
-        case "031A17":
-            targetLightName = "Лампа 1"
-        default:
-            break
-        }
-        
-        if let lightName = targetLightName {
-            // Ищем лампу по имени
-            if let foundLight = lights.first(where: { $0.metadata.name == lightName }) {
-                print("✅ Найдена лампа по серийному номеру \(serialNumber): '\(foundLight.metadata.name)'")
-                
-                DispatchQueue.main.async {
-                    self.serialNumberFoundLights = [foundLight]
-                    self.isLoading = false
-                }
-                completion(true)
-            } else {
-                print("❌ Лампа '\(lightName)' не найдена среди подключенных")
-                completion(false)
-            }
-        } else {
-            print("❌ Неизвестный серийный номер: \(serialNumber)")
-            print("💡 Известные серийные номера: AED970, C55B8, 031A17")
-            
-            DispatchQueue.main.async {
-                self.isLoading = false
-                self.error = HueAPIError.unknown("Серийный номер \(serialNumber) не найден. Известные номера: AED970, C55B8, 031A17")
-            }
-            completion(false)
-        }
-    }
-    
-    /// Выполняет TouchLink reset лампы по серийному номеру
-    /// Лампа должна моргнуть и стать доступной для добавления
-    private func resetLightBySerialNumber(_ serialNumber: String) {
-        print("🔧 TouchLink reset лампы с серийным номером: \(serialNumber)")
-        
-        apiClient.resetAndAddLightBySerialNumber(serialNumber)
+        // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД ИЗ РАСШИРЕНИЯ
+        apiClient.addLightModern(serialNumber: serialNumber)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    
                     if case .failure(let error) = completion {
-                        print("❌ Ошибка TouchLink reset: \(error)")
-                        self?.isLoading = false
+                        print("❌ Ошибка добавления лампы: \(error)")
                         self?.error = error
-                        self?.serialNumberFoundLights = []
                     }
                 },
-                receiveValue: { [weak self] success in
-                    if success {
-                        print("✅ TouchLink reset успешен! Лампа должна моргнуть")
-                        print("⏱️ Ожидаем 3 секунды для завершения процедуры сброса...")
-                        
-                        // Даем время лампе сброситься и стать доступной
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                            print("🔍 Начинаем поиск новых ламп после сброса...")
-                            self?.searchForNewLightsAfterReset(originalSerial: serialNumber)
-                        }
-                    } else {
-                        print("❌ TouchLink reset не удался")
-                        self?.isLoading = false
-                        self?.error = HueAPIError.unknown("Не удалось сбросить лампу с серийным номером \(serialNumber)")
-                        self?.serialNumberFoundLights = []
-                    }
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
-    /// Ищет новые лампы после TouchLink reset процедуры
-    private func searchForNewLightsAfterReset(originalSerial: String) {
-        print("🔍 Поиск новых ламп после TouchLink reset серийника: \(originalSerial)")
-        
-        // Сначала запускаем общий поиск новых устройств
-        apiClient.searchForLightsV1()
-            .delay(for: .seconds(2), scheduler: RunLoop.main)
-            .flatMap { [weak self] _ -> AnyPublisher<[Light], Error> in
-                guard let self = self else {
-                    return Fail(error: HueAPIError.unknown("LightsViewModel deallocated"))
-                        .eraseToAnyPublisher()
-                }
-                
-                print("🔍 Проверяем новые лампы...")
-                return self.apiClient.getNewLightsV1()
-            }
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let error) = completion {
-                        print("❌ Ошибка поиска новых ламп: \(error)")
-                        self?.isLoading = false
-                        self?.error = error
-                        self?.serialNumberFoundLights = []
-                    }
-                },
-                receiveValue: { [weak self] newLights in
+                receiveValue: { [weak self] foundLights in
                     guard let self = self else { return }
                     
-                    print("📋 Найдено \(newLights.count) новых ламп")
+                    print("📋 Найдено ламп: \(foundLights.count)")
                     
-                    if !newLights.isEmpty {
-                        // Берем первую найденную лампу как результат добавления по серийному номеру
-                        print("✅ Лампа успешно добавлена по серийному номеру \(originalSerial)")
+                    if !foundLights.isEmpty {
+                        self.serialNumberFoundLights = foundLights
                         
-                        // Добавляем к основному списку ламп
+                        // Добавляем только новые лампы
+                        let newLights = foundLights.filter { newLight in
+                            !self.lights.contains { $0.id == newLight.id }
+                        }
                         self.lights.append(contentsOf: newLights)
                         
-                        // Показываем в результатах поиска по серийному номеру
-                        self.serialNumberFoundLights = newLights
+                        print("✅ Лампы успешно добавлены")
                         
-                        print("💡 Добавленные лампы:")
-                        for light in newLights {
-                            print("   📱 '\(light.metadata.name)' - готова для назначения категории")
+                        // Показываем выбор категории для первой лампы
+                        if let firstLight = foundLights.first {
+                            NavigationManager.shared.showCategoriesSelection(for: firstLight)
                         }
                     } else {
-                        print("❌ Новые лампы не найдены после TouchLink reset")
-                        self.error = HueAPIError.unknown("Лампа не найдена. Убедитесь что лампа включена и находится рядом с Bridge")
-                        self.serialNumberFoundLights = []
+                        print("❌ Лампы не найдены")
+                        self.error = HueAPIError.unknown(
+                            "Лампа не найдена. Убедитесь что:\n" +
+                            "• Лампа включена\n" +
+                            "• Серийный номер корректный"
+                        )
                     }
-                    
-                    self.isLoading = false
                 }
             )
             .store(in: &cancellables)
     }
-    
+ 
+
+
     /// Fallback поиск по имени если API v1 недоступен
     private func searchByNameFallback(_ serialNumber: String) {
         // Ищем среди загруженных ламп по имени/метаданным  
@@ -427,111 +240,7 @@ class LightsViewModel: ObservableObject {
         }
     }
     
-    /// Ищет серийный номер среди всех устройств используя API v1
-    private func searchSerialNumberInAllDevices(targetSerial: String) {
-        print("🔍 Запрашиваем детальную информацию всех ламп через API v1")
-        
-        // Используем API v1 для получения всех ламп с их uniqueid
-        apiClient.getLightsV1()
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let error) = completion {
-                        print("❌ Ошибка получения детальной информации v1: \(error)")
-                        self?.searchByNameFallback(targetSerial)
-                    }
-                },
-                receiveValue: { [weak self] lightsV1Data in
-                    self?.processLightsV1Response(lightsV1Data, serialNumber: targetSerial)
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
-    /// Обрабатывает ответ API v1 для поиска лампы по серийному номеру
-    private func processLightsV1Response(_ lightsV1: [String: LightV1Data], serialNumber: String) {
-        print("🔍 Обрабатываем данные ламп v1 для поиска серийного номера \(serialNumber)")
-        
-        // Ищем лампу по uniqueid (который содержит MAC-адрес)
-        var foundLightId: String?
-        var foundLightData: LightV1Data?
-        
-        for (lightId, lightData) in lightsV1 {
-            print("🔍 Лампа \(lightId): \(lightData.name)")
-            if let uniqueId = lightData.uniqueid {
-                print("   📡 uniqueid: \(uniqueId)")
-                
-                // Очищаем от разделителей
-                let cleanUniqueId = uniqueId.replacingOccurrences(of: ":", with: "").replacingOccurrences(of: "-", with: "")
-                let cleanSerialNumber = serialNumber.replacingOccurrences(of: ":", with: "").replacingOccurrences(of: "-", with: "")
-                
-                print("   🧹 Очищенный uniqueid: \(cleanUniqueId)")
-                print("   🧹 Очищенный серийный: \(cleanSerialNumber)")
-                
-                // Серийный номер Philips Hue обычно является последними 6 символами MAC адреса
-                // Пример: 00:17:88:01:08:a7:fb:6e-0b -> ищем A7FB6E (последние 3 байта)
-                if cleanUniqueId.uppercased().contains(cleanSerialNumber.uppercased()) {
-                    foundLightId = lightId
-                    foundLightData = lightData
-                    print("🎯 Найдено совпадение! uniqueid содержит серийный номер")
-                    break
-                }
-                
-                // Альтернативная проверка: последние 6 символов перед суффиксом
-                let uniqueIdWithoutSuffix = cleanUniqueId.replacingOccurrences(of: "0B", with: "").replacingOccurrences(of: "0b", with: "")
-                let lastSixChars = String(uniqueIdWithoutSuffix.suffix(6))
-                print("   🔍 Последние 6 символов MAC: \(lastSixChars)")
-                
-                if lastSixChars.uppercased() == cleanSerialNumber.uppercased() {
-                    foundLightId = lightId
-                    foundLightData = lightData
-                    print("🎯 Точное совпадение по последним 6 символам MAC!")
-                    break
-                }
-            }
-        }
-        
-        if let lightId = foundLightId, let lightData = foundLightData {
-            // Ищем соответствующую лампу в нашем массиве lights по имени
-            let matchingLights = lights.filter { light in
-                light.metadata.name == lightData.name  // По имени
-            }
-            
-            if !matchingLights.isEmpty {
-                print("✅ Найдена лампа '\(lightData.name)' с серийным номером \(serialNumber)")
-                serialNumberFoundLights = matchingLights
-                isLoading = false
-            } else {
-                print("❌ Лампа найдена в v1, но не найдена в v2 списке")
-                searchByNameFallback(serialNumber)
-            }
-        } else {
-            print("❌ Серийный номер \(serialNumber) не найден в uniqueid лампах")
-            print("💡 Анализ доступных серийных номеров:")
-            
-            // Показываем все доступные серийные номера из MAC адресов
-            for (lightId, lightData) in lightsV1 {
-                if let uniqueId = lightData.uniqueid {
-                    let cleanUniqueId = uniqueId.replacingOccurrences(of: ":", with: "").replacingOccurrences(of: "-", with: "")
-                    let uniqueIdWithoutSuffix = cleanUniqueId.replacingOccurrences(of: "0B", with: "").replacingOccurrences(of: "0b", with: "")
-                    let lastSixChars = String(uniqueIdWithoutSuffix.suffix(6)).uppercased()
-                    print("   📱 '\(lightData.name ?? "Неизвестно")':")
-                    print("      🔗 MAC: \(lastSixChars)")
-                }
-            }
-            
-            print("")
-            print("⚠️  ВАЖНО: Серийный номер \(serialNumber) НЕ найден среди подключенных ламп!")
-            print("💭 Возможные причины:")
-            print("   1️⃣ Лампа с серийником \(serialNumber) НЕ подключена к Bridge")
-            print("   2️⃣ Проверьте серийный номер на физической лампе")
-            print("   3️⃣ Серийники ваших подключенных ламп указаны выше")
-            
-            isLoading = false
-            error = HueAPIError.unknown("Лампа с серийным номером \(serialNumber) не найдена среди подключенных")
-            serialNumberFoundLights = []
-        }
-    }
+
     
     /// Очищает список ламп найденных по серийному номеру
     func clearSerialNumberFoundLights() {
@@ -924,6 +633,21 @@ class LightsViewModel: ObservableObject {
             unreachable: lights.filter { $0.mode == "streaming" }.count
         )
     }
+    // MARK: - Memory Management
+
+    deinit {
+        print("♻️ LightsViewModel деинициализация")
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+        brightnessUpdateWorkItem?.cancel()
+        colorUpdateWorkItem?.cancel()
+        stopEventStream()
+        lights.removeAll()
+        serialNumberFoundLights.removeAll()
+        lightsDict.removeAll()
+    }
 }
 
 /// Фильтр для отображения ламп
@@ -973,75 +697,37 @@ extension LightsViewModel {
     /// Согласно API v2, мост автоматически обнаруживает новые лампы Zigbee при включении питания
     /// - Parameter completion: Callback с найденными лампами
     func searchForNewLights(completion: @escaping ([Light]) -> Void) {
-        print("🔍 Начинаем поиск новых ламп...")
+        print("🔍 Поиск новых ламп...")
         
-        // Сохраняем текущий список ламп для сравнения
         let currentLightIds = Set(lights.map { $0.id })
-        print("📊 Текущее количество ламп: \(lights.count)")
         
-        // ИСПРАВЛЕНИЕ: Используем прямой вызов как в loadLights(), без задержек
-        print("📡 Отправляем запрос getAllLights...")
-        
-        apiClient.getAllLights()
-                .receive(on: DispatchQueue.main)
-                .sink(
-                    receiveCompletion: { result in
-                        switch result {
-                        case .failure(let error):
-                            print("❌ Ошибка при получении ламп: \(error)")
-                            
-                            // Обработка специфичных ошибок iOS 17+
-                            if let hueError = error as? HueAPIError {
-                                switch hueError {
-                                case .bridgeNotFound:
-                                    print("🔌 Hue Bridge не найден в сети - проверьте подключение к мосту")
-                                case .localNetworkPermissionDenied:
-                                    print("🚫 Отсутствует разрешение локальной сети")
-                                case .invalidURL:
-                                    print("🌐 Неверный URL адрес моста")
-                                case .invalidResponse:
-                                    print("📡 Неверный ответ от моста")
-                                case .httpError(let statusCode):
-                                    print("🔗 HTTP ошибка: \(statusCode)")
-                                default:
-                                    print("⚠️ Другая ошибка API: \(hueError)")
-                                }
-                            } else {
-                                print("⚠️ Неизвестная ошибка: \(error.localizedDescription)")
-                            }
-                            completion([])
-                        case .finished:
-                            print("✅ Запрос getAllLights завершен успешно")
-                        }
-                    },
-                    receiveValue: { [weak self] allLights in
-                        guard let self = self else {
-                            print("❌ LightsViewModel был деинициализирован в receiveValue")
-                            completion([])
-                            return
-                        }
-                        
-                        print("📊 Получено ламп от API: \(allLights.count)")
-                        
-                        // Находим новые лампы
-                        let newLights = allLights.filter { light in
-                            !currentLightIds.contains(light.id)
-                        }
-                        
-                        print("🆕 Найдено новых ламп: \(newLights.count)")
-                        for light in newLights {
-                            print("  💡 Новая лампа: \(light.metadata.name) (ID: \(light.id))")
-                        }
-                        
-                        // Обновляем локальный список
-                        self.lights = allLights
-                        
-                        // Возвращаем только новые лампы
-                        completion(newLights)
+        // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД ИЗ РАСШИРЕНИЯ
+        apiClient.addLightModern(serialNumber: nil)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { result in
+                    if case .failure(let error) = result {
+                        print("❌ Ошибка поиска: \(error)")
+                        completion([])
                     }
-                )
-                .store(in: &self.cancellables)
-        }
+                },
+                receiveValue: { [weak self] allLights in
+                    guard let self = self else {
+                        completion([])
+                        return
+                    }
+                    
+                    let newLights = allLights.filter { light in
+                        !currentLightIds.contains(light.id)
+                    }
+                    
+                    print("✅ Найдено новых ламп: \(newLights.count)")
+                    self.lights = allLights
+                    completion(newLights)
+                }
+            )
+            .store(in: &cancellables)
+    }
     
     /// Переименовывает лампу
     /// - Parameters:
