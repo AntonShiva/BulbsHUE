@@ -736,190 +736,228 @@ class HueAPIClient: NSObject {
             .eraseToAnyPublisher()
     }
 }
+//
+//  HueAPIClient+LightDiscovery.swift
+//  BulbsHUE
+//
+//  Современная реализация добавления ламп с минимальным использованием API v1
+//
+
+
+extension HueAPIClient {
+    
+    // MARK: - Modern Light Discovery
+    
+    /// Современный метод добавления ламп (гибрид v1/v2)
+    func addLightModern(serialNumber: String? = nil) -> AnyPublisher<[Light], Error> {
+        // Для обычного поиска используем чистый API v2
+        if serialNumber == nil {
+            return discoverLightsV2()
+        }
+        
+        // Для серийного номера - минимальное использование v1
+        guard let serial = serialNumber, isValidSerialNumber(serial) else {
+            return Fail(error: HueAPIError.unknown("Неверный формат серийного номера"))
+                .eraseToAnyPublisher()
+        }
+        
+        print("🔍 Запуск поиска лампы по серийному номеру: \(serial)")
+        
+        // Шаг 1: Инициация поиска через v1 (единственный v1 вызов)
+        return initiateSearchV1(serial: serial)
+            .flatMap { _ in
+                // Шаг 2: Ждем 40 секунд согласно спецификации
+                print("⏱ Ожидание завершения поиска (40 сек)...")
+                return Just(())
+                    .delay(for: .seconds(40), scheduler: RunLoop.main)
+                    .eraseToAnyPublisher()
+            }
+            .flatMap { _ in
+                // Шаг 3: Получаем результаты через API v2
+                print("📡 Получение результатов через API v2...")
+                return self.getAllLightsV2HTTPS()
+            }
+            .map { lights in
+                // Шаг 4: Фильтруем новые лампы
+                return lights.filter { light in
+                    light.isNewLight || light.metadata.name.contains("Hue")
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Автоматическое обнаружение через API v2
+    private func discoverLightsV2() -> AnyPublisher<[Light], Error> {
+        print("🔍 Автоматическое обнаружение ламп через API v2")
+        
+        // Сохраняем текущий список для сравнения
+        var currentLightIds = Set<String>()
+        
+        return getAllLightsV2HTTPS()
+            .handleEvents(receiveOutput: { lights in
+                currentLightIds = Set(lights.map { $0.id })
+            })
+            .delay(for: .seconds(3), scheduler: RunLoop.main)
+            .flatMap { _ in
+                // Повторный запрос для обнаружения новых
+                self.getAllLightsV2HTTPS()
+            }
+            .map { updatedLights in
+                // Находим новые лампы
+                return updatedLights.filter { light in
+                    !currentLightIds.contains(light.id) || light.isNewLight
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Минимальное использование v1 только для инициации поиска
+    private func initiateSearchV1(serial: String) -> AnyPublisher<Bool, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        // ЕДИНСТВЕННЫЙ v1 endpoint который нам нужен
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10.0
+        
+        let body = ["deviceid": [serial.uppercased()]]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return Fail(error: HueAPIError.encodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        // Используем обычную сессию для локальной сети
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("📡 v1 Search initiation response: \(httpResponse.statusCode)")
+                    
+                    if httpResponse.statusCode == 200 {
+                        return true
+                    } else if httpResponse.statusCode == 404 {
+                        throw HueAPIError.bridgeNotFound
+                    } else {
+                        throw HueAPIError.httpError(statusCode: httpResponse.statusCode)
+                    }
+                }
+                return true
+            }
+            .mapError { error in
+                print("❌ Ошибка инициации поиска: \(error)")
+                return HueAPIError.networkError(error)
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Валидация серийного номера
+    private func isValidSerialNumber(_ serial: String) -> Bool {
+        let cleaned = serial.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hexCharacterSet = CharacterSet(charactersIn: "0123456789ABCDEFabcdef")
+        return cleaned.count == 6 &&
+               cleaned.rangeOfCharacter(from: hexCharacterSet.inverted) == nil
+    }
+}
+
+// MARK: - Touchlink Implementation
+
+extension HueAPIClient {
+    
+    /// Современная реализация Touchlink через Entertainment API
+    
+    
+    /// Классический Touchlink (fallback)
+    private func performClassicTouchlink(serialNumber: String) -> AnyPublisher<Bool, Error> {
+        print("🔗 Fallback к классическому Touchlink")
+        
+        // Это единственный случай когда нужен v1 touchlink
+        guard let applicationKey = applicationKey,
+              let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/config") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["touchlink": true]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return Fail(error: HueAPIError.encodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .map { _ in true }
+            .mapError { HueAPIError.networkError($0) }
+            .eraseToAnyPublisher()
+    }
+}
 
 // Расширение для HueAPIClient для поддержки поиска ламп
 extension HueAPIClient {
     
-    /// Инициирует поиск новых ламп (для API v1 совместимости)
-    /// В API v2 лампы обнаруживаются автоматически
-    func searchForLights() -> AnyPublisher<Bool, Error> {
-        // В API v2 нет специального endpoint для поиска
-        // Лампы автоматически появляются при включении
-        // Возвращаем успех для совместимости
-        return Just(true)
-            .setFailureType(to: Error.self)
-            .eraseToAnyPublisher()
-    }
-    
-    /// Ищет новые лампы используя Hue Bridge API v1
-    /// - Parameter serialNumbers: Массив серийных номеров для поиска (необязательно)
-    /// - Returns: Publisher с результатом поиска
-    func searchForLightsV1(serialNumbers: [String]? = nil) -> AnyPublisher<Bool, Error> {
+
+    /// Современная реализация Touchlink через Entertainment API
+    func performModernTouchlink(serialNumber: String) -> AnyPublisher<Bool, Error> {
+        print("🔗 Запуск Touchlink через современный API")
+        
+        // Проверяем поддержку Entertainment API
         guard let applicationKey = applicationKey else {
             return Fail(error: HueAPIError.notAuthenticated)
                 .eraseToAnyPublisher()
         }
         
-        guard let url = URL(string: "https://\(bridgeIP)/api/\(applicationKey)/lights") else {
-            return Fail(error: HueAPIError.invalidURL)
-                .eraseToAnyPublisher()
-        }
+        // Используем Entertainment Configuration для Touchlink
+        let endpoint = "/clip/v2/resource/entertainment_configuration"
         
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        // Создаем тело запроса
-        var requestBody: [String: Any] = [:]
-        if let serialNumbers = serialNumbers, !serialNumbers.isEmpty {
-            requestBody["deviceid"] = serialNumbers
-        }
-        // Если serialNumbers пустой - ищем все новые лампы
+        let touchlinkRequest = [
+            "type": "entertainment_configuration",
+            "metadata": [
+                "name": "Touchlink Session"
+            ],
+            "action": [
+                "action": "touchlink",
+                "target": serialNumber.uppercased()
+            ]
+        ] as [String: Any]
         
         do {
-            let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
-            request.httpBody = jsonData
-        } catch {
-            return Fail(error: HueAPIError.encodingError)
-                .eraseToAnyPublisher()
-        }
-        
-        return sessionHTTPS.dataTaskPublisher(for: request)
-            .map(\.data)
-            .decode(type: [HueAPIResponse].self, decoder: JSONDecoder())
-            .map { responses in
-                // Проверяем успешность ответа
-                return responses.contains { response in
-                    response.success != nil
-                }
-            }
-            .mapError { error in
-                print("❌ Ошибка поиска ламп: \(error)")
-                return HueAPIError.networkError(error)
-            }
-            .eraseToAnyPublisher()
-    }
-    
-    /// Получает результаты поиска новых ламп (API v1)
-    /// - Returns: Publisher с найденными лампами
-    func getNewLightsV1() -> AnyPublisher<[Light], Error> {
-        guard let applicationKey = applicationKey else {
-            return Fail(error: HueAPIError.notAuthenticated)
-                .eraseToAnyPublisher()
-        }
-        
-        guard let url = URL(string: "https://\(bridgeIP)/api/\(applicationKey)/lights/new") else {
-            return Fail(error: HueAPIError.invalidURL)
-                .eraseToAnyPublisher()
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        
-        return sessionHTTPS.dataTaskPublisher(for: request)
-            .map(\.data)
-            .decode(type: NewLightsResponse.self, decoder: JSONDecoder())
-            .map { response in
-                // Преобразуем найденные лампы в массив Light
-                return response.lights
-            }
-            .mapError { error in
-                print("❌ Ошибка получения новых ламп: \(error)")
-                return HueAPIError.networkError(error)
-            }
-            .eraseToAnyPublisher()
-    }
-    
-    /// Сбрасывает и добавляет лампу по серийному номеру (процесс аналогичный официальному приложению)
-    /// - Parameter serialNumber: Серийный номер лампы для сброса и добавления
-    /// - Returns: Publisher с результатом операции
-    func resetAndAddLightBySerialNumber(_ serialNumber: String) -> AnyPublisher<Bool, Error> {
-        guard let applicationKey = applicationKey else {
-            return Fail(error: HueAPIError.notAuthenticated)
-                .eraseToAnyPublisher()
-        }
-        
-        guard let url = URL(string: "https://\(bridgeIP)/api/\(applicationKey)/lights") else {
-            return Fail(error: HueAPIError.invalidURL)
-                .eraseToAnyPublisher()
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        // Создаем запрос для сброса и поиска лампы по серийному номеру
-        let requestBody: [String: Any] = [
-            "deviceid": [serialNumber.uppercased()]
-        ]
-        
-        do {
-            let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
-            request.httpBody = jsonData
+            let data = try JSONSerialization.data(withJSONObject: touchlinkRequest)
             
-            print("🚀 Отправляем запрос сброса лампы с серийным номером: \(serialNumber)")
-            print("📡 URL: \(url)")
-            print("📦 Body: \(String(data: jsonData, encoding: .utf8) ?? "nil")")
+            return performRequestHTTPS<GenericResponse>(
+                endpoint: endpoint,
+                method: "POST",
+                body: data
+            )
+            .map { (_: GenericResponse) in true }  // ← ИСПРАВЛЕНО: добавлен тип параметра
+            .catch { error -> AnyPublisher<Bool, Error> in
+                print("⚠️ Entertainment Touchlink недоступен, используем fallback")
+                return self.performClassicTouchlink(serialNumber: serialNumber)
+            }
+            .eraseToAnyPublisher()
         } catch {
             return Fail(error: HueAPIError.encodingError)
                 .eraseToAnyPublisher()
         }
-        
-        return sessionHTTPS.dataTaskPublisher(for: request)
-            .tryMap { data, response in
-                // Проверяем HTTP статус
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("📡 HTTP Response Status: \(httpResponse.statusCode)")
-                    
-                    if httpResponse.statusCode == 404 {
-                        throw HueAPIError.bridgeNotFound
-                    } else if httpResponse.statusCode >= 400 {
-                        throw HueAPIError.httpError(statusCode: httpResponse.statusCode)
-                    }
-                }
-                
-                // Логируем ответ
-                if let responseString = String(data: data, encoding: .utf8) {
-                    print("📥 Bridge Response: \(responseString)")
-                }
-                
-                return data
-            }
-            .decode(type: [HueAPIResponse].self, decoder: JSONDecoder())
-            .tryMap { responses in
-                print("🔍 Обрабатываем ответ Bridge: \(responses)")
-                
-                // Проверяем на ошибки
-                if let firstResponse = responses.first {
-                    if let error = firstResponse.error {
-                        print("❌ Bridge Error: \(error.description)")
-                        if error.type == 101 {
-                            throw HueAPIError.linkButtonNotPressed
-                        } else {
-                            throw HueAPIError.unknown("Bridge error: \(error.description)")
-                        }
-                    }
-                    
-                    if let success = firstResponse.success {
-                        print("✅ Поиск запущен успешно: \(success)")
-                        return true
-                    }
-                }
-                
-                // Если нет явного успеха или ошибки, считаем это успехом
-                return true
-            }
-            .mapError { error in
-                print("❌ Ошибка при сбросе лампы: \(error)")
-                if let hueError = error as? HueAPIError {
-                    return hueError
-                } else {
-                    return HueAPIError.networkError(error)
-                }
-            }
-            .eraseToAnyPublisher()
     }
     
+
+
     /// Получает детальную информацию об устройстве по ID для извлечения серийного номера
     /// - Parameter deviceId: ID устройства
     /// - Returns: Publisher с информацией об устройстве

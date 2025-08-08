@@ -94,7 +94,10 @@ struct AddNewBulb: View {
                         .focused($isSerialNumberFocused)
                         .submitLabel(.done)
                         .onSubmit {
-                            addLampBySerialNumber()
+                            if !serialNumber.isEmpty {
+                                appViewModel.lightsViewModel.addLightBySerialNumber(serialNumber)
+                                serialNumber = ""
+                            }
                         }
                         .placeholder(when: serialNumber.isEmpty, alignment: .center) {
                             Text("use serial number")
@@ -163,43 +166,7 @@ struct AddNewBulb: View {
         .textCase(.uppercase)
     }
     
-    // MARK: - Serial Number Functions
-    private func addLampBySerialNumber() {
-        print("🎯 НАЧАЛО addLampBySerialNumber - сырой ввод: '\(serialNumber)'")
-        
-        let cleanSerialNumber = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        print("🎯 Очищенный серийный номер: '\(cleanSerialNumber)'")
-        
-        guard !cleanSerialNumber.isEmpty else {
-            print("❌ Серийный номер пуст")
-            return
-        }
-        
-        // Валидируем серийный номер (должен быть 6 символов hex)
-        guard LightsViewModel.isValidSerialNumber(cleanSerialNumber) else {
-            print("❌ Неверный формат серийного номера. Должен быть 6 символов (hex)")
-            // Можно добавить alert пользователю
-            return
-        }
-        
-        print("🔍 Поиск лампы по серийному номеру: \(cleanSerialNumber)")
-        
-        // Очищаем предыдущие результаты поиска по серийному номеру
-        appViewModel.lightsViewModel.clearSerialNumberFoundLights()
-        
-        // Сначала ищем среди уже подключенных ламп, затем пытаемся добавить новую
-        appViewModel.lightsViewModel.addLightBySerialNumber(cleanSerialNumber)
-        
-        // Скрываем клавиатуру
-        isSerialNumberFocused = false
-        
-        // Показываем результаты поиска по серийному номеру
-        nav.startSerialNumberSearch()
-        
-        // Очищаем поле ввода
-        serialNumber = ""
-    }
+
 
 }
 

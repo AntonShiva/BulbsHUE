@@ -470,6 +470,17 @@ class AppViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+    // MARK: - Memory Management
+
+    deinit {
+        print("♻️ AppViewModel деинициализация")
+        eventStreamCancellable?.cancel()
+        apiClient.disconnectEventStream()
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
+        entertainmentClient?.stopSession()
+        entertainmentClient = nil
+    }
 }
 
 /// Статус подключения к мосту
