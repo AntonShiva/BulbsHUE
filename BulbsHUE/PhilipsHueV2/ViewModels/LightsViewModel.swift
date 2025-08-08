@@ -151,8 +151,8 @@ class LightsViewModel: ObservableObject {
     func addLightBySerialNumber(_ serialNumber: String) {
         print("🔍 Поиск лампы по серийному номеру: \(serialNumber)")
         
-        // Валидация
-        guard LightsViewModel.isValidSerialNumber(serialNumber) else {
+        // Валидация формата
+        guard isValidSerialNumber(serialNumber) else {
             print("❌ Неверный формат серийного номера")
             error = HueAPIError.unknown("Серийный номер должен содержать 6 символов (0-9, A-F)")
             return
@@ -162,24 +162,49 @@ class LightsViewModel: ObservableObject {
         error = nil
         clearSerialNumberFoundLights()
         
-        // СНАЧАЛА ищем среди УЖЕ подключенных ламп
-        let existingLight = findExistingLightBySerial(serialNumber)
-        
-        if let light = existingLight {
-            print("✅ Лампа найдена среди подключенных: \(light.metadata.name)")
-            
-            // Добавляем в результаты поиска
-            serialNumberFoundLights = [light]
-            isLoading = false
-            
-            selectedLight = light
-            
-        } else {
-            print("🔄 Лампа не найдена среди подключенных, пробуем добавить новую...")
-            
-            // Пробуем добавить НОВУЮ лампу через API
-            addNewLightBySerial(serialNumber)
-        }
+        // Используем новый универсальный метод из HueAPIClient
+        apiClient.addLightBySerialNumber(serialNumber)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    
+                    if case .failure(let error) = completion {
+                        print("❌ Ошибка добавления лампы: \(error)")
+                        self?.handleSerialNumberError(error, serialNumber: serialNumber)
+                    }
+                },
+                receiveValue: { [weak self] foundLights in
+                    guard let self = self else { return }
+                    
+                    if !foundLights.isEmpty {
+                        print("✅ Найдено ламп: \(foundLights.count)")
+                        
+                        // Добавляем в список найденных по серийному номеру
+                        self.serialNumberFoundLights = foundLights
+                        
+                        // Добавляем новые лампы в общий список
+                        for light in foundLights {
+                            if !self.lights.contains(where: { $0.id == light.id }) {
+                                self.lights.append(light)
+                                print("   + Добавлена лампа: \(light.metadata.name)")
+                            } else {
+                                print("   ℹ️ Лампа уже в списке: \(light.metadata.name)")
+                            }
+                        }
+                        
+                        // Показываем категории для первой лампы
+                        if let firstLight = foundLights.first {
+                            self.selectedLight = firstLight
+                            NavigationManager.shared.showCategoriesSelection(for: firstLight)
+                        }
+                    } else {
+                        print("❌ Лампы с серийным номером \(serialNumber) не найдены")
+                        self.showNotFoundError(for: serialNumber)
+                    }
+                }
+            )
+            .store(in: &cancellables)
     }
 
     /// Поиск среди существующих ламп по серийному номеру
@@ -334,11 +359,17 @@ class LightsViewModel: ObservableObject {
     /// Валидирует серийный номер Philips Hue (должен быть 6 символов)
     /// - Parameter serialNumber: Серийный номер для проверки
     /// - Returns: true если серийный номер валидный
-    static func isValidSerialNumber(_ serialNumber: String) -> Bool {
-        let cleanSerial = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        return cleanSerial.count == 6 && cleanSerial.allSatisfy { $0.isHexDigit }
+    func isValidSerialNumber(_ serialNumber: String) -> Bool {
+        let cleanSerial = serialNumber
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        
+        // Серийный номер должен быть 6 символов (hex)
+        let hexCharacterSet = CharacterSet(charactersIn: "0123456789ABCDEFabcdef")
+        return cleanSerial.count == 6 &&
+               cleanSerial.rangeOfCharacter(from: hexCharacterSet.inverted) == nil
     }
-    
     /// Включает/выключает лампу
     /// - Parameter light: Лампа для переключения
     func toggleLight(_ light: Light) {
@@ -818,3 +849,158 @@ extension LightsViewModel {
 }
 
 
+
+
+extension LightsViewModel {
+    
+   
+    
+    /// Обработка ошибок при поиске по серийному номеру
+    private func handleSerialNumberError(_ error: Error, serialNumber: String) {
+        if let hueError = error as? HueAPIError {
+            switch hueError {
+            case .notAuthenticated:
+                self.error = HueAPIError.unknown(
+                    "Требуется авторизация. Переподключитесь к мосту."
+                )
+                
+            case .bridgeNotFound:
+                self.error = HueAPIError.unknown(
+                    "Мост Hue не найден в сети. Проверьте подключение."
+                )
+                
+            case .networkError:
+                self.error = HueAPIError.unknown(
+                    "Ошибка сети. Проверьте подключение к той же Wi-Fi сети, что и мост."
+                )
+                
+            case .httpError(let statusCode):
+                if statusCode == 404 {
+                    // Лампа не найдена - это нормальная ситуация
+                    showNotFoundError(for: serialNumber)
+                } else {
+                    self.error = HueAPIError.unknown(
+                        "Ошибка HTTP \(statusCode). Попробуйте позже."
+                    )
+                }
+                
+            default:
+                self.error = hueError
+            }
+        } else {
+            self.error = HueAPIError.unknown(
+                "Неизвестная ошибка: \(error.localizedDescription)"
+            )
+        }
+        
+        serialNumberFoundLights = []
+    }
+    
+    /// Показывает понятную ошибку когда лампа не найдена
+    private func showNotFoundError(for serialNumber: String) {
+        self.error = HueAPIError.unknown(
+            """
+            Лампа с серийным номером \(serialNumber) не найдена.
+            
+            Проверьте:
+            • Лампа включена и находится в пределах 1 метра от моста
+            • Серийный номер введен правильно (6 символов)
+            • Лампа совместима с Philips Hue
+            • Лампа не подключена к другому мосту
+            
+            Если лампа была подключена к другому мосту:
+            1. Выключите и включите лампу 5 раз подряд
+            2. Лампа мигнет, подтверждая сброс
+            3. Попробуйте добавить снова
+            """
+        )
+    }
+    
+ 
+    
+    /// Автоматический поиск новых ламп в сети (без серийного номера)
+    func searchForNewLights() {
+        print("🔍 Автоматический поиск новых ламп...")
+        
+        isLoading = true
+        error = nil
+        
+        // Сохраняем текущие ID для сравнения
+        let currentLightIds = Set(lights.map { $0.id })
+        
+        // Просто обновляем список через API v2
+        apiClient.getAllLights()
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    
+                    if case .failure(let error) = completion {
+                        print("❌ Ошибка поиска: \(error)")
+                        self?.error = error
+                    }
+                },
+                receiveValue: { [weak self] allLights in
+                    guard let self = self else { return }
+                    
+                    // Находим новые лампы
+                    let newLights = allLights.filter { light in
+                        !currentLightIds.contains(light.id) || light.isNewLight
+                    }
+                    
+                    if !newLights.isEmpty {
+                        print("✅ Найдено новых ламп: \(newLights.count)")
+                        
+                        self.lights = allLights
+                        self.serialNumberFoundLights = newLights
+                        
+                        // Показываем UI для первой новой лампы
+                        if let firstNewLight = newLights.first {
+                            self.selectedLight = firstNewLight
+                        }
+                    } else {
+                        print("ℹ️ Новые лампы не найдены")
+                        self.error = HueAPIError.unknown(
+                            """
+                            Новые лампы не обнаружены.
+                            
+                            Убедитесь, что:
+                            • Лампы подключены к питанию
+                            • Лампы находятся рядом с мостом
+                            • Лампы не подключены к другому мосту
+                            """
+                        )
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    /// Сброс лампы (для подготовки к добавлению)
+    func resetLightForAddition(completion: @escaping (Bool) -> Void) {
+        print("💡 Инструкция по сбросу лампы:")
+        print("1. Выключите лампу")
+        print("2. Включите лампу на 3 секунды")
+        print("3. Выключите на 3 секунды")
+        print("4. Повторите шаги 2-3 еще 4 раза")
+        print("5. Включите лампу - она должна мигнуть")
+        print("6. Лампа готова к добавлению")
+        
+        // Показываем инструкцию пользователю
+        self.error = HueAPIError.unknown(
+            """
+            Для сброса лампы:
+            
+            1. Выключите лампу
+            2. Включите на 3 секунды
+            3. Выключите на 3 секунды
+            4. Повторите шаги 2-3 еще 4 раза
+            5. Включите лампу - она мигнет
+            
+            После сброса попробуйте добавить лампу снова.
+            """
+        )
+        
+        completion(true)
+    }
+}

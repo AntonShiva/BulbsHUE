@@ -1346,206 +1346,8 @@ extension HueAPIClient {
         }
     }
     
-    // MARK: - Исправление 7: mDNS Discovery с использованием Bonjour
-    
-    /// Поиск Hue Bridge через mDNS - правильная реализация (рекомендуемый метод)
-//    func discoverBridgesViaSSDPV2() -> AnyPublisher<[Bridge], Error> {
-//        return BonjourDiscovery().discoverBridges()
-//    }
+
 }
-
-
-
-// MARK: - Bonjour Discovery Helper
-
-//
-///// Вспомогательный класс для mDNS поиска Hue Bridge (правильный рекомендуемый метод)
-//class BonjourDiscovery {
-//    private let browser = NWBrowser(for: .bonjour(type: "_hue._tcp", domain: "local"), using: .tcp)
-//    private var bridges: [Bridge] = []
-//    private let subject = PassthroughSubject<[Bridge], Error>()
-//    private var connections: [NWConnection] = []
-//    private var hasPermissionDeniedError = false
-//    
-//    func discoverBridges() -> AnyPublisher<[Bridge], Error> {
-//        print("🔍 Начинаем mDNS поиск Hue Bridge (_hue._tcp.local)...")
-//        
-//        browser.browseResultsChangedHandler = { [weak self] results, changes in
-//            print("📡 Обнаружены изменения в результатах mDNS: \(results.count) устройств")
-//            self?.handleBrowseResults(results)
-//        }
-//        
-//        browser.stateUpdateHandler = { [weak self] state in
-//            switch state {
-//            case .ready:
-//                print("✅ mDNS браузер готов к работе")
-//            case .failed(let error):
-//                print("❌ Ошибка mDNS браузера: \(error)")
-//                self?.subject.send(completion: .failure(error))
-//            case .waiting(let error):
-//                print("⏳ mDNS браузер ожидает: \(error)")
-//                // Проверяем код ошибки для определения отказа в разрешении
-//                let nsError = error as NSError
-//                if nsError.code == Int(kDNSServiceErr_PolicyDenied) {
-//                    print("🚫 Разрешение на локальную сеть отклонено пользователем")
-//                    self?.hasPermissionDeniedError = true
-//                    self?.subject.send(completion: .failure(HueAPIError.localNetworkPermissionDenied))
-//                } else {
-//                    print("⏳ Ожидание других условий: \(error.localizedDescription)")
-//                }
-//            default:
-//                break
-//            }
-//        }
-//        
-//        browser.start(queue: .main)
-//        
-//        // Останавливаем поиск через 10 секунд
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-//            print("⏰ Завершаем mDNS поиск, найдено мостов: \(self?.bridges.count ?? 0)")
-//            self?.browser.cancel()
-//            self?.closeAllConnections()
-//            self?.subject.send(self?.bridges ?? [])
-//            self?.subject.send(completion: .finished)
-//        }
-//        
-//        return subject.eraseToAnyPublisher()
-//    }
-//    
-//    private func handleBrowseResults(_ results: Set<NWBrowser.Result>) {
-//        for result in results {
-//            switch result.endpoint {
-//            case .service(name: let name, type: _, domain: _, interface: _):
-//                print("🎯 Найден mDNS сервис: \(name)")
-//                resolveServiceEndpoint(result)
-//            default:
-//                break
-//            }
-//        }
-//    }
-//    
-//    private func resolveServiceEndpoint(_ result: NWBrowser.Result) {
-//        let connection = NWConnection(to: result.endpoint, using: .tcp)
-//        connections.append(connection)
-//        
-//        connection.stateUpdateHandler = { [weak self] state in
-//            switch state {
-//            case .ready:
-//                if let endpoint = connection.currentPath?.remoteEndpoint {
-//                    self?.extractBridgeInfo(from: result, endpoint: endpoint)
-//                }
-//                connection.cancel()
-//            case .failed(let error):
-//                print("❌ Не удалось подключиться к \(result.endpoint): \(error)")
-//                connection.cancel()
-//            default:
-//                break
-//            }
-//        }
-//        
-//        connection.start(queue: .main)
-//    }
-//    
-//    private func extractBridgeInfo(from result: NWBrowser.Result, endpoint: NWEndpoint) {
-//        // Извлекаем IP адрес
-//        var ipAddress = ""
-//        switch endpoint {
-//        case .hostPort(let host, _):
-//            switch host {
-//            case .ipv4(let ipv4):
-//                ipAddress = ipv4.debugDescription
-//            case .ipv6(let ipv6):
-//                ipAddress = ipv6.debugDescription
-//            case .name(let hostname, _):
-//                ipAddress = hostname
-//            @unknown default:
-//                return
-//            }
-//        default:
-//            return
-//        }
-//        
-//        // ИСПРАВЛЕНИЕ: НЕ парсим TXT записи как JSON!
-//        // mDNS TXT записи содержат key=value пары, а НЕ JSON
-//        var bridgeId = ""
-//        
-//        // Используем имя сервиса как Bridge ID по умолчанию
-//        if case .service(let name, _, _, _) = result.endpoint {
-//            bridgeId = name
-//            print("🏷️ Используем имя сервиса как Bridge ID: \(bridgeId)")
-//        }
-//        
-//        // Пытаемся получить реальный Bridge ID через HTTP API (без аутентификации)
-//        validateAndGetBridgeInfo(ipAddress: ipAddress, fallbackId: bridgeId)
-//    }
-//    
-//    private func validateAndGetBridgeInfo(ipAddress: String, fallbackId: String) {
-//        // Получаем конфигурацию Bridge для валидации и извлечения реального ID
-//        let configURL = URL(string: "https://\(ipAddress)/api/config")!
-//        
-//        print("🔍 Проверяем Bridge по адресу: \(configURL)")
-//        
-//        var request = URLRequest(url: configURL)
-//        request.setValue("application/json", forHTTPHeaderField: "Accept")
-//        request.timeoutInterval = 5
-//        
-//        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-//            if let error = error {
-//                print("❌ Ошибка подключения к Bridge \(ipAddress): \(error)")
-//                // Все равно добавляем Bridge с fallback ID
-//                self?.addBridge(id: fallbackId, ip: ipAddress)
-//                return
-//            }
-//            
-//            guard let data = data else {
-//                print("❌ Нет данных от Bridge \(ipAddress)")
-//                self?.addBridge(id: fallbackId, ip: ipAddress)
-//                return
-//            }
-//            
-//            // Пытаемся парсить JSON конфигурацию
-//            do {
-//                if let config = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-//                    let realBridgeId = config["bridgeid"] as? String ?? fallbackId
-//                    let name = config["name"] as? String ?? "Philips Hue Bridge"
-//                    
-//                    print("✅ Найден настоящий Hue Bridge: ID=\(realBridgeId), IP=\(ipAddress)")
-//                    self?.addBridge(id: realBridgeId, ip: ipAddress, name: name)
-//                } else {
-//                    print("⚠️ Неожиданный формат ответа от \(ipAddress)")
-//                    self?.addBridge(id: fallbackId, ip: ipAddress)
-//                }
-//            } catch {
-//                print("❌ Ошибка парсинга JSON от \(ipAddress): \(error)")
-//                // Это НЕ критическая ошибка - добавляем Bridge с fallback ID
-//                self?.addBridge(id: fallbackId, ip: ipAddress)
-//            }
-//        }.resume()
-//    }
-//    
-//    private func addBridge(id: String, ip: String, name: String = "Philips Hue Bridge") {
-//        let bridge = Bridge(
-//            id: id,
-//            internalipaddress: ip,
-//            port: 443,
-//            name: name
-//        )
-//        
-//        DispatchQueue.main.async { [weak self] in
-//            // Проверяем, что мост еще не добавлен
-//            if let bridges = self?.bridges,
-//               !bridges.contains(where: { $0.id == bridge.id || $0.internalipaddress == bridge.internalipaddress }) {
-//                self?.bridges.append(bridge)
-//                print("🎉 Добавлен Bridge: \(bridge)")
-//            }
-//        }
-//    }
-//    
-//    private func closeAllConnections() {
-//        connections.forEach { $0.cancel() }
-//        connections.removeAll()
-//    }
-//}
 
 
 
@@ -1717,6 +1519,373 @@ extension HueAPIClient {
 
 
 
+
+extension HueAPIClient {
+    
+    // MARK: - Структуры для маппинга серийных номеров
+    
+    /// Информация о сопоставлении устройства
+    struct DeviceMapping {
+        let deviceId: String        // RID устройства из API v2
+        let serialNumber: String?   // Серийный номер с корпуса
+        let uniqueId: String?       // Unique ID из API v1 (содержит MAC)
+        let macAddress: String?     // Полный MAC/EUI-64 адрес
+        let shortMac: String?       // Последние 3 байта MAC (для внутреннего использования)
+        let lightId: String?        // ID лампы в системе
+        let name: String            // Название лампы
+    }
+    
+    // MARK: - Основной метод добавления лампы по серийному номеру
+    
+    /// Добавляет лампу по серийному номеру через правильный API flow
+    func addLightBySerialNumber(_ serialNumber: String) -> AnyPublisher<[Light], Error> {
+        let cleanSerial = serialNumber.uppercased()
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        
+        print("🔍 Добавление лампы по серийному номеру: \(cleanSerial)")
+        
+        // Шаг 1: Получаем текущий маппинг всех устройств
+        return getDeviceMappings()
+            .flatMap { [weak self] mappings -> AnyPublisher<[Light], Error> in
+                guard let self = self else {
+                    return Fail(error: HueAPIError.unknown("Client deallocated"))
+                        .eraseToAnyPublisher()
+                }
+                
+                // Шаг 2: Проверяем, есть ли уже лампа с таким серийным номером
+                if let existingDevice = mappings.first(where: {
+                    $0.serialNumber?.uppercased() == cleanSerial
+                }) {
+                    print("✅ Лампа с серийным номером \(cleanSerial) уже добавлена: \(existingDevice.name)")
+                    
+                    // Возвращаем существующую лампу
+                    return self.getLight(id: existingDevice.lightId ?? "")
+                        .map { [$0] }
+                        .eraseToAnyPublisher()
+                }
+                
+                // Шаг 3: Лампа не найдена, запускаем targeted search через API v1
+                print("🔄 Лампа не найдена, запускаем targeted search...")
+                return self.performTargetedSearch(serialNumber: cleanSerial)
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Получение маппинга устройств
+    
+    /// Получает полный маппинг всех устройств (серийники ↔ MAC ↔ lights)
+    private func getDeviceMappings() -> AnyPublisher<[DeviceMapping], Error> {
+        print("📊 Получаем маппинг устройств...")
+        
+        // Параллельно загружаем все необходимые данные
+        let devicesPublisher = getV2Devices()
+        let zigbeePublisher = getV2ZigbeeConnectivity()
+        let v1LightsPublisher = getV1Lights()
+        
+        return Publishers.Zip3(devicesPublisher, zigbeePublisher, v1LightsPublisher)
+            .map { devices, zigbeeConns, v1Lights in
+                self.buildDeviceMappings(
+                    devices: devices,
+                    zigbeeConns: zigbeeConns,
+                    v1Lights: v1Lights
+                )
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Получает список устройств через API v2
+       private func getV2Devices() -> AnyPublisher<[V2Device], Error> {
+           let endpoint = "/clip/v2/resource/device"
+           
+           return performRequestHTTPS<V2DevicesResponse>(endpoint: endpoint, method: "GET")
+               .map { (response: V2DevicesResponse) in
+                   response.data
+               }
+               .eraseToAnyPublisher()
+       }
+    
+    /// Получает Zigbee connectivity данные через API v2
+    private func getV2ZigbeeConnectivity() -> AnyPublisher<[V2ZigbeeConn], Error> {
+           let endpoint = "/clip/v2/resource/zigbee_connectivity"
+           
+           return performRequestHTTPS<V2ZigbeeResponse>(endpoint: endpoint, method: "GET")
+               .map { (response: V2ZigbeeResponse) in
+                   response.data
+               }
+               .eraseToAnyPublisher()
+       }
+    
+    /// Получает список ламп через API v1 (для uniqueid)
+    private func getV1Lights() -> AnyPublisher<[String: V1Light], Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10.0
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .map(\.data)
+            .decode(type: [String: V1Light].self, decoder: JSONDecoder())
+            .mapError { error in
+                print("❌ Ошибка получения v1 lights: \(error)")
+                return HueAPIError.networkError(error)
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Строит маппинг устройств из полученных данных
+    private func buildDeviceMappings(
+        devices: [V2Device],
+        zigbeeConns: [V2ZigbeeConn],
+        v1Lights: [String: V1Light]
+    ) -> [DeviceMapping] {
+        
+        var mappings: [DeviceMapping] = []
+        
+        for device in devices {
+            // Находим Zigbee connectivity для устройства
+            let zigbee = zigbeeConns.first { $0.owner.rid == device.id }
+            
+            // Извлекаем ID лампы из id_v1
+            let v1LightId = extractV1LightId(from: device.id_v1)
+            
+            // Находим данные из API v1
+            let v1Light = v1LightId.flatMap { v1Lights[$0] }
+            
+            // Извлекаем короткий MAC из uniqueid
+            let shortMac = extractShortMac(from: v1Light?.uniqueid)
+            
+            let mapping = DeviceMapping(
+                deviceId: device.id,
+                serialNumber: device.serial_number,
+                uniqueId: v1Light?.uniqueid,
+                macAddress: zigbee?.mac_address ?? zigbee?.mac,
+                shortMac: shortMac,
+                lightId: extractLightServiceId(from: device.services),
+                name: device.metadata?.name ?? "Unknown"
+            )
+            
+            mappings.append(mapping)
+            
+            // Логируем для отладки
+            if let serial = mapping.serialNumber {
+                print("📍 Устройство: \(mapping.name)")
+                print("   Серийный номер: \(serial)")
+                print("   MAC: \(mapping.macAddress ?? "н/д")")
+                print("   Short MAC: \(mapping.shortMac ?? "н/д")")
+            }
+        }
+        
+        return mappings
+    }
+    
+    // MARK: - Targeted Search (добавление новой лампы)
+    
+    /// Выполняет targeted search для добавления новой лампы
+    private func performTargetedSearch(serialNumber: String) -> AnyPublisher<[Light], Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        print("🎯 Запускаем targeted search для: \(serialNumber)")
+        
+        // Инициируем поиск через API v1
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10.0
+        
+        // Формат для targeted search
+        let body = ["deviceid": [serialNumber]]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return Fail(error: HueAPIError.encodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("📡 Targeted search response: \(httpResponse.statusCode)")
+                    
+                    if httpResponse.statusCode == 200 {
+                        print("✅ Поиск инициирован успешно")
+                        return true
+                    } else {
+                        throw HueAPIError.httpError(statusCode: httpResponse.statusCode)
+                    }
+                }
+                return true
+            }
+            .delay(for: .seconds(40), scheduler: RunLoop.main) // Ждем 40 секунд согласно документации
+            .flatMap { _ in
+                // После ожидания проверяем новые лампы
+                self.checkForNewLights()
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Проверяет появление новых ламп после targeted search
+    private func checkForNewLights() -> AnyPublisher<[Light], Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        print("🔍 Проверяем новые лампы...")
+        
+        // Получаем результаты поиска через /lights/new
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights/new") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: url)
+            .map(\.data)
+            .tryMap { data in
+                // Парсим ответ
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let lastscan = json["lastscan"] as? String {
+                    
+                    print("📅 Последнее сканирование: \(lastscan)")
+                    
+                    // Извлекаем ID новых ламп
+                    var newLightIds: [String] = []
+                    for (key, value) in json {
+                        if key != "lastscan", let _ = value as? [String: Any] {
+                            newLightIds.append(key)
+                            print("   ✨ Найдена новая лампа: ID \(key)")
+                        }
+                    }
+                    
+                    return newLightIds
+                } else {
+                    return []
+                }
+            }
+            .flatMap { lightIds -> AnyPublisher<[Light], Error> in
+                if lightIds.isEmpty {
+                    print("❌ Новые лампы не найдены")
+                    return Just([])
+                        .setFailureType(to: Error.self)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Получаем данные о новых лампах через API v2
+                return self.getAllLightsV2HTTPS()
+                    .map { allLights in
+                        // Фильтруем только новые лампы
+                        return allLights.filter { light in
+                            lightIds.contains { id in
+                                light.id.contains(id) || light.metadata.name.contains("Hue light \(id)")
+                            }
+                        }
+                    }
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Helper методы
+    
+    /// Извлекает ID лампы v1 из id_v1
+    private func extractV1LightId(from idV1: String?) -> String? {
+        guard let idV1 = idV1 else { return nil }
+        // "/lights/3" -> "3"
+        return idV1.split(separator: "/").last.map(String.init)
+    }
+    
+    /// Извлекает короткий MAC из uniqueid
+    private func extractShortMac(from uniqueid: String?) -> String? {
+        guard let uniqueid = uniqueid else { return nil }
+        // "00:17:88:01:10:3e:5f:86-0b" -> "3e5f86"
+        let macPart = uniqueid.split(separator: "-").first ?? ""
+        let bytes = macPart.split(separator: ":")
+        guard bytes.count >= 3 else { return nil }
+        return bytes.suffix(3).joined().lowercased()
+    }
+    
+    /// Извлекает ID light сервиса из списка сервисов
+    private func extractLightServiceId(from services: [V2Service]?) -> String? {
+        return services?.first { $0.rtype == "light" }?.rid
+    }
+}
+
+// MARK: - Модели данных для API
+
+/// Ответ API v2 для устройств
+struct V2DevicesResponse: Codable {
+    let data: [V2Device]
+}
+
+/// Устройство в API v2
+struct V2Device: Codable {
+    let id: String
+    let id_v1: String?
+    let serial_number: String?
+    let metadata: V2Metadata?
+    let services: [V2Service]
+}
+
+/// Метаданные устройства
+struct V2Metadata: Codable {
+    let name: String?
+    let archetype: String?
+}
+
+/// Сервис устройства
+struct V2Service: Codable {
+    let rid: String
+    let rtype: String
+}
+
+/// Ответ API v2 для Zigbee connectivity
+struct V2ZigbeeResponse: Codable {
+    let data: [V2ZigbeeConn]
+}
+
+/// Zigbee connectivity в API v2
+struct V2ZigbeeConn: Codable {
+    struct Owner: Codable {
+        let rid: String
+        let rtype: String
+    }
+    
+    let id: String
+    let owner: Owner
+    let mac_address: String?
+    let mac: String?
+}
+
+/// Лампа в API v1
+struct V1Light: Codable {
+    let name: String
+    let uniqueid: String?
+    let state: V1LightState
+}
+
+/// Состояние лампы в API v1
+struct V1LightState: Codable {
+    let on: Bool
+    let bri: Int?
+}
 
 
 // MARK: - Safe Array Extension
