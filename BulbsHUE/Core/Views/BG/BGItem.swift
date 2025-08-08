@@ -94,7 +94,7 @@ struct BGItem: View {
       
     }
     .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=Oz8YTfvXva0QJfVZ-4")!)
-    .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
+   
 }
 
 
