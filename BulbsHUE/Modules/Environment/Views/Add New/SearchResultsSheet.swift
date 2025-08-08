@@ -63,9 +63,17 @@ struct SearchResultsSheet: View {
                         ForEach(getLightsToShow()) { light in
                             VStack(alignment: .leading, spacing: 8) {
                                 
-                                BulbCell(text: light.metadata.name, image: "lightBulb", width: 32, height: 32) {
-                                    nav.showCategoriesSelection(for: light)
-                                }
+//                                BulbCell(text: light.metadata.name, image: "lightBulb", width: 32, height: 32) {
+//                                    nav.showCategoriesSelection(for: light)
+//                                }
+                                LightResultCell(
+                                                              light: light,
+                                                              onTap: {
+                                                                  // Только при нажатии показываем категории
+                                                                  nav.selectedLight = light
+                                                                  nav.showCategoriesSelection(for: light)
+                                                              }
+                                                          )
                             }
                         }
                         
@@ -155,3 +163,70 @@ struct SearchResultsSheet: View {
 //                    nav.showCategoriesSelection()
 //                }
 //            }
+// Новый компонент для отображения лампы с индикацией статуса
+struct LightResultCell: View {
+    let light: Light
+    let onTap: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Иконка лампы с индикацией включения
+            ZStack {
+                Image("lightBulb")
+                    .resizable()
+                    .scaledToFit()
+                    .adaptiveFrame(width: 32, height: 32)
+                    .foregroundColor(light.on.on ? .yellow : .gray)
+                
+                // Индикатор питания
+                if light.on.on {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 10, height: 10)
+                        .offset(x: 12, y: -12)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(light.metadata.name)
+                    .font(Font.custom("DMSans-Regular", size: 14))
+                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                    .textCase(.uppercase)
+                
+                // Статус питания
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(light.on.on ? Color.green : Color.red)
+                        .frame(width: 6, height: 6)
+                    
+                    Text(light.on.on ? "Включена" : "Выключена")
+                        .font(Font.custom("DMSans-Light", size: 10))
+                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.7))
+                }
+                
+                // Показываем яркость если включена
+                if light.on.on, let brightness = light.dimming?.brightness {
+                    Text("Яркость: \(Int(brightness))%")
+                        .font(Font.custom("DMSans-Light", size: 10))
+                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.5))
+                }
+            }
+            
+            Spacer()
+            
+            ChevronButton {
+                onTap()
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            Rectangle()
+                .foregroundColor(.clear)
+                .adaptiveFrame(width: 332, height: 64)
+                .background(Color(red: 0.79, green: 1, blue: 1))
+                .cornerRadius(15)
+                .opacity(light.on.on ? 0.15 : 0.08) // Более яркий фон для включенных
+        )
+    }
+}

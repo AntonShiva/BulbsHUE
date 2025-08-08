@@ -94,11 +94,19 @@ struct AddNewBulb: View {
                         .focused($isSerialNumberFocused)
                         .submitLabel(.done)
                         .onSubmit {
-                            if !serialNumber.isEmpty {
-                                print("📝 Введен серийный номер: \(serialNumber)")
+                            let trimmedSerial = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+                            
+                            if !trimmedSerial.isEmpty {
+                                print("📝 Введен серийный номер: \(trimmedSerial)")
+                                
+                                // Проверяем формат
+                                if trimmedSerial.count != 6 {
+                                    print("⚠️ Серийный номер должен содержать 6 символов, получено: \(trimmedSerial.count)")
+                                    // Можно показать алерт пользователю
+                                }
                                 
                                 // Запускаем поиск
-                                appViewModel.lightsViewModel.addLightBySerialNumber(serialNumber)
+                                appViewModel.lightsViewModel.addLightBySerialNumber(trimmedSerial)
                                 
                                 // Переключаем NavigationManager для показа результатов
                                 nav.startSerialNumberSearch()

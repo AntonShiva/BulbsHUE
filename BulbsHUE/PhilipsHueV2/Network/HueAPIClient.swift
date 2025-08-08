@@ -139,6 +139,41 @@ class HueAPIClient: NSObject {
     
     // MARK: - Authentication
     
+    // Добавьте этот метод после performTargetedSearch
+
+    /// Проверяет, мигнула ли лампа (подтверждение сброса)
+    private func checkLightBlink(lightId: String) -> AnyPublisher<Bool, Error> {
+        // Сохраняем текущее состояние
+        var originalState: Bool = false
+        
+        return getLight(id: lightId)
+            .handleEvents(receiveOutput: { light in
+                originalState = light.on.on
+            })
+            .flatMap { [weak self] light -> AnyPublisher<Bool, Error> in
+                guard let self = self else {
+                    return Just(false).setFailureType(to: Error.self).eraseToAnyPublisher()
+                }
+                
+                // Мигаем лампой для подтверждения
+                let blinkState = LightState(
+                    on: OnState(on: !light.on.on)
+                )
+                
+                return self.updateLightV2HTTPS(id: lightId, state: blinkState)
+                    .delay(for: .seconds(0.5), scheduler: RunLoop.main)
+                    .flatMap { _ in
+                        // Возвращаем в исходное состояние
+                        let restoreState = LightState(
+                            on: OnState(on: originalState)
+                        )
+                        return self.updateLightV2HTTPS(id: lightId, state: restoreState)
+                    }
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+    
     /// Создает нового пользователя (application key) на мосту
     /// Требует нажатия кнопки Link на физическом устройстве
     /// - Parameters:
@@ -862,13 +897,25 @@ extension HueAPIClient {
     }
     
     /// Валидация серийного номера
+    /// Валидация серийного номера
     private func isValidSerialNumber(_ serial: String) -> Bool {
-        let cleaned = serial.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hexCharacterSet = CharacterSet(charactersIn: "0123456789ABCDEFabcdef")
-        return cleaned.count == 6 &&
-               cleaned.rangeOfCharacter(from: hexCharacterSet.inverted) == nil
-    }
-}
+        let cleaned = serial
+            .uppercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ":", with: "")
+        
+        // ИСПРАВЛЕНО: Принимаем буквы A-Z и цифры 0-9
+        let validCharacterSet = CharacterSet(charactersIn: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        
+        // Проверяем длину и символы
+        let isValid = cleaned.count == 6 &&
+                      cleaned.rangeOfCharacter(from: validCharacterSet.inverted) == nil
+        
+        print("🔍 Валидация серийного номера '\(serial)': \(isValid ? "✅" : "❌")")
+        return isValid
+    }}
 
 // MARK: - Touchlink Implementation
 
@@ -1538,6 +1585,9 @@ extension HueAPIClient {
     // MARK: - Основной метод добавления лампы по серийному номеру
     
     /// Добавляет лампу по серийному номеру через правильный API flow
+    // Файл: BulbsHUE/PhilipsHueV2/Network/HueAPIClient.swift
+    // Обновите метод addLightBySerialNumber (строка ~2100)
+
     func addLightBySerialNumber(_ serialNumber: String) -> AnyPublisher<[Light], Error> {
         let cleanSerial = serialNumber.uppercased()
             .replacingOccurrences(of: "-", with: "")
@@ -1545,29 +1595,69 @@ extension HueAPIClient {
         
         print("🔍 Добавление лампы по серийному номеру: \(cleanSerial)")
         
-        // Шаг 1: Получаем текущий маппинг всех устройств
-        return getDeviceMappings()
-            .flatMap { [weak self] mappings -> AnyPublisher<[Light], Error> in
+        // Сохраняем текущие ID ламп для сравнения
+        var existingLightIds = Set<String>()
+        
+        return getAllLightsV2HTTPS()
+            .handleEvents(receiveOutput: { lights in
+                // Сохраняем ID существующих ламп
+                existingLightIds = Set(lights.map { $0.id })
+                print("📝 Текущие лампы: \(existingLightIds.count)")
+            })
+            .flatMap { [weak self] _ -> AnyPublisher<[Light], Error> in
                 guard let self = self else {
                     return Fail(error: HueAPIError.unknown("Client deallocated"))
                         .eraseToAnyPublisher()
                 }
                 
-                // Шаг 2: Проверяем, есть ли уже лампа с таким серийным номером
-                if let existingDevice = mappings.first(where: {
-                    $0.serialNumber?.uppercased() == cleanSerial
-                }) {
-                    print("✅ Лампа с серийным номером \(cleanSerial) уже добавлена: \(existingDevice.name)")
-                    
-                    // Возвращаем существующую лампу
-                    return self.getLight(id: existingDevice.lightId ?? "")
-                        .map { [$0] }
+                // Выполняем targeted search
+                return self.performTargetedSearch(serialNumber: cleanSerial)
+            }
+            .flatMap { [weak self] _ -> AnyPublisher<[Light], Error> in
+                guard let self = self else {
+                    return Fail(error: HueAPIError.unknown("Client deallocated"))
                         .eraseToAnyPublisher()
                 }
                 
-                // Шаг 3: Лампа не найдена, запускаем targeted search через API v1
-                print("🔄 Лампа не найдена, запускаем targeted search...")
-                return self.performTargetedSearch(serialNumber: cleanSerial)
+                // После поиска получаем обновленный список
+                return self.getAllLightsV2HTTPS()
+            }
+            .map { allLights -> [Light] in
+                // ВАЖНО: Фильтруем только НОВЫЕ лампы или те, что мигнули
+                let newLights = allLights.filter { light in
+                    // Новая лампа (не была в списке до поиска)
+                    let isNew = !existingLightIds.contains(light.id)
+                    
+                    // Или лампа, которая мигнула (была сброшена)
+                    // Проверяем по имени и состоянию
+                    let isReset = light.metadata.name.contains("Hue") &&
+                                 light.metadata.name.contains("lamp") &&
+                                 !light.metadata.name.contains("configured")
+                    
+                    return isNew || isReset
+                }
+                
+                print("🔍 Фильтрация результатов:")
+                print("   Всего ламп: \(allLights.count)")
+                print("   Новых/сброшенных: \(newLights.count)")
+                
+                // Если новых нет, но серийный номер валиден,
+                // пытаемся найти по последним символам ID
+                if newLights.isEmpty {
+                    let matchingLight = allLights.first { light in
+                        let lightIdSuffix = String(light.id.suffix(6))
+                            .uppercased()
+                            .replacingOccurrences(of: "-", with: "")
+                        return lightIdSuffix == cleanSerial
+                    }
+                    
+                    if let found = matchingLight {
+                        print("✅ Найдена лампа по ID suffix: \(found.metadata.name)")
+                        return [found]
+                    }
+                }
+                
+                return newLights
             }
             .eraseToAnyPublisher()
     }

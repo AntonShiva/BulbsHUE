@@ -148,13 +148,15 @@ class LightsViewModel: ObservableObject {
     /// Это процедура сброса и добавления лампы, как в официальном приложении Philips Hue
     /// - Parameter serialNumber: Серийный номер лампы для добавления (6-символьный код)
     /// Поиск лампы по серийному номеру (среди подключенных или новых)
+    // Файл: BulbsHUE/PhilipsHueV2/ViewModels/LightsViewModel.swift
+    // Найдите метод addLightBySerialNumber (строка ~280)
+
     func addLightBySerialNumber(_ serialNumber: String) {
         print("🔍 Поиск лампы по серийному номеру: \(serialNumber)")
         
-        // Валидация формата
         guard isValidSerialNumber(serialNumber) else {
             print("❌ Неверный формат серийного номера")
-            error = HueAPIError.unknown("Серийный номер должен содержать 6 символов (0-9, A-F)")
+            error = HueAPIError.unknown("Серийный номер должен содержать 6 символов (0-9, A-Z)")
             return
         }
         
@@ -162,7 +164,6 @@ class LightsViewModel: ObservableObject {
         error = nil
         clearSerialNumberFoundLights()
         
-        // Используем новый универсальный метод из HueAPIClient
         apiClient.addLightBySerialNumber(serialNumber)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -180,7 +181,8 @@ class LightsViewModel: ObservableObject {
                     if !foundLights.isEmpty {
                         print("✅ Найдено ламп: \(foundLights.count)")
                         
-                        // Добавляем в список найденных по серийному номеру
+                        // ИСПРАВЛЕНО: НЕ показываем категории автоматически
+                        // Только сохраняем найденные лампы
                         self.serialNumberFoundLights = foundLights
                         
                         // Добавляем новые лампы в общий список
@@ -188,16 +190,12 @@ class LightsViewModel: ObservableObject {
                             if !self.lights.contains(where: { $0.id == light.id }) {
                                 self.lights.append(light)
                                 print("   + Добавлена лампа: \(light.metadata.name)")
-                            } else {
-                                print("   ℹ️ Лампа уже в списке: \(light.metadata.name)")
                             }
                         }
                         
-                        // Показываем категории для первой лампы
-                        if let firstLight = foundLights.first {
-                            self.selectedLight = firstLight
-                            NavigationManager.shared.showCategoriesSelection(for: firstLight)
-                        }
+                        // УДАЛЕНО: NavigationManager.shared.showCategoriesSelection(for: firstLight)
+                        // Пользователь сам выберет лампу и нажмет кнопку
+                        
                     } else {
                         print("❌ Лампы с серийным номером \(serialNumber) не найдены")
                         self.showNotFoundError(for: serialNumber)
@@ -207,30 +205,37 @@ class LightsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+  
     /// Поиск среди существующих ламп по серийному номеру
     private func findExistingLightBySerial(_ serialNumber: String) -> Light? {
-        let cleanSerial = serialNumber.uppercased().replacingOccurrences(of: "-", with: "")
+        let cleanSerial = serialNumber.uppercased()
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
         
-        // Известные соответствия для ваших ламп
-        let knownMappings: [String: String] = [
-            "AED970": "Hue color lamp 3",
-            "C55B8": "Лампа 2",
-            "031A17": "Лампа 1"
-        ]
+        print("🔍 Ищем лампу с серийным номером: \(cleanSerial)")
         
-        // Ищем по известному маппингу
-        if let knownName = knownMappings[cleanSerial] {
-            return lights.first { $0.metadata.name == knownName }
-        }
+        // УДАЛЕНО: Хардкод маппинг
+        // Теперь ищем динамически по ID и метаданным
         
-        // Ищем по ID или имени
         return lights.first { light in
+            // Проверяем различные способы идентификации
             let lightId = light.id.uppercased().replacingOccurrences(of: "-", with: "")
             let lightName = light.metadata.name.uppercased()
             
-            return lightId.contains(cleanSerial) ||
-                   lightName.contains(cleanSerial) ||
-                   light.matchesSerialNumber(serialNumber)
+            // Проверяем:
+            // 1. ID содержит серийный номер
+            // 2. Имя содержит серийный номер
+            // 3. Последние 6 символов ID совпадают с серийным номером
+            let idContainsSerial = lightId.contains(cleanSerial)
+            let nameContainsSerial = lightName.contains(cleanSerial)
+            let idEndsWithSerial = lightId.count >= 6 && lightId.suffix(6) == cleanSerial
+            
+            if idContainsSerial || nameContainsSerial || idEndsWithSerial {
+                print("✅ Найдена лампа: \(light.metadata.name)")
+                return true
+            }
+            
+            return false
         }
     }
 
@@ -359,16 +364,35 @@ class LightsViewModel: ObservableObject {
     /// Валидирует серийный номер Philips Hue (должен быть 6 символов)
     /// - Parameter serialNumber: Серийный номер для проверки
     /// - Returns: true если серийный номер валидный
+    /// Валидирует серийный номер Philips Hue
+    /// Принимает 6-символьные коды с буквами A-Z и цифрами 0-9
     func isValidSerialNumber(_ serialNumber: String) -> Bool {
         let cleanSerial = serialNumber
+            .uppercased()
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "-", with: "")
             .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ":", with: "")
         
-        // Серийный номер должен быть 6 символов (hex)
-        let hexCharacterSet = CharacterSet(charactersIn: "0123456789ABCDEFabcdef")
-        return cleanSerial.count == 6 &&
-               cleanSerial.rangeOfCharacter(from: hexCharacterSet.inverted) == nil
+        // ИСПРАВЛЕНО: Принимаем любые буквы A-Z и цифры 0-9
+        // Раньше было: "0123456789ABCDEFabcdef" (только HEX)
+        // Теперь: полный алфавит + цифры
+        let validCharacterSet = CharacterSet(charactersIn: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        
+        // Проверяем длину (6 символов) и допустимые символы
+        let isValidLength = cleanSerial.count == 6
+        let hasOnlyValidChars = cleanSerial.rangeOfCharacter(from: validCharacterSet.inverted) == nil
+        
+        if !isValidLength || !hasOnlyValidChars {
+            print("❌ Серийный номер '\(serialNumber)' не прошел валидацию:")
+            print("   Очищенный: '\(cleanSerial)'")
+            print("   Длина: \(cleanSerial.count) (ожидается 6)")
+            print("   Валидные символы: \(hasOnlyValidChars)")
+            return false
+        }
+        
+        print("✅ Серийный номер '\(cleanSerial)' валиден")
+        return true
     }
     /// Включает/выключает лампу
     /// - Parameter light: Лампа для переключения
@@ -1002,5 +1026,53 @@ extension LightsViewModel {
         )
         
         completion(true)
+    }
+}
+
+
+extension LightsViewModel {
+    
+    // MARK: - Dynamic Serial Number Mappings
+    
+    /// Ключ для UserDefaults
+    private var mappingsKey: String { "HueLightSerialMappings" }
+    
+    /// Загружает сохраненные маппинги
+    func loadSerialMappings() -> [String: String] {
+        UserDefaults.standard.dictionary(forKey: mappingsKey) as? [String: String] ?? [:]
+    }
+    
+    /// Сохраняет маппинг серийный номер -> ID лампы
+    func saveSerialMapping(serial: String, lightId: String) {
+        var mappings = loadSerialMappings()
+        let cleanSerial = serial.uppercased()
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        
+        mappings[cleanSerial] = lightId
+        UserDefaults.standard.set(mappings, forKey: mappingsKey)
+        
+        print("💾 Сохранен маппинг: \(cleanSerial) -> \(lightId)")
+    }
+    
+    /// Находит лампу по сохраненному маппингу
+    func findLightByMapping(_ serial: String) -> Light? {
+        let cleanSerial = serial.uppercased()
+            .replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        
+        let mappings = loadSerialMappings()
+        
+        if let lightId = mappings[cleanSerial] {
+            return lights.first { $0.id == lightId }
+        }
+        
+        return nil
+    }
+    
+    /// Очищает все сохраненные маппинги
+    func clearSerialMappings() {
+        UserDefaults.standard.removeObject(forKey: mappingsKey)
+        print("🗑 Маппинги очищены")
     }
 }
