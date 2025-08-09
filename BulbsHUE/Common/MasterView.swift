@@ -33,6 +33,7 @@ struct MasterView: View {
             }
         }
 
+
     }
 }
 #Preview {
@@ -49,12 +50,13 @@ struct MasterView: View {
        
 }
 
-//        .onAppear {
-//              //  проверка шрифтов
-//              for family in UIFont.familyNames {
-//                  print("== \(family)")
-//                  for name in UIFont.fontNames(forFamilyName: family) {
-//                      print("   - \(name)")
+
+//                .onAppear {
+//                      //  проверка шрифтов
+//                      for family in UIFont.familyNames {
+//                          print("== \(family)")
+//                          for name in UIFont.fontNames(forFamilyName: family) {
+//                              print("   - \(name)")
+//                          }
+//                      }
 //                  }
-//              }
-//          }
