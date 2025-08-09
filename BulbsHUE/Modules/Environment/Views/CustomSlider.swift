@@ -4,32 +4,48 @@
 //
 //  Created by Anton Reasin on 8/9/25.
 //
-
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 struct CustomSlider: View {
-    // 0...100 (% яркости)
     @Binding var percent: Double
-    // Базовый цвет лампы (корпус светлее, заливка/бегунок темнее)
     var color: Color
 
+    // Дизайн-габариты (будут масштабироваться через adaptiveFrame)
     var width: CGFloat = 64
     var height: CGFloat = 140
     var cornerRadius: CGFloat = 20
 
+    // Осветление корпуса / затемнение заливки
     var bodyLighten: CGFloat = 0.25
     var fillDarken: CGFloat = 0.20
 
     var body: some View {
-        ZStack {
-            GeometryReader { geo in
-                let H = geo.size.height
-                let fillHeight = max(0, min(H, H * CGFloat(percent / 100)))
-                let topGap = max(0, H - fillHeight)
-                let dynamicTop = max(0, min(cornerRadius, cornerRadius - topGap)) // плавно скругляем верх
-                let bulb = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        GeometryReader { geo in
+            // Фактические размеры после adaptiveFrame
+            let W = geo.size.width
+            let H = geo.size.height
 
+            // Масштаб для радиусов относительно дизайн-габаритов
+            let scaleX = W / width
+            let scaleY = H / height
+            let scale = min(scaleX, scaleY)
+            let scaledCorner = cornerRadius * scale
+
+            // Высота заливки (снизу), лёгкое floor — чтобы на 100% не «вылазило»
+            let clamped = CGFloat(min(max(percent, 0), 100))
+            let fillHeight = floor(H * clamped / 100)
+
+            // Плавное скругление верха заливки, когда подбираемся к потолку
+            let topGap = max(0, H - fillHeight)
+            let dynamicTop = max(0, scaledCorner - topGap)
+
+            let bulb = RoundedRectangle(cornerRadius: scaledCorner, style: .continuous)
+
+            ZStack {
+                // Колба + заливка
                 ZStack(alignment: .bottom) {
                     // Фон колбы — светлее
                     bulb.fill(color.lighten(bodyLighten))
@@ -37,17 +53,19 @@ struct CustomSlider: View {
                     // Заливка — темнее, растёт снизу
                     UnevenRoundedRectangle(
                         topLeadingRadius: dynamicTop,
-                        bottomLeadingRadius: cornerRadius,
-                        bottomTrailingRadius: cornerRadius,
+                        bottomLeadingRadius: scaledCorner,
+                        bottomTrailingRadius: scaledCorner,
                         topTrailingRadius: dynamicTop,
                         style: .continuous
                     )
                     .fill(color.darken(fillDarken))
-                    .frame(height: fillHeight)
+                    // ВАЖНО: фиксируем заливку к низу обычными frame, без adaptiveFrame
+                    .frame(height: fillHeight, alignment: .bottom)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
                 }
                 .compositingGroup()
-                .clipShape(bulb)
-                .contentShape(Rectangle())
+                .clipShape(bulb)            // ничего не выйдет за пределы колбы
+                .contentShape(Rectangle())  // вся область — зона жестов
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { g in
@@ -57,7 +75,7 @@ struct CustomSlider: View {
                         }
                 )
 
-                // Проценты — сверху по центру
+                // Проценты — поверх
                 Text("\(Int(percent))%")
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
@@ -67,18 +85,9 @@ struct CustomSlider: View {
                     .allowsHitTesting(false)
             }
         }
-        .frame(width: width, height: height)
+        // Внешние габариты — адаптивно (твои расширения)
+        .adaptiveFrame(width: width, height: height)
         .shadow(color: .black.opacity(0.2), radius: 20)
-        .accessibilityElement()
-        .accessibilityLabel("Яркость")
-        .accessibilityValue("\(Int(percent)) процентов")
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment: percent = min(100, percent + 5)
-            case .decrement: percent = max(0, percent - 5)
-            default: break
-            }
-        }
     }
 }
 
@@ -91,36 +100,40 @@ extension Comparable {
 }
 
 extension Color {
-    // Осветление/затемнение через HSB (iOS)
+    // Осветление/затемнение через HSB
     func adjusted(brightness b: CGFloat = 0, saturation s: CGFloat = 0) -> Color {
+        #if canImport(UIKit)
         let ui = UIColor(self)
         var h: CGFloat = 0, sat: CGFloat = 0, br: CGFloat = 0, a: CGFloat = 0
         if ui.getHue(&h, saturation: &sat, brightness: &br, alpha: &a) {
             let ns = min(max(sat + s, 0), 1)
             let nb = min(max(br + b, 0), 1)
             return Color(hue: Double(h), saturation: Double(ns), brightness: Double(nb), opacity: Double(a))
-        } else {
-            // Fallback: простое затемнение/осветление по RGB
-            var r: CGFloat = 0, g: CGFloat = 0, bl: CGFloat = 0, a2: CGFloat = 0
-            ui.getRed(&r, green: &g, blue: &bl, alpha: &a2)
-            let k = 1 + b
-            return Color(red: Double(min(max(r * k, 0), 1)),
-                         green: Double(min(max(g * k, 0), 1)),
-                         blue: Double(min(max(bl * k, 0), 1)),
-                         opacity: Double(a2))
         }
+        var r: CGFloat = 0, g: CGFloat = 0, bl: CGFloat = 0, a2: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &bl, alpha: &a2)
+        let k = 1 + b
+        return Color(red: Double(min(max(r * k, 0), 1)),
+                     green: Double(min(max(g * k, 0), 1)),
+                     blue: Double(min(max(bl * k, 0), 1)),
+                     opacity: Double(a2))
+        #else
+        return self
+        #endif
     }
     func lighten(_ amount: CGFloat) -> Color { adjusted(brightness: amount) }
     func darken(_ amount: CGFloat) -> Color { adjusted(brightness: -amount) }
 }
+
+
 
 // MARK: - Preview (простой, без generic-обёрток)
 
 #Preview {
     PreviewHost()
         .padding()
-        .background(Color.black.opacity(0.7))
-        .preferredColorScheme(.dark)
+        .background(Color.black.opacity(0.3))
+       
 }
 
 private struct PreviewHost: View {
@@ -143,4 +156,46 @@ private struct PreviewHost: View {
 //    }
 //}
 
-
+// MARK: -- пример тролинга по сети
+//                @State private var debouncedTask: Task<Void, Never>?
+//                @State private var lastSentPercent: Double = -1
+//
+//                let hue = HueBridgeClient(bridgeIP: "192.168.0.103",
+//                                          appKeyV2: "…", usernameV1: "…")
+//                let lighRid = "…" // v2 RID конкретной лампы
+//
+//                var body: some View {
+//                    CustomSlider(percent: $brightness,
+//                                 color: Color(red: 0.55, green: 0.24, blue: 0.67),
+//                                 onChange: { value in
+//                                     // Дебаунс 150 мс
+//                                     debouncedTask?.cancel()
+//                                     let v = round(value) // коалесируем до целых %
+//                                     debouncedTask = Task {
+//                                         try? await Task.sleep(nanoseconds: 150_000_000)
+//                                         if Task.isCancelled { return }
+//                                         // Не шлём, если разница < 1%
+//                                         guard abs(v - lastSentPercent) >= 1 else { return }
+//                                         do {
+//                                             try await hue.setBrightnessV2(lightRid: lightRid, percent: v)
+//                                             lastSentPercent = v
+//                                         } catch {
+//                                             print("send error:", error)
+//                                         }
+//                                     }
+//                                 },
+//                                 onCommit: { value in
+//                                     // Отправляем финальное значение немедленно
+//                                     debouncedTask?.cancel()
+//                                     let v = round(value)
+//                                     Task.detached {
+//                                         do {
+//                                             try await hue.setBrightnessV2(lightRid: lightRid, percent: v)
+//                                         } catch {
+//                                             print("commit error:", error)
+//                                         }
+//                                         await MainActor.run { lastSentPercent = v }
+//                                     }
+//                                 })
+//                }
+              // MARK: -- End

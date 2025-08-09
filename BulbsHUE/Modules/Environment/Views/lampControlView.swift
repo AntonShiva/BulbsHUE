@@ -11,7 +11,7 @@ struct lampControlView: View {
     var body: some View {
         ZStack{
             BGItem(baseColor: .purple)
-                .frame(width: 300, height: 150)
+                .adaptiveFrame(width: 278, height: 140)
             
             Image("f2")
                 .renderingMode(.template)
