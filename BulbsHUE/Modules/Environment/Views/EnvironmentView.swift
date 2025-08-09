@@ -45,12 +45,10 @@ struct EnvironmentView: View {
                 }
                 .adaptiveOffset(y: 195)
             } else {
-                
-                LampItemControl(percent: $percent)
+               // списаок ламп
+                ItemControl(percent: $percent)
                     .adaptiveOffset(y: -150)
-                
-  
-            }
+             }
             
         }
        

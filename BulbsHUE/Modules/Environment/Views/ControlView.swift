@@ -7,10 +7,12 @@
 
 import SwiftUI
 
-struct lampControlView: View {
+struct ControlView: View {
+    @Binding var isOn: Bool
+    var baseColor: Color = .purple
     var body: some View {
         ZStack{
-            BGItem(baseColor: .purple)
+            BGItem(baseColor: baseColor)
                 .adaptiveFrame(width: 278, height: 140)
             
             Image("f2")
@@ -56,7 +58,7 @@ struct lampControlView: View {
               .textCase(.uppercase)
               .adaptiveOffset(x: -42, y: 46)
             
-            CustomToggle(isOn: .constant(true))
+            CustomToggle(isOn: $isOn)
                 .adaptiveOffset(x: 95, y: 42)
             
             ZStack {
@@ -77,7 +79,7 @@ struct lampControlView: View {
 }
 
 #Preview {
-    lampControlView()
+    ControlView(isOn: .constant(true))
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=Oz8YTfvXva0QJfVZ-4")!)
        
 }

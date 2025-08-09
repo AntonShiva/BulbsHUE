@@ -12,6 +12,9 @@ import UIKit
 struct CustomSlider: View {
     @Binding var percent: Double
     var color: Color
+    // Колбэки для троттлинга/коммита
+    var onChange: ((Double) -> Void)? = nil
+    var onCommit: ((Double) -> Void)? = nil
 
     // Дизайн-габариты (будут масштабироваться через adaptiveFrame)
     var width: CGFloat = 64
@@ -72,6 +75,10 @@ struct CustomSlider: View {
                             let y = g.location.y.clamped(to: 0...H)
                             let frac = 1 - (y / H)
                             percent = (Double(frac) * 100).clamped(to: 0...100)
+                            onChange?(percent)
+                        }
+                        .onEnded { _ in
+                            onCommit?(percent)
                         }
                 )
 

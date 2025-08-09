@@ -405,6 +405,17 @@ class LightsViewModel: ObservableObject {
         updateLight(light.id, state: newState, currentLight: light)
     }
     
+    /// Устанавливает состояние питания (вкл/выкл) явно
+    /// - Parameters:
+    ///   - light: Лампа
+    ///   - on: Состояние питания
+    func setPower(for light: Light, on: Bool) {
+        let newState = LightState(
+            on: OnState(on: on)
+        )
+        updateLight(light.id, state: newState, currentLight: light)
+    }
+    
     /// Устанавливает яркость лампы с debouncing
     /// - Parameters:
     ///   - light: Лампа для изменения
@@ -426,6 +437,18 @@ class LightsViewModel: ObservableObject {
         
         // Выполняем через 250мс
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
+    }
+    
+    /// Немедленно устанавливает яркость (для commit после жеста)
+    /// - Parameters:
+    ///   - light: Лампа
+    ///   - brightness: 0-100
+    func commitBrightness(for light: Light, brightness: Double) {
+        brightnessUpdateWorkItem?.cancel()
+        let newState = LightState(
+            dimming: Dimming(brightness: brightness)
+        )
+        updateLight(light.id, state: newState, currentLight: light)
     }
     
     /// Устанавливает цвет лампы с debouncing
