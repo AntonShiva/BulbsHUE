@@ -30,8 +30,8 @@ struct EnvironmentView: View {
             
           SelectorTabEnviromentView()
                 .adaptiveOffset(y: -264)
-            if !true {
-                
+            let assignedLights = viewModel.lightsViewModel.lights.filter { $0.metadata.archetype != nil }
+            if assignedLights.isEmpty {
                 Text("You don't have \nany bulbs yet")
                     .font(Font.custom("DMSans-Regular", size: 16))
                     .kerning(3.2)
@@ -39,16 +39,23 @@ struct EnvironmentView: View {
                     .foregroundColor(Color(red: 0.75, green: 0.85, blue: 1))
                     .opacity(0.3)
                     .textCase(.uppercase)
-                
+
                 AddButton(text: "add bulb", width: 427, height: 295) {
                     nav.go(.addNewBulb)
                 }
                 .adaptiveOffset(y: 195)
             } else {
-               // списаок ламп
-                ItemControl(percent: $percent)
-                    .adaptiveOffset(y: -150)
-             }
+                // Список добавленных ламп с локацией и статусом
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
+                        ForEach(assignedLights) { light in
+                            ItemControl(light: light)
+                                .environmentObject(viewModel)
+                        }
+                    }
+                }
+                .adaptiveOffset(y: 180)
+            }
             
         }
        

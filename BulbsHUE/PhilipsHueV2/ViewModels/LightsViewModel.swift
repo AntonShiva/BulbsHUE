@@ -523,6 +523,26 @@ class LightsViewModel: ObservableObject {
         applyEffect(to: light, effect: "breathe")
     }
     
+    /// Мигает лампой для визуального подтверждения (если лампа подключена и включена в сеть)
+    /// - Parameter light: Лампа для мигания
+    func blinkLight(_ light: Light) {
+        apiClient.blinkLight(id: light.id)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        print("❌ Ошибка мигания лампы \(light.metadata.name): \(error)")
+                    }
+                },
+                receiveValue: { success in
+                    if success {
+                        print("✅ Лампа \(light.metadata.name) мигнула успешно")
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
     /// Запускает подписку на события (рекомендуемый подход)
     func startEventStream() {
         stopAutoRefresh() // Останавливаем старый метод

@@ -26,14 +26,14 @@ struct SearchResultsSheet: View {
             .adaptiveFrame(width: 375, height: 342)
             
             Text("search results")
-              .font(Font.custom("DMSans-Light", size: 14))
-              .kerning(2.8)
-              .multilineTextAlignment(.center)
-              .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-              .textCase(.uppercase)
-              .adaptiveOffset(y: -130)
+                .font(Font.custom("DMSans-Light", size: 14))
+                .kerning(2.8)
+                .multilineTextAlignment(.center)
+                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                .textCase(.uppercase)
+                .adaptiveOffset(y: -130)
             
-
+            
             ScrollView {
                 LazyVStack(spacing: 12) {
                     // Показываем индикатор загрузки при поиске по серийному номеру
@@ -63,17 +63,17 @@ struct SearchResultsSheet: View {
                         ForEach(getLightsToShow()) { light in
                             VStack(alignment: .leading, spacing: 8) {
                                 
-//                                BulbCell(text: light.metadata.name, image: "lightBulb", width: 32, height: 32) {
-//                                    nav.showCategoriesSelection(for: light)
-//                                }
+                                //                                BulbCell(text: light.metadata.name, image: "lightBulb", width: 32, height: 32) {
+                                //                                    nav.showCategoriesSelection(for: light)
+                                //                                }
                                 LightResultCell(
-                                                              light: light,
-                                                              onTap: {
-                                                                  // Только при нажатии показываем категории
-                                                                  nav.selectedLight = light
-                                                                  nav.showCategoriesSelection(for: light)
-                                                              }
-                                                          )
+                                    light: light,
+                                    onTap: {
+                                        // Только при нажатии показываем категории
+                                        nav.selectedLight = light
+                                        nav.showCategoriesSelection(for: light)
+                                    }
+                                )
                             }
                         }
                         
@@ -137,7 +137,7 @@ struct SearchResultsSheet: View {
         }
     }
     
-
+    
 }
 
 #Preview {
@@ -167,6 +167,12 @@ struct SearchResultsSheet: View {
 struct LightResultCell: View {
     let light: Light
     let onTap: () -> Void
+    
+    // Получаем LightsViewModel из Environment
+    @EnvironmentObject var appViewModel: AppViewModel
+    var lightsViewModel: LightsViewModel {
+        appViewModel.lightsViewModel
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -228,5 +234,20 @@ struct LightResultCell: View {
                 .cornerRadius(15)
                 .opacity(light.on.on ? 0.15 : 0.08) // Более яркий фон для включенных
         )
+        .onTapGesture {
+            // При нажатии на ячейку лампы мигаем лампой для визуального подтверждения
+            lightsViewModel.blinkLight(light)
+        }
     }
+}
+#Preview {
+   
+    LightResultCell(
+        light: Light(),
+        onTap: {
+           
+        }
+    )
+    .background(.black)
+    
 }

@@ -129,6 +129,9 @@ struct LightState: Codable {
     /// Градиент
     var gradient: GradientState?
     
+    /// Оповещение (для мигания)
+    var alert: AlertState?
+    
     /// Оптимизация: отправляйте только измененные параметры
     func optimizedState(currentLight: Light?) -> LightState {
         var optimized = self
@@ -318,5 +321,19 @@ struct Dimming: Codable {
 struct OnState: Codable {
     /// Флаг включения
     var on: Bool = false
+}
+
+/// Состояние оповещения (для мигания лампы)
+struct AlertState: Codable {
+    /// Действие оповещения
+    /// - "breathe": мигание лампы для визуального подтверждения
+    /// - "none": отключить оповещение
+    var action: String
+    
+    /// Инициализация с действием
+    /// - Parameter action: Тип действия оповещения
+    init(action: String) {
+        self.action = action
+    }
 }
 

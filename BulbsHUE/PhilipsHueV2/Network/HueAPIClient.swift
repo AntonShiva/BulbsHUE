@@ -320,6 +320,92 @@ class HueAPIClient: NSObject {
         return updateLightV2HTTPS(id: id, state: state)
     }
     
+    /// Мигает лампой для визуального подтверждения (если лампа подключена и включена в сеть)
+    /// Использует кратковременное изменение яркости для имитации 1-2 вспышек
+    /// - Parameter id: Уникальный идентификатор лампы
+    /// - Returns: Combine Publisher с результатом операции
+    func blinkLight(id: String) -> AnyPublisher<Bool, Error> {
+        print("💡 Отправляем команду мигания для лампы \(id)...")
+        
+        // Сначала получаем текущее состояние лампы
+        return getLight(id: id)
+            .flatMap { [weak self] currentLight -> AnyPublisher<Bool, Error> in
+                guard let self = self else {
+                    return Just(false).setFailureType(to: Error.self).eraseToAnyPublisher()
+                }
+                
+                let originalBrightness = currentLight.dimming?.brightness ?? 100.0
+                let isOn = currentLight.on.on
+                
+                print("💡 Исходная яркость: \(originalBrightness), включена: \(isOn)")
+                
+                // Если лампа выключена, включаем её и выключаем обратно
+                if !isOn {
+                    return self.performOffLightBlink(id: id)
+                } else {
+                    // Если включена, меняем яркость
+                    return self.performBrightnessBlink(id: id, originalBrightness: originalBrightness)
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Мигание выключенной лампы (включить-выключить)
+    private func performOffLightBlink(id: String) -> AnyPublisher<Bool, Error> {
+        // Быстро включаем
+        let turnOnState = LightState(on: OnState(on: true))
+        
+        return updateLightV2HTTPS(id: id, state: turnOnState)
+            .delay(for: .milliseconds(400), scheduler: DispatchQueue.main)
+            .flatMap { [weak self] _ -> AnyPublisher<Bool, Error> in
+                guard let self = self else {
+                    return Just(false).setFailureType(to: Error.self).eraseToAnyPublisher()
+                }
+                // Быстро выключаем обратно
+                let turnOffState = LightState(on: OnState(on: false))
+                return self.updateLightV2HTTPS(id: id, state: turnOffState)
+            }
+            .handleEvents(
+                receiveOutput: { success in
+                    if success {
+                        print("✅ Мигание выключенной лампы \(id) завершено")
+                    }
+                }
+            )
+            .eraseToAnyPublisher()
+    }
+    
+    /// Мигание включенной лампы (изменение яркости)
+    private func performBrightnessBlink(id: String, originalBrightness: Double) -> AnyPublisher<Bool, Error> {
+        // Быстро уменьшаем яркость до минимума
+        let dimState = LightState(
+            dimming: Dimming(brightness: 1.0),
+            dynamics: Dynamics(duration: 100) // Быстрый переход
+        )
+        
+        return updateLightV2HTTPS(id: id, state: dimState)
+            .delay(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .flatMap { [weak self] _ -> AnyPublisher<Bool, Error> in
+                guard let self = self else {
+                    return Just(false).setFailureType(to: Error.self).eraseToAnyPublisher()
+                }
+                // Возвращаем исходную яркость
+                let restoreState = LightState(
+                    dimming: Dimming(brightness: originalBrightness),
+                    dynamics: Dynamics(duration: 100) // Быстрый переход
+                )
+                return self.updateLightV2HTTPS(id: id, state: restoreState)
+            }
+            .handleEvents(
+                receiveOutput: { success in
+                    if success {
+                        print("✅ Мигание включенной лампы \(id) завершено")
+                    }
+                }
+            )
+            .eraseToAnyPublisher()
+    }
+    
     // MARK: - Scenes Endpoints
     
     /// Получает список всех сцен
