@@ -1,5 +1,5 @@
 //
-//  lampControlView.swift
+//  ControlView.swift
 //  BulbsHUE
 //
 //  Created by Anton Reasin on 8/8/25.
@@ -7,74 +7,125 @@
 
 import SwiftUI
 
+/// Компонент для отображения основной информации о лампе
+/// Принимает динамические данные через параметры
 struct ControlView: View {
+    // MARK: - Properties
+    
+    /// Состояние включения/выключения лампы
     @Binding var isOn: Bool
-    var baseColor: Color = .purple
+    
+    /// Базовый цвет для фона компонента
+    let baseColor: Color
+    
+    /// Название лампы
+    let bulbName: String
+    
+    /// Тип лампы
+    let bulbType: String
+    
+    /// Название комнаты
+    let roomName: String
+    
+    /// Иконка лампы
+    let bulbIcon: String
+    
+    /// Иконка комнаты/типа
+    let roomIcon: String
+    
+    // MARK: - Initialization
+    
+    init(
+        isOn: Binding<Bool>,
+        baseColor: Color = .purple,
+        bulbName: String = "Smart Bulb",
+        bulbType: String = "Smart Light",
+        roomName: String = "Living Room",
+        bulbIcon: String = "f2",
+        roomIcon: String = "tr1"
+    ) {
+        self._isOn = isOn
+        self.baseColor = baseColor
+        self.bulbName = bulbName
+        self.bulbType = bulbType
+        self.roomName = roomName
+        self.bulbIcon = bulbIcon
+        self.roomIcon = roomIcon
+    }
+    
+    // MARK: - Body
+    
     var body: some View {
-        ZStack{
+        ZStack {
+            // Фоновый элемент с цветным градиентом
             BGItem(baseColor: baseColor)
                 .adaptiveFrame(width: 278, height: 140)
             
-            Image("f2")
+            // Иконка лампы (слева вверху)
+            Image(bulbIcon)
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(.white)
-              .adaptiveFrame(width: 32, height: 32)
-              .adaptiveOffset(x: -100, y: -42)
+                .adaptiveFrame(width: 32, height: 32)
+                .adaptiveOffset(x: -100, y: -42)
             
-            Text("bulb name")
-              .font(Font.custom("DMSans-Regular", size: 20))
-              .kerning(4)
-              .foregroundColor(.white)
-              .textCase(.uppercase)
-              .adaptiveOffset(x: -45, y: -3)
+            // Название лампы (основной текст)
+            Text(bulbName)
+                .font(Font.custom("DMSans-Regular", size: 20))
+                .kerning(4)
+                .foregroundColor(.white)
+                .textCase(.uppercase)
+                .adaptiveOffset(x: -45, y: -3)
             
-            Text("bulb type")
-              .font(Font.custom("DMSans-Light", size: 14))
-              .kerning(2.8)
-              .foregroundColor(.white)
-              .textCase(.uppercase)
-              .adaptiveOffset(x: -70, y: 19)
+            // Тип лампы (подзаголовок)
+            Text(bulbType)
+                .font(Font.custom("DMSans-Light", size: 14))
+                .kerning(2.8)
+                .foregroundColor(.white)
+                .textCase(.uppercase)
+                .adaptiveOffset(x: -70, y: 19)
             
-           Rectangle()
-                .fill( Color(red: 0.79, green: 1, blue: 1) )
+            // Разделительная линия
+            Rectangle()
+                .fill(Color(red: 0.79, green: 1, blue: 1))
                 .adaptiveFrame(width: 153, height: 2)
-              .opacity(0.2)
-              .adaptiveOffset(x: -42, y: 33)
+                .opacity(0.2)
+                .adaptiveOffset(x: -42, y: 33)
             
-            Image("tr1")
+            // Иконка комнаты
+            Image(roomIcon)
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(.white)
-              .adaptiveFrame(width: 16, height: 16)
-              .adaptiveOffset(x: -108, y: 46)
+                .adaptiveFrame(width: 16, height: 16)
+                .adaptiveOffset(x: -108, y: 46)
             
-            Text("living room")
+            // Название комнаты
+            Text(roomName)
                 .font(Font.custom("DMSans-Light", size: 12))
-              .kerning(2.4)
-              .foregroundColor(.white)
-              .textCase(.uppercase)
-              .adaptiveOffset(x: -42, y: 46)
+                .kerning(2.4)
+                .foregroundColor(.white)
+                .textCase(.uppercase)
+                .adaptiveOffset(x: -42, y: 46)
             
+            // Переключатель включения/выключения
             CustomToggle(isOn: $isOn)
                 .adaptiveOffset(x: 95, y: 42)
             
+            // Кнопка дополнительных настроек (справа вверху)
             ZStack {
                 BGCircle()
-                  .adaptiveFrame(width: 36, height: 36)
-                  
+                    .adaptiveFrame(width: 36, height: 36)
                 
                 Image(systemName: "ellipsis")
                     .font(.system(size: 22))
                     .foregroundColor(.white)
                     .rotationEffect(Angle(degrees: 90))
-                   
             }
             .adaptiveOffset(x: 111, y: -43)
         }
-        
     }
 }
 

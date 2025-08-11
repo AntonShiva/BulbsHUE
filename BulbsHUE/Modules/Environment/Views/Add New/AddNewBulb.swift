@@ -1,9 +1,3 @@
-//
-//  AddNewBulb.swift
-//  BulbsHUE
-//
-//  Created by Anton Reasin on 02.08.2025.
-//
 
 import SwiftUI
 
