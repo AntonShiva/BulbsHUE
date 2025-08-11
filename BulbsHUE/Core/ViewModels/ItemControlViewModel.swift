@@ -87,15 +87,29 @@ class ItemControlViewModel: ObservableObject {
         currentLight = light
         
         // Синхронизируем локальное состояние с данными лампы
-        isOn = light.on.on
-        brightness = light.dimming?.brightness ?? 100.0
+        let newIsOn = light.on.on
+        let newBrightness = light.dimming?.brightness ?? 100.0
+        
+        // СИНХРОНИЗАЦИЯ ЛОГИКА:
+        if !newIsOn {
+            // Лампа выключена - яркость должна быть 0
+            isOn = false
+            brightness = 0.0
+        } else {
+            // Лампа включена
+            isOn = true
+            // Если API показывает яркость 0 при включенной лампе - показываем минимум 1%
+            brightness = newBrightness > 0 ? newBrightness : 1.0
+        }
     }
     
     /// Переключить состояние включения/выключения лампы
     func togglePower() {
         guard isConfigured else { return }
-        isOn.toggle()
-        sendPowerUpdate(isOn)
+        let newState = !isOn
+        
+        // Используем setPower для корректной синхронизации
+        setPower(newState)
     }
     
     /// Установить состояние питания лампы
@@ -103,6 +117,12 @@ class ItemControlViewModel: ObservableObject {
     func setPower(_ powerState: Bool) {
         guard isConfigured else { return }
         isOn = powerState
+        
+        // СИНХРОНИЗАЦИЯ: Если лампа выключается - устанавливаем яркость в 0
+        if !powerState {
+            brightness = 0.0
+        }
+        
         sendPowerUpdate(powerState)
     }
     
@@ -112,6 +132,17 @@ class ItemControlViewModel: ObservableObject {
         guard isConfigured else { return }
         
         brightness = value
+        
+        // СИНХРОНИЗАЦИЯ: Если яркость увеличивается при выключенной лампе - включаем лампу
+        if value > 0 && !isOn {
+            isOn = true
+            sendPowerUpdate(true)
+        }
+        // СИНХРОНИЗАЦИЯ: Если яркость = 0 и лампа включена - выключаем лампу
+        else if value == 0 && isOn {
+            isOn = false
+            sendPowerUpdate(false)
+        }
         
         // Отменяем предыдущую задачу дебаунса
         debouncedTask?.cancel()
@@ -144,6 +175,17 @@ class ItemControlViewModel: ObservableObject {
         debouncedTask?.cancel()
         let roundedValue = round(value)
         brightness = roundedValue
+        
+        // СИНХРОНИЗАЦИЯ: Если яркость увеличивается при выключенной лампе - включаем лампу
+        if roundedValue > 0 && !isOn {
+            isOn = true
+            sendPowerUpdate(true)
+        }
+        // СИНХРОНИЗАЦИЯ: Если яркость = 0 и лампа включена - выключаем лампу
+        else if roundedValue == 0 && isOn {
+            isOn = false
+            sendPowerUpdate(false)
+        }
         
         Task { [weak self] in
             await self?.sendBrightnessUpdate(roundedValue, isThrottled: false)

@@ -14,6 +14,14 @@ import Combine
 /// Следует принципам SOLID и обеспечивает изоляцию данных
 final class DataPersistenceService: ObservableObject {
     
+    // MARK: - Published Properties
+    
+    /// Список ламп назначенных в Environment (для реактивного обновления UI)
+    @Published var assignedLights: [Light] = []
+    
+    /// Статус операций с данными
+    @Published var isUpdating: Bool = false
+    
     // MARK: - Properties
     
     /// Модель контейнер SwiftData
@@ -49,6 +57,9 @@ final class DataPersistenceService: ObservableObject {
             )
             
             print("✅ DataPersistenceService инициализирован успешно")
+            
+            // Загружаем начальные данные
+            loadAssignedLights()
         } catch {
             fatalError("❌ Не удалось инициализировать ModelContainer: \(error)")
         }
@@ -61,19 +72,31 @@ final class DataPersistenceService: ObservableObject {
     ///   - light: Light модель из API
     ///   - isAssignedToEnvironment: Назначена ли лампа в Environment
     func saveLightData(_ light: Light, isAssignedToEnvironment: Bool = false) {
+        print("🔄 DataPersistenceService.saveLightData: \(light.metadata.name), assigned: \(isAssignedToEnvironment)")
+        
         Task { @MainActor in
+            isUpdating = true
+            
             // Проверяем, существует ли уже эта лампа
             if let existingLight = fetchLightData(by: light.id) {
                 // Обновляем существующую
                 existingLight.updateFromLight(light)
                 existingLight.isAssignedToEnvironment = isAssignedToEnvironment
+                print("✅ Обновлена существующая лампа: \(light.metadata.name)")
             } else {
                 // Создаем новую
                 let lightData = LightDataModel.fromLight(light, isAssignedToEnvironment: isAssignedToEnvironment)
                 modelContext.insert(lightData)
+                print("✅ Создана новая лампа: \(light.metadata.name)")
             }
             
             saveContext()
+            
+            // Обновляем @Published свойства для UI
+            loadAssignedLights()
+            
+            isUpdating = false
+            print("🔄 DataPersistenceService.saveLightData завершен")
         }
     }
     
@@ -131,10 +154,17 @@ final class DataPersistenceService: ObservableObject {
     /// - Parameter lightId: ID лампы
     func assignLightToEnvironment(_ lightId: String) {
         Task { @MainActor in
+            isUpdating = true
+            
             if let lightData = fetchLightData(by: lightId) {
                 lightData.isAssignedToEnvironment = true
                 saveContext()
+                
+                // Обновляем @Published свойства для UI
+                loadAssignedLights()
             }
+            
+            isUpdating = false
         }
     }
     
@@ -142,10 +172,17 @@ final class DataPersistenceService: ObservableObject {
     /// - Parameter lightId: ID лампы
     func removeLightFromEnvironment(_ lightId: String) {
         Task { @MainActor in
+            isUpdating = true
+            
             if let lightData = fetchLightData(by: lightId) {
                 lightData.isAssignedToEnvironment = false
                 saveContext()
+                
+                // Обновляем @Published свойства для UI
+                loadAssignedLights()
             }
+            
+            isUpdating = false
         }
     }
     
@@ -185,6 +222,33 @@ final class DataPersistenceService: ObservableObject {
             }
             
             saveContext()
+            
+            // Обновляем @Published свойства для UI
+            loadAssignedLights()
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Загрузить назначенные лампы в @Published свойство
+    private func loadAssignedLights() {
+        let descriptor = FetchDescriptor<LightDataModel>(
+            predicate: #Predicate { $0.isAssignedToEnvironment == true },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        
+        do {
+            let lightDataModels = try modelContext.fetch(descriptor)
+            let newLights = lightDataModels.map { $0.toLight() }
+            
+            print("🔄 DataPersistenceService.loadAssignedLights: найдено \(newLights.count) ламп")
+            print("🔄 Лампы: \(newLights.map { $0.metadata.name })")
+            
+            assignedLights = newLights
+            print("✅ @Published assignedLights обновлен с \(assignedLights.count) лампами")
+        } catch {
+            print("❌ Ошибка загрузки назначенных ламп: \(error)")
+            assignedLights = []
         }
     }
     

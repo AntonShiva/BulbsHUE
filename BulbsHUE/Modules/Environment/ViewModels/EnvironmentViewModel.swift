@@ -59,22 +59,21 @@ class EnvironmentViewModel: ObservableObject {
         // Загружаем из API
         appViewModel?.lightsViewModel.loadLights()
         
-        // Также обновляем из локального хранилища
-        loadAssignedLightsFromStorage()
+        // DataPersistenceService автоматически обновит UI через Publisher
     }
     
     /// Назначить лампу в Environment (сделать видимой)
     /// - Parameter light: Лампа для назначения
     func assignLightToEnvironment(_ light: Light) {
+        // Просто вызываем сервис - UI обновится автоматически через Publisher
         dataPersistenceService?.assignLightToEnvironment(light.id)
-        loadAssignedLightsFromStorage()
     }
     
     /// Убрать лампу из Environment
     /// - Parameter lightId: ID лампы для удаления
     func removeLightFromEnvironment(_ lightId: String) {
+        // Просто вызываем сервис - UI обновится автоматически через Publisher
         dataPersistenceService?.removeLightFromEnvironment(lightId)
-        loadAssignedLightsFromStorage()
     }
     
     /// Получить количество назначенных ламп
@@ -91,7 +90,19 @@ class EnvironmentViewModel: ObservableObject {
     
     /// Настройка наблюдателей для автоматического обновления данных
     private func setupObservers() {
-        guard let appViewModel = appViewModel else { return }
+        guard let appViewModel = appViewModel,
+              let dataPersistenceService = dataPersistenceService else { return }
+        
+        // ГЛАВНЫЙ FIX: Подписываемся на изменения в DataPersistenceService
+        dataPersistenceService.$assignedLights
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] updatedLights in
+                print("🔄 EnvironmentViewModel получил обновление: \(updatedLights.count) ламп")
+                print("🔄 Лампы: \(updatedLights.map { $0.metadata.name })")
+                self?.assignedLights = updatedLights
+                print("✅ EnvironmentView будет обновлен с \(updatedLights.count) лампами")
+            }
+            .store(in: &cancellables)
         
         // Подписываемся на изменения списка ламп из API
         appViewModel.lightsViewModel.$lights
@@ -125,40 +136,16 @@ class EnvironmentViewModel: ObservableObject {
         // Синхронизируем с локальным хранилищем
         dataPersistenceService?.syncWithAPILights(apiLights)
         
-        // Обновляем отображаемый список
-        loadAssignedLightsFromStorage()
-    }
-    
-    /// Загрузить назначенные лампы из персистентного хранилища
-    private func loadAssignedLightsFromStorage() {
-        guard let dataPersistenceService = dataPersistenceService else { return }
-        
-        // Получаем назначенные лампы из хранилища
-        let storedLights = dataPersistenceService.fetchAssignedLights()
-        
-        // Фильтруем только активные лампы (подключенные к сети)
-        assignedLights = storedLights.filter { light in
-            // Лампа считается активной если она включена или имеет яркость > 0
-            return light.on.on || (light.dimming?.brightness ?? 0) > 0
-        }
-        
-        // Сортируем по имени для стабильного отображения
-        assignedLights.sort { $0.metadata.name < $1.metadata.name }
-        
-        print("✅ Загружено \(assignedLights.count) назначенных ламп из хранилища")
+        // UI обновится автоматически через Publisher в DataPersistenceService
     }
     
     /// Загрузить начальные данные
     private func loadInitialData() {
-        // Сначала загружаем из локального хранилища для быстрого отображения
-        loadAssignedLightsFromStorage()
-        
-        // Затем обновляем из API если доступно
+        // Данные уже загружаются автоматически через Publisher в setupObservers()
+        // Запускаем обновление из API если нужно
         guard let appViewModel = appViewModel else { return }
         
-        if !appViewModel.lightsViewModel.lights.isEmpty {
-            handleAPILightsUpdate(appViewModel.lightsViewModel.lights)
-        } else {
+        if appViewModel.lightsViewModel.lights.isEmpty {
             // Если API данных нет, инициируем загрузку
             refreshLights()
         }

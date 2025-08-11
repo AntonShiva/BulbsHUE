@@ -100,6 +100,7 @@ private struct AssignedLightsListView: View {
             VStack(spacing: 24) {
                 ForEach(lights) { light in
                     ItemControl(light: light)
+                        .padding(.horizontal, 10) // Дополнительные отступы для каждого элемента
                         .contextMenu {
                             Button("Убрать из Environment", role: .destructive) {
                                 onRemoveLight?(light.id)
@@ -107,6 +108,7 @@ private struct AssignedLightsListView: View {
                         }
                 }
             }
+            .padding(.horizontal, 20) // Добавляем отступы по краям
         }
         .adaptiveOffset(y: 180)
     }

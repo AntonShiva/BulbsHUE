@@ -37,44 +37,45 @@ struct ItemControl: View {
     // MARK: - Body
     
     var body: some View {
-        ZStack {
-            // Основной контрол с динамическими данными из ViewModel
-            ControlView(
-                isOn: $itemControlViewModel.isOn,
-                baseColor: itemControlViewModel.defaultWarmColor,
-                bulbName: light.metadata.name,
-                bulbType: itemControlViewModel.getBulbType(),
-                roomName: itemControlViewModel.getRoomName(),
-                bulbIcon: itemControlViewModel.getBulbIcon(),
-                roomIcon: itemControlViewModel.getRoomIcon(),
-                onToggle: { newState in
-                    // Обновляем состояние через ViewModel
-                    itemControlViewModel.setPower(newState)
+        HStack(spacing: 0) {
+            ZStack {
+                // Основной контрол с динамическими данными из ViewModel
+                ControlView(
+                    isOn: $itemControlViewModel.isOn,
+                    baseColor: itemControlViewModel.defaultWarmColor,
+                    bulbName: light.metadata.name,
+                    bulbType: itemControlViewModel.getBulbType(),
+                    roomName: itemControlViewModel.getRoomName(),
+                    bulbIcon: itemControlViewModel.getBulbIcon(),
+                    roomIcon: itemControlViewModel.getRoomIcon(),
+                    onToggle: { newState in
+                        // Обновляем состояние через ViewModel
+                        itemControlViewModel.setPower(newState)
+                    }
+                )
+                
+                // Статус питания и информация о лампе
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.6))
+                            .frame(width: 8, height: 8)
+                        Text(itemControlViewModel.isOn ? "ON" : "OFF")
+                            .font(Font.custom("DMSans-Medium", size: 11))
+                            .foregroundStyle(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.8))
+                            .textCase(.uppercase)
+                    }
+                    Text(itemControlViewModel.getRoomName())
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .foregroundStyle(Color.white.opacity(0.75))
+                    Text(light.metadata.name)
+                        .font(Font.custom("DMSans-Medium", size: 14))
+                        .foregroundStyle(Color.white)
                 }
-            )
-            .adaptiveOffset(x: -36)
-            
-            // Статус питания и информация о лампе
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.6))
-                        .frame(width: 8, height: 8)
-                    Text(itemControlViewModel.isOn ? "ON" : "OFF")
-                        .font(Font.custom("DMSans-Medium", size: 11))
-                        .foregroundStyle(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.8))
-                        .textCase(.uppercase)
-                }
-                Text(itemControlViewModel.getRoomName())
-                    .font(Font.custom("DMSans-Regular", size: 12))
-                    .foregroundStyle(Color.white.opacity(0.75))
-                Text(light.metadata.name)
-                    .font(Font.custom("DMSans-Medium", size: 14))
-                    .foregroundStyle(Color.white)
+                .adaptiveOffset(x: 40, y: -8)
             }
-            .adaptiveOffset(x: 4, y: -8)
             
-            // Слайдер яркости с интеграцией ViewModel
+            // Слайдер яркости справа
             CustomSlider(
                 percent: $itemControlViewModel.brightness,
                 color: itemControlViewModel.defaultWarmColor,
@@ -87,7 +88,7 @@ struct ItemControl: View {
                     itemControlViewModel.commitBrightness(value)
                 }
             )
-            .adaptiveOffset(x: 143)
+            .padding(.leading, 10)
         }
         .onAppear {
             // Конфигурируем изолированную ViewModel с сервисом из appViewModel
