@@ -9,9 +9,10 @@ import SwiftUI
 
 struct EnvironmentView: View {
     @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var viewModel: AppViewModel
+    @EnvironmentObject var appViewModel: AppViewModel
     
-    @State var percent: Double = 50
+    /// Специализированная ViewModel для экрана Environment
+    @State private var environmentViewModel: EnvironmentViewModel?
     
     var body: some View {
         ZStack {
@@ -28,43 +29,90 @@ struct EnvironmentView: View {
             }
             .adaptiveOffset(y: -330)
             
-          SelectorTabEnviromentView()
+            SelectorTabEnviromentView()
                 .adaptiveOffset(y: -264)
-            let assignedLights = viewModel.lightsViewModel.lights.filter { $0.metadata.archetype != nil }
-            if assignedLights.isEmpty {
-                Text("You don't have \nany bulbs yet")
-                    .font(Font.custom("DMSans-Regular", size: 16))
-                    .kerning(3.2)
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(Color(red: 0.75, green: 0.85, blue: 1))
-                    .opacity(0.3)
-                    .textCase(.uppercase)
-
-                AddButton(text: "add bulb", width: 427, height: 295) {
-                    nav.go(.addNewBulb)
-                }
-                .adaptiveOffset(y: 195)
-            } else {
-                // Список добавленных ламп с локацией и статусом
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 24) {
-                        ForEach(assignedLights) { light in
-                            ItemControl(light: light)
-                                .environmentObject(viewModel)
-                        }
-                    }
-                }
-                .adaptiveOffset(y: 180)
-            }
             
+            // Используем данные из EnvironmentViewModel вместо прямого доступа
+            if let viewModel = environmentViewModel {
+                if !viewModel.hasAssignedLights {
+                    EmptyLightsView {
+                        nav.go(.addNewBulb)
+                    }
+                } else {
+                    AssignedLightsListView(lights: viewModel.assignedLights)
+                }
+                
+                // Индикатор загрузки
+                if viewModel.isLoading {
+                    ProgressView("Загрузка ламп...")
+                        .padding()
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(8)
+                }
+            } else {
+                // Состояние инициализации
+                ProgressView("Инициализация...")
+                    .padding()
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(8)
+            }
         }
-       
+        .onAppear {
+            // Создаем ViewModel только после получения appViewModel
+            if environmentViewModel == nil {
+                environmentViewModel = EnvironmentViewModel(appViewModel: appViewModel)
+            }
+        }
+        .refreshable {
+            // Поддержка pull-to-refresh
+            environmentViewModel?.refreshLights()
+        }
+    }
+}
+
+// MARK: - Subviews
+
+/// Компонент для отображения пустого состояния
+private struct EmptyLightsView: View {
+    let onAddBulb: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("You don't have \nany bulbs yet")
+                .font(Font.custom("DMSans-Regular", size: 16))
+                .kerning(3.2)
+                .multilineTextAlignment(.center)
+                .foregroundColor(Color(red: 0.75, green: 0.85, blue: 1))
+                .opacity(0.3)
+                .textCase(.uppercase)
+
+            AddButton(text: "add bulb", width: 427, height: 295) {
+                onAddBulb()
+            }
+            .adaptiveOffset(y: 175)
+        }
+    }
+}
+
+/// Компонент для отображения списка назначенных ламп
+private struct AssignedLightsListView: View {
+    let lights: [Light]
+    
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 24) {
+                ForEach(lights) { light in
+                    ItemControl(light: light)
+                }
+            }
+        }
+        .adaptiveOffset(y: 180)
     }
 }
 
 #Preview {
-    @Previewable @EnvironmentObject var viewModel: AppViewModel
-    EnvironmentView(viewModel: _viewModel)
+    EnvironmentView()
+        .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=120-1187&t=B04C893qA3iLYnq6-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")

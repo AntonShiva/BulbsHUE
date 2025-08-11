@@ -8,19 +8,31 @@
 import SwiftUI
 
 /// Компонент для управления отдельной лампой
-/// Использует современный подход MVVM с Environment objects
+/// Использует изолированную ViewModel для каждой лампы
 struct ItemControl: View {
     // MARK: - Environment Objects
-    /// Основной ViewModel приложения
+    /// Основной ViewModel приложения для доступа к сервисам
     @EnvironmentObject var appViewModel: AppViewModel
-    
-    /// ViewModel для управления состоянием лампы
-    @EnvironmentObject var itemControlViewModel: ItemControlViewModel
     
     // MARK: - Properties
     
     /// Лампа для отображения и управления
     let light: Light
+    
+    /// Изолированная ViewModel для этой конкретной лампы
+    @StateObject private var itemControlViewModel: ItemControlViewModel
+    
+    // MARK: - Initialization
+    
+    /// Инициализация с созданием изолированной ViewModel для лампы
+    /// - Parameter light: Лампа для управления
+    init(light: Light) {
+        self.light = light
+        
+        // Создаем изолированную ViewModel для этой лампы
+        // Инициализируется с пустым сервисом, будет настроена в onAppear
+        self._itemControlViewModel = StateObject(wrappedValue: ItemControlViewModel.createIsolated())
+    }
 
     // MARK: - Body
     
@@ -74,12 +86,15 @@ struct ItemControl: View {
             .adaptiveOffset(x: 143)
         }
         .onAppear {
-            // Устанавливаем текущую лампу в ViewModel при появлении компонента
-            itemControlViewModel.setCurrentLight(light)
+            // Конфигурируем изолированную ViewModel с сервисом из appViewModel
+            itemControlViewModel.configure(
+                with: LightControlService(appViewModel: appViewModel),
+                light: light
+            )
         }
-        .onChange(of: itemControlViewModel.isOn) { newValue in
-            // Переключение питания через ViewModel (автоматически)
-            // Логика уже встроена в ViewModel через @Published
+        .onChange(of: light) { newLight in
+            // Обновляем лампу если она изменилась извне
+            itemControlViewModel.setCurrentLight(newLight)
         }
     }
 
@@ -87,7 +102,6 @@ struct ItemControl: View {
 
 #Preview {
     let appViewModel = AppViewModel()
-    let itemControlViewModel = ItemControlViewModel.createMockViewModel()
     
     let mockLight = Light(
         id: "light_mock_01",
@@ -108,5 +122,4 @@ struct ItemControl: View {
     
     ItemControl(light: mockLight)
         .environmentObject(appViewModel)
-        .environmentObject(itemControlViewModel)
 }
