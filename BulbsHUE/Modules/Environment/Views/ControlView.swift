@@ -33,6 +33,9 @@ struct ControlView: View {
     /// Иконка комнаты/типа
     let roomIcon: String
     
+    /// Callback для обработки изменения состояния питания
+    let onToggle: ((Bool) -> Void)?
+    
     // MARK: - Initialization
     
     init(
@@ -42,7 +45,8 @@ struct ControlView: View {
         bulbType: String = "Smart Light",
         roomName: String = "Living Room",
         bulbIcon: String = "f2",
-        roomIcon: String = "tr1"
+        roomIcon: String = "tr1",
+        onToggle: ((Bool) -> Void)? = nil
     ) {
         self._isOn = isOn
         self.baseColor = baseColor
@@ -51,6 +55,7 @@ struct ControlView: View {
         self.roomName = roomName
         self.bulbIcon = bulbIcon
         self.roomIcon = roomIcon
+        self.onToggle = onToggle
     }
     
     // MARK: - Body
@@ -113,6 +118,10 @@ struct ControlView: View {
             // Переключатель включения/выключения
             CustomToggle(isOn: $isOn)
                 .adaptiveOffset(x: 95, y: 42)
+                .onChange(of: isOn) { newValue in
+                    // Вызываем callback при изменении состояния
+                    onToggle?(newValue)
+                }
             
             // Кнопка дополнительных настроек (справа вверху)
             ZStack {

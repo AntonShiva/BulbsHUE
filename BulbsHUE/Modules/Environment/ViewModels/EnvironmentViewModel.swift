@@ -11,11 +11,12 @@ import SwiftUI
 
 /// ViewModel для управления экраном Environment
 /// Следует принципам MVVM и обеспечивает правильную абстракцию данных
+/// Интегрирован с SwiftData для персистентного хранения
 @MainActor
 class EnvironmentViewModel: ObservableObject {
     // MARK: - Published Properties
     
-    /// Список ламп с назначенными комнатами (архетипами)
+    /// Список ламп с назначенными комнатами (из персистентного хранилища + API)
     @Published var assignedLights: [Light] = []
     
     /// Статус загрузки данных
@@ -26,20 +27,26 @@ class EnvironmentViewModel: ObservableObject {
     
     // MARK: - Private Properties
     
-    /// Ссылка на основной AppViewModel для доступа к данным
+    /// Ссылка на основной AppViewModel для доступа к API данным
     private weak var appViewModel: AppViewModel?
+    
+    /// Сервис для персистентного хранения
+    private weak var dataPersistenceService: DataPersistenceService?
     
     /// Подписки Combine
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     
-    /// Инициализация с внедрением зависимости
-    /// - Parameter appViewModel: Основной ViewModel приложения
-    init(appViewModel: AppViewModel) {
+    /// Инициализация с внедрением зависимостей
+    /// - Parameters:
+    ///   - appViewModel: Основной ViewModel приложения
+    ///   - dataPersistenceService: Сервис персистентных данных
+    init(appViewModel: AppViewModel, dataPersistenceService: DataPersistenceService) {
         self.appViewModel = appViewModel
+        self.dataPersistenceService = dataPersistenceService
         setupObservers()
-        loadAssignedLights()
+        loadInitialData()
     }
     
     // MARK: - Public Methods
@@ -48,7 +55,26 @@ class EnvironmentViewModel: ObservableObject {
     func refreshLights() {
         isLoading = true
         error = nil
+        
+        // Загружаем из API
         appViewModel?.lightsViewModel.loadLights()
+        
+        // Также обновляем из локального хранилища
+        loadAssignedLightsFromStorage()
+    }
+    
+    /// Назначить лампу в Environment (сделать видимой)
+    /// - Parameter light: Лампа для назначения
+    func assignLightToEnvironment(_ light: Light) {
+        dataPersistenceService?.assignLightToEnvironment(light.id)
+        loadAssignedLightsFromStorage()
+    }
+    
+    /// Убрать лампу из Environment
+    /// - Parameter lightId: ID лампы для удаления
+    func removeLightFromEnvironment(_ lightId: String) {
+        dataPersistenceService?.removeLightFromEnvironment(lightId)
+        loadAssignedLightsFromStorage()
     }
     
     /// Получить количество назначенных ламп
@@ -67,18 +93,23 @@ class EnvironmentViewModel: ObservableObject {
     private func setupObservers() {
         guard let appViewModel = appViewModel else { return }
         
-        // Подписываемся на изменения списка ламп
+        // Подписываемся на изменения списка ламп из API
         appViewModel.lightsViewModel.$lights
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] lights in
-                self?.updateAssignedLights(lights)
+            .sink { [weak self] apiLights in
+                self?.handleAPILightsUpdate(apiLights)
             }
             .store(in: &cancellables)
         
         // Подписываемся на состояние загрузки
         appViewModel.lightsViewModel.$isLoading
             .receive(on: DispatchQueue.main)
-            .assign(to: \.isLoading, on: self)
+            .sink { [weak self] isLoading in
+                if !isLoading {
+                    // Когда загрузка завершена, обновляем локальные данные
+                    self?.isLoading = false
+                }
+            }
             .store(in: &cancellables)
         
         // Подписываемся на ошибки
@@ -88,25 +119,48 @@ class EnvironmentViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    /// Обновить список назначенных ламп
-    /// - Parameter lights: Полный список ламп
-    private func updateAssignedLights(_ lights: [Light]) {
-        // Фильтруем только лампы с назначенными архетипами (комнатами)
-        assignedLights = lights.filter { light in
-            light.metadata.archetype != nil
+    /// Обработка обновления ламп из API
+    /// - Parameter apiLights: Лампы из API
+    private func handleAPILightsUpdate(_ apiLights: [Light]) {
+        // Синхронизируем с локальным хранилищем
+        dataPersistenceService?.syncWithAPILights(apiLights)
+        
+        // Обновляем отображаемый список
+        loadAssignedLightsFromStorage()
+    }
+    
+    /// Загрузить назначенные лампы из персистентного хранилища
+    private func loadAssignedLightsFromStorage() {
+        guard let dataPersistenceService = dataPersistenceService else { return }
+        
+        // Получаем назначенные лампы из хранилища
+        let storedLights = dataPersistenceService.fetchAssignedLights()
+        
+        // Фильтруем только активные лампы (подключенные к сети)
+        assignedLights = storedLights.filter { light in
+            // Лампа считается активной если она включена или имеет яркость > 0
+            return light.on.on || (light.dimming?.brightness ?? 0) > 0
         }
         
         // Сортируем по имени для стабильного отображения
         assignedLights.sort { $0.metadata.name < $1.metadata.name }
+        
+        print("✅ Загружено \(assignedLights.count) назначенных ламп из хранилища")
     }
     
-    /// Загрузить назначенные лампы
-    private func loadAssignedLights() {
+    /// Загрузить начальные данные
+    private func loadInitialData() {
+        // Сначала загружаем из локального хранилища для быстрого отображения
+        loadAssignedLightsFromStorage()
+        
+        // Затем обновляем из API если доступно
         guard let appViewModel = appViewModel else { return }
         
-        // Если лампы уже загружены, обновляем сразу
         if !appViewModel.lightsViewModel.lights.isEmpty {
-            updateAssignedLights(appViewModel.lightsViewModel.lights)
+            handleAPILightsUpdate(appViewModel.lightsViewModel.lights)
+        } else {
+            // Если API данных нет, инициируем загрузку
+            refreshLights()
         }
     }
 }
@@ -117,6 +171,10 @@ extension EnvironmentViewModel {
     /// Создать mock ViewModel для превью
     static func createMock() -> EnvironmentViewModel {
         let mockAppViewModel = AppViewModel()
-        return EnvironmentViewModel(appViewModel: mockAppViewModel)
+        let mockDataService = DataPersistenceService.createMock()
+        return EnvironmentViewModel(
+            appViewModel: mockAppViewModel, 
+            dataPersistenceService: mockDataService
+        )
     }
 }

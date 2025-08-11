@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct BulbsHUEApp: App {
@@ -17,13 +18,21 @@ struct BulbsHUEApp: App {
     /// Основной ViewModel приложения
     @StateObject private var appViewModel = AppViewModel()
     
+    /// Сервис для персистентного хранения данных
+    @StateObject private var dataPersistenceService = DataPersistenceService()
+    
     // MARK: - Scene
     
     var body: some Scene {
         WindowGroup {
             MasterView()
-                .environmentObject(navigationManager)
                 .environmentObject(appViewModel)
+                .environmentObject(NavigationManager.shared)
+                .environmentObject(dataPersistenceService)
+                .modelContainer(dataPersistenceService.container)
+                .onAppear {
+                    NavigationManager.shared.dataPersistenceService = dataPersistenceService
+                }
         }
     }
 }

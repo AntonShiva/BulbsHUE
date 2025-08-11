@@ -49,6 +49,10 @@ class NavigationManager: ObservableObject {
        }
     
     static let shared = NavigationManager()
+    
+    // Ссылка на DataPersistenceService для сохранения данных
+    weak var dataPersistenceService: DataPersistenceService?
+    
     private init() {}
     
     // MARK: - Основная навигация между экранами

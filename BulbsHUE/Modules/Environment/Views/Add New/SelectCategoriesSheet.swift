@@ -162,8 +162,17 @@ struct SelectCategoriesSheet: View {
         print("📂 Выбранная категория: \(selectedSubtype.name)")
         print("🖼️ Иконка: \(selectedSubtype.iconName)")
         
-        // Здесь можно добавить логику сохранения в локальное хранилище
-        // или отправки на сервер для ассоциации лампы с категорией
+        // Создаем обновленную лампу с архетипом
+        var updatedLight = selectedLight
+        updatedLight.metadata.archetype = selectedSubtype.name
+        
+        // Сохраняем лампу в DataPersistenceService как назначенную в Environment
+        if let dataPersistenceService = nav.dataPersistenceService {
+            dataPersistenceService.saveLightData(updatedLight, isAssignedToEnvironment: true)
+            print("✅ Лампа сохранена в DataPersistenceService")
+        } else {
+            print("❌ DataPersistenceService недоступен")
+        }
         
         // Возвращаемся к основному экрану
         nav.resetAddBulbState()

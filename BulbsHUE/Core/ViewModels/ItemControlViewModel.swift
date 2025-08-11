@@ -98,6 +98,14 @@ class ItemControlViewModel: ObservableObject {
         sendPowerUpdate(isOn)
     }
     
+    /// Установить состояние питания лампы
+    /// - Parameter powerState: Новое состояние питания (true - включено, false - выключено)
+    func setPower(_ powerState: Bool) {
+        guard isConfigured else { return }
+        isOn = powerState
+        sendPowerUpdate(powerState)
+    }
+    
     /// Установить яркость с дебаунсом (для слайдера)
     /// - Parameter value: Новое значение яркости (0-100)
     func setBrightnessThrottled(_ value: Double) {

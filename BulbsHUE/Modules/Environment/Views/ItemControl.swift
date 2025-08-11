@@ -46,7 +46,11 @@ struct ItemControl: View {
                 bulbType: itemControlViewModel.getBulbType(),
                 roomName: itemControlViewModel.getRoomName(),
                 bulbIcon: itemControlViewModel.getBulbIcon(),
-                roomIcon: itemControlViewModel.getRoomIcon()
+                roomIcon: itemControlViewModel.getRoomIcon(),
+                onToggle: { newState in
+                    // Обновляем состояние через ViewModel
+                    itemControlViewModel.setPower(newState)
+                }
             )
             .adaptiveOffset(x: -36)
             

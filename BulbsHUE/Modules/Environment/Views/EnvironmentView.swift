@@ -10,6 +10,7 @@ import SwiftUI
 struct EnvironmentView: View {
     @EnvironmentObject var nav: NavigationManager
     @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject var dataPersistenceService: DataPersistenceService
     
     /// Специализированная ViewModel для экрана Environment
     @State private var environmentViewModel: EnvironmentViewModel?
@@ -32,14 +33,19 @@ struct EnvironmentView: View {
             SelectorTabEnviromentView()
                 .adaptiveOffset(y: -264)
             
-            // Используем данные из EnvironmentViewModel вместо прямого доступа
+            // Используем данные из EnvironmentViewModel с персистентным хранением
             if let viewModel = environmentViewModel {
                 if !viewModel.hasAssignedLights {
                     EmptyLightsView {
                         nav.go(.addNewBulb)
                     }
                 } else {
-                    AssignedLightsListView(lights: viewModel.assignedLights)
+                    AssignedLightsListView(
+                        lights: viewModel.assignedLights,
+                        onRemoveLight: { lightId in
+                            viewModel.removeLightFromEnvironment(lightId)
+                        }
+                    )
                 }
                 
                 // Индикатор загрузки
@@ -58,9 +64,12 @@ struct EnvironmentView: View {
             }
         }
         .onAppear {
-            // Создаем ViewModel только после получения appViewModel
+            // Создаем ViewModel с обоими сервисами
             if environmentViewModel == nil {
-                environmentViewModel = EnvironmentViewModel(appViewModel: appViewModel)
+                environmentViewModel = EnvironmentViewModel(
+                    appViewModel: appViewModel,
+                    dataPersistenceService: dataPersistenceService
+                )
             }
         }
         .refreshable {
@@ -97,12 +106,18 @@ private struct EmptyLightsView: View {
 /// Компонент для отображения списка назначенных ламп
 private struct AssignedLightsListView: View {
     let lights: [Light]
+    let onRemoveLight: ((String) -> Void)?
     
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 ForEach(lights) { light in
                     ItemControl(light: light)
+                        .contextMenu {
+                            Button("Убрать из Environment", role: .destructive) {
+                                onRemoveLight?(light.id)
+                            }
+                        }
                 }
             }
         }
@@ -114,6 +129,7 @@ private struct AssignedLightsListView: View {
     EnvironmentView()
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())
+        .environmentObject(DataPersistenceService.createMock())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=120-1187&t=B04C893qA3iLYnq6-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
@@ -122,6 +138,7 @@ private struct AssignedLightsListView: View {
     MasterView()
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())
+        .environmentObject(DataPersistenceService.createMock())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=B04C893qA3iLYnq6-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
