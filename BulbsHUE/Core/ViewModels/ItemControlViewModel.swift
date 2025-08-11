@@ -87,7 +87,7 @@ class ItemControlViewModel: ObservableObject {
         currentLight = light
         
         // Получаем реальное состояние лампы с учетом доступности
-        let effectiveState = light.effectiveState
+        let effectiveState = light.effectiveStateWithBrightness
         let isReachable = light.isReachable
         
         // СИНХРОНИЗАЦИЯ ЛОГИКА с учетом реальной доступности:
@@ -262,7 +262,7 @@ class ItemControlViewModel: ObservableObject {
             
             // Синхронизируем состояние только если пользователь не активно взаимодействует
             if debouncedTask == nil {
-                let effectiveState = updatedLight.effectiveState
+                let effectiveState = updatedLight.effectiveStateWithBrightness
                 let isReachable = updatedLight.isReachable
                 
                 if !isReachable {

@@ -157,7 +157,7 @@ class EnvironmentViewModel: ObservableObject {
 extension EnvironmentViewModel {
     /// Создать mock ViewModel для превью
     static func createMock() -> EnvironmentViewModel {
-        let mockAppViewModel = AppViewModel()
+        let mockAppViewModel = AppViewModel(dataPersistenceService: nil)
         let mockDataService = DataPersistenceService.createMock()
         return EnvironmentViewModel(
             appViewModel: mockAppViewModel, 

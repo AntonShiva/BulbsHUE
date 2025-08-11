@@ -563,7 +563,7 @@ struct SecondaryButtonStyle: ButtonStyle {
 // MARK: - Preview
 
 #Preview {
-    let appViewModel = AppViewModel()
+    let appViewModel = AppViewModel(dataPersistenceService: nil)
     appViewModel.showSetup = true
     
     return OnboardingView(appViewModel: appViewModel)

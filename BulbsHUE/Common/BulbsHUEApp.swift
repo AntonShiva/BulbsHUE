@@ -15,11 +15,19 @@ struct BulbsHUEApp: App {
     /// Менеджер навигации приложения
     @StateObject private var navigationManager = NavigationManager.shared
     
-    /// Основной ViewModel приложения
-    @StateObject private var appViewModel = AppViewModel()
-    
     /// Сервис для персистентного хранения данных
     @StateObject private var dataPersistenceService = DataPersistenceService()
+    
+    /// Основной ViewModel приложения
+    @StateObject private var appViewModel: AppViewModel
+    
+    // MARK: - Initialization
+    
+    init() {
+        let dataService = DataPersistenceService()
+        self._dataPersistenceService = StateObject(wrappedValue: dataService)
+        self._appViewModel = StateObject(wrappedValue: AppViewModel(dataPersistenceService: dataService))
+    }
     
     // MARK: - Scene
     

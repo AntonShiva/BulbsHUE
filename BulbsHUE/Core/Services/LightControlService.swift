@@ -141,7 +141,7 @@ class LightControlService: ObservableObject, LightControlling {
 extension LightControlService {
     /// Создать mock сервис для тестирования
     static func createMockService() -> LightControlService {
-        let mockAppViewModel = AppViewModel()
+        let mockAppViewModel = AppViewModel(dataPersistenceService: nil)
         return LightControlService(appViewModel: mockAppViewModel)
     }
 }

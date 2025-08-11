@@ -139,7 +139,7 @@ struct LightsListView: View {
 
 /// Строка с информацией о лампе
 struct LightRowView: View {
-    @ObservedObject var lightsViewModel: LightsViewModel = AppViewModel().lightsViewModel
+    @ObservedObject var lightsViewModel: LightsViewModel = AppViewModel(dataPersistenceService: nil).lightsViewModel
     let light: Light
     let roomName: String
     let onToggle: (Bool) -> Void

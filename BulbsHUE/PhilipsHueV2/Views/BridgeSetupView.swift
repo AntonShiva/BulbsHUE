@@ -616,7 +616,7 @@ struct ManualEntryView: View {
 
 struct BridgeSetupView_Previews: PreviewProvider {
     static var previews: some View {
-        BridgeSetupView(viewModel: AppViewModel())
+        BridgeSetupView(viewModel: AppViewModel(dataPersistenceService: nil))
     }
 }
 

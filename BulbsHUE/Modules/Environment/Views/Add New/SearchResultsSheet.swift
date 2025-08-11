@@ -33,6 +33,31 @@ struct SearchResultsSheet: View {
                 .textCase(.uppercase)
                 .adaptiveOffset(y: -130)
             
+            // Кнопка обновления статуса
+            Button(action: {
+                Task {
+                    await lightsViewModel.refreshLightsWithStatus()
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12))
+                    Text("обновить статус")
+                        .font(Font.custom("DMSans-Light", size: 12))
+                        .kerning(1.0)
+                }
+                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(red: 0.79, green: 1, blue: 1), lineWidth: 1)
+                        .opacity(0.5)
+                )
+            }
+            .adaptiveOffset(y: -100)
+            .disabled(lightsViewModel.isLoading)
+            
             
             ScrollView {
                 LazyVStack(spacing: 12) {
@@ -121,13 +146,25 @@ struct SearchResultsSheet: View {
             .adaptiveOffset(y: 285)
         }
         .onAppear {
-            // Обновляем данные ламп при каждом открытии экрана
-            print("🔄 SearchResultsSheet: Обновляем данные ламп")
-            lightsViewModel.loadLights()
+            // Обновляем данные ламп при каждом открытии экрана с принудительным обновлением статуса
+            print("🔄 SearchResultsSheet: Обновляем данные ламп с актуальным статусом")
+            Task {
+                await lightsViewModel.refreshLightsWithStatus()
+            }
+            
+            // Запускаем мониторинг изменений состояния ламп в реальном времени
+            print("📡 SearchResultsSheet: Запускаем мониторинг статуса ламп")
+            lightsViewModel.startLightStatusMonitoring()
+        }
+        .onDisappear {
+            // Останавливаем мониторинг при закрытии экрана для экономии ресурсов
+            print("⏹️ SearchResultsSheet: Останавливаем мониторинг статуса ламп")
+            lightsViewModel.stopLightStatusMonitoring()
         }
         .refreshable {
-            // Поддержка pull-to-refresh
-            lightsViewModel.loadLights()
+            // Поддержка pull-to-refresh с принудительным обновлением статуса
+            print("🔄 SearchResultsSheet: Pull-to-refresh с обновлением статуса")
+            await lightsViewModel.refreshLightsWithStatus()
         }
         
     }
@@ -186,6 +223,7 @@ struct LightResultCell: View {
     var body: some View {
         let effectiveState = light.effectiveState
         let isReachable = light.isReachable
+        let effectiveBrightness = light.effectiveBrightness
         
         HStack(spacing: 12) {
             // Иконка лампы с индикацией включения
@@ -194,10 +232,10 @@ struct LightResultCell: View {
                     .resizable()
                     .scaledToFit()
                     .adaptiveFrame(width: 32, height: 32)
-                    .foregroundColor(effectiveState.isOn ? .yellow : .gray)
+                    .foregroundColor(effectiveState.on ? .yellow : .gray)
                 
                 // Индикатор питания
-                if effectiveState.isOn {
+                if effectiveState.on {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 10, height: 10)
@@ -222,17 +260,17 @@ struct LightResultCell: View {
                 // Статус питания с учетом доступности
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(getStatusColor(isReachable: isReachable, isOn: effectiveState.isOn))
+                        .fill(getStatusColor(isReachable: isReachable, isOn: effectiveState.on))
                         .frame(width: 6, height: 6)
                     
-                    Text(getStatusText(isReachable: isReachable, isOn: effectiveState.isOn))
+                    Text(getStatusText(isReachable: isReachable, isOn: effectiveState.on))
                         .font(Font.custom("DMSans-Light", size: 10))
                         .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.7))
                 }
                 
                 // Показываем яркость если включена и доступна
-                if effectiveState.isOn && isReachable {
-                    Text("Яркость: \(Int(effectiveState.brightness))%")
+                if effectiveState.on && isReachable {
+                    Text("Яркость: \(Int(effectiveBrightness))%")
                         .font(Font.custom("DMSans-Light", size: 10))
                         .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.5))
                 }
@@ -252,7 +290,7 @@ struct LightResultCell: View {
                 .adaptiveFrame(width: 332, height: 64)
                 .background(Color(red: 0.79, green: 1, blue: 1))
                 .cornerRadius(15)
-                .opacity(effectiveState.isOn && isReachable ? 0.15 : 0.08) // Более яркий фон для включенных и доступных
+                .opacity(effectiveState.on && isReachable ? 0.15 : 0.08) // Более яркий фон для включенных и доступных
         )
         .onTapGesture {
             // При нажатии на ячейку лампы мигаем лампой для визуального подтверждения

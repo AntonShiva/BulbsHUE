@@ -72,11 +72,16 @@ class AppViewModel: ObservableObject {
     /// Клиент для Entertainment API
     private var entertainmentClient: HueEntertainmentClient?
     
+    /// Сервис для персистентного хранения данных
+    private weak var dataPersistenceService: DataPersistenceService?
+    
     // MARK: - Initialization
     
-    init() {
+    init(dataPersistenceService: DataPersistenceService? = nil) {
+        self.dataPersistenceService = dataPersistenceService
+        
         // Инициализируем с пустым IP, будет установлен позже
-        self.apiClient = HueAPIClient(bridgeIP: "")
+        self.apiClient = HueAPIClient(bridgeIP: "", dataPersistenceService: dataPersistenceService)
         
         // Инициализируем дочерние ViewModels
         self.lightsViewModel = LightsViewModel(apiClient: apiClient)
@@ -367,8 +372,8 @@ class AppViewModel: ObservableObject {
     private func recreateAPIClient(with ip: String) {
         print("🔄 Пересоздаем API клиент с IP: \(ip)")
         
-        // Создаем новый клиент
-        apiClient = HueAPIClient(bridgeIP: ip)
+        // Создаем новый клиент с передачей DataPersistenceService
+        apiClient = HueAPIClient(bridgeIP: ip, dataPersistenceService: dataPersistenceService)
         
         // ИСПРАВЛЕНИЕ: Обновляем ссылки в дочерних ViewModels и принудительно обновляем UI
         DispatchQueue.main.async { [weak self] in

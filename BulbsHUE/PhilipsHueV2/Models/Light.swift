@@ -50,6 +50,125 @@ struct Light: Codable, Identifiable {
     
     /// Градиент (для поддерживающих устройств)
     var gradient: HueGradient?
+    
+    /// Статус связи с устройством (не из API, устанавливается локально)
+    var communicationStatus: CommunicationStatus
+    
+    /// Последние ошибки связи (не из API, устанавливается локально)
+    var lastErrors: [String]
+    
+    /// Пользовательские CodingKeys для исключения локальных полей из декодирования
+    enum CodingKeys: String, CodingKey {
+        case id, type, metadata, on, dimming, color, color_temperature
+        case effects, effects_v2, mode, capabilities, color_gamut_type, color_gamut, gradient
+        // communicationStatus и lastErrors не включены - они не декодируются из JSON
+    }
+    
+    /// Инициализатор по умолчанию
+    init() {
+        self.id = UUID().uuidString
+        self.type = "light"
+        self.metadata = LightMetadata()
+        self.on = OnState()
+        self.dimming = nil
+        self.color = nil
+        self.color_temperature = nil
+        self.effects = nil
+        self.effects_v2 = nil
+        self.mode = nil
+        self.capabilities = nil
+        self.color_gamut_type = nil
+        self.color_gamut = nil
+        self.gradient = nil
+        self.communicationStatus = .unknown
+        self.lastErrors = []
+    }
+    
+    /// Удобный инициализатор с параметрами
+    init(id: String? = nil,
+         type: String = "light",
+         metadata: LightMetadata = LightMetadata(),
+         on: OnState = OnState(),
+         dimming: Dimming? = nil,
+         color: HueColor? = nil,
+         color_temperature: ColorTemperature? = nil,
+         effects: Effects? = nil,
+         effects_v2: EffectsV2? = nil,
+         mode: String? = nil,
+         capabilities: Capabilities? = nil,
+         color_gamut_type: String? = nil,
+         color_gamut: Gamut? = nil,
+         gradient: HueGradient? = nil) {
+        self.id = id ?? UUID().uuidString
+        self.type = type
+        self.metadata = metadata
+        self.on = on
+        self.dimming = dimming
+        self.color = color
+        self.color_temperature = color_temperature
+        self.effects = effects
+        self.effects_v2 = effects_v2
+        self.mode = mode
+        self.capabilities = capabilities
+        self.color_gamut_type = color_gamut_type
+        self.color_gamut = color_gamut
+        self.gradient = gradient
+        self.communicationStatus = .unknown
+        self.lastErrors = []
+    }
+    
+    /// Инициализатор из декодера с установкой значений по умолчанию для локальных полей
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        type = try container.decodeIfPresent(String.self, forKey: .type) ?? "light"
+        metadata = try container.decodeIfPresent(LightMetadata.self, forKey: .metadata) ?? LightMetadata()
+        on = try container.decodeIfPresent(OnState.self, forKey: .on) ?? OnState()
+        dimming = try container.decodeIfPresent(Dimming.self, forKey: .dimming)
+        color = try container.decodeIfPresent(HueColor.self, forKey: .color)
+        color_temperature = try container.decodeIfPresent(ColorTemperature.self, forKey: .color_temperature)
+        effects = try container.decodeIfPresent(Effects.self, forKey: .effects)
+        effects_v2 = try container.decodeIfPresent(EffectsV2.self, forKey: .effects_v2)
+        mode = try container.decodeIfPresent(String.self, forKey: .mode)
+        capabilities = try container.decodeIfPresent(Capabilities.self, forKey: .capabilities)
+        color_gamut_type = try container.decodeIfPresent(String.self, forKey: .color_gamut_type)
+        color_gamut = try container.decodeIfPresent(Gamut.self, forKey: .color_gamut)
+        gradient = try container.decodeIfPresent(HueGradient.self, forKey: .gradient)
+        
+        // Локальные поля устанавливаются по умолчанию
+        self.communicationStatus = .unknown
+        self.lastErrors = []
+    }
+    
+    /// Кодирование - исключаем локальные поля
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(id, forKey: .id)
+        try container.encode(type, forKey: .type)
+        try container.encode(metadata, forKey: .metadata)
+        try container.encode(on, forKey: .on)
+        try container.encodeIfPresent(dimming, forKey: .dimming)
+        try container.encodeIfPresent(color, forKey: .color)
+        try container.encodeIfPresent(color_temperature, forKey: .color_temperature)
+        try container.encodeIfPresent(effects, forKey: .effects)
+        try container.encodeIfPresent(effects_v2, forKey: .effects_v2)
+        try container.encodeIfPresent(mode, forKey: .mode)
+        try container.encodeIfPresent(capabilities, forKey: .capabilities)
+        try container.encodeIfPresent(color_gamut_type, forKey: .color_gamut_type)
+        try container.encodeIfPresent(color_gamut, forKey: .color_gamut)
+        try container.encodeIfPresent(gradient, forKey: .gradient)
+        // communicationStatus и lastErrors не кодируются
+    }
+}
+
+/// Статус связи с лампой
+enum CommunicationStatus: String, Codable {
+    case online = "online"           // Устройство отвечает нормально
+    case offline = "offline"         // Устройство не отвечает (выключено из сети)
+    case issues = "issues"           // Есть проблемы связи, но устройство частично отвечает
+    case unknown = "unknown"         // Статус неизвестен
 }
 
 
@@ -63,6 +182,41 @@ extension Light {
     /// Количество точек градиента
     var gradientPointsCount: Int {
         return gradient?.points_capable ?? 0
+    }
+    
+    /// Проверяет реальную доступность лампы (учитывая статус связи)
+    var isReachable: Bool {
+        return communicationStatus == .online
+    }
+    
+    /// Проверяет есть ли проблемы со связью
+    var hasCommunicationIssues: Bool {
+        return communicationStatus == .issues || communicationStatus == .offline
+    }
+    
+    /// Возвращает отображаемое состояние лампы (учитывая связь)
+    var effectiveState: OnState {
+        if !isReachable {
+            // Если лампа недоступна, показываем как выключенную
+            return OnState(on: false)
+        }
+        return on
+    }
+    
+    /// Возвращает реальное состояние лампы для ViewModel (с яркостью)
+    var effectiveBrightness: Double {
+        if !isReachable {
+            return 0.0
+        }
+        return dimming?.brightness ?? 0.0
+    }
+    
+    /// Возвращает состояние лампы в формате ожидаемом ViewModel
+    var effectiveStateWithBrightness: (isOn: Bool, brightness: Double) {
+        if !isReachable {
+            return (isOn: false, brightness: 0.0)
+        }
+        return (isOn: on.on, brightness: dimming?.brightness ?? 0.0)
     }
 }
 
@@ -344,58 +498,6 @@ extension Light: Equatable {
     /// Две лампы считаются равными, если у них одинаковый id
     static func == (lhs: Light, rhs: Light) -> Bool {
         return lhs.id == rhs.id
-    }
-}
-
-// MARK: - Connectivity Status
-
-extension Light {
-    /// Проверяет реальную доступность лампы
-    /// Лампа считается недоступной если:
-    /// 1. Включена но яркость 0 (возможная проблема связи)
-    /// 2. Последний запрос к лампе завершился ошибкой
-    var isReachable: Bool {
-        // Если лампа выключена программно - это нормально, считаем доступной
-        if !on.on {
-            return true
-        }
-        
-        // Если лампа включена, но яркость 0 - подозрительно
-        // Это может означать что лампа выключена из сети
-        if on.on && (dimming?.brightness ?? 0) == 0 {
-            return false
-        }
-        
-        // TODO: Добавить проверку timestamp последнего обновления
-        // Если лампа не обновлялась долго - она может быть недоступна
-        
-        // По умолчанию считаем доступной
-        return true
-    }
-    
-    /// Получить реальное состояние лампы с учетом доступности
-    var effectiveState: (isOn: Bool, brightness: Double) {
-        if !isReachable {
-            // Недоступная лампа считается выключенной
-            return (isOn: false, brightness: 0.0)
-        }
-        
-        return (isOn: on.on, brightness: dimming?.brightness ?? 0.0)
-    }
-    
-    /// Получить читаемый статус лампы для UI
-    var displayStatus: String {
-        let effective = effectiveState
-        
-        if !isReachable {
-            return "Недоступна (выключена из сети)"
-        }
-        
-        if effective.isOn {
-            return "Включена (\(Int(effective.brightness))%)"
-        } else {
-            return "Выключена"
-        }
     }
 }
 

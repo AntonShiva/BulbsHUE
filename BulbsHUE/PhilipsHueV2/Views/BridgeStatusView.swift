@@ -408,7 +408,7 @@ struct StatBox: View {
 
 struct BridgeStatusView_Previews: PreviewProvider {
     static var previews: some View {
-        BridgeStatusView(viewModel: AppViewModel())
+        BridgeStatusView(viewModel: AppViewModel(dataPersistenceService: nil))
             .preferredColorScheme(.dark)
     }
 }

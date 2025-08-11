@@ -84,13 +84,14 @@ class LightsViewModel: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Загружает список всех ламп
+    /// Загружает список всех ламп с обновлением статуса
     func loadLights() {
         isLoading = true
         error = nil
         
-        print("🚀 Загружаем лампы через API v2 HTTPS...")
+        print("🚀 Загружаем лампы через API v2 HTTPS с обновлением статуса...")
         
+        // Принудительно обновляем статус при каждом запросе
         apiClient.getAllLights()
             .receive(on: DispatchQueue.main)
             .sink(
@@ -102,11 +103,48 @@ class LightsViewModel: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] lights in
-                    print("✅ Загружено \(lights.count) ламп")
+                    print("✅ Загружено \(lights.count) ламп с актуальным статусом")
                     self?.lights = lights
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    /// Обновляет список ламп с принудительным обновлением статуса reachable
+    @MainActor
+    func refreshLightsWithStatus() async {
+        isLoading = true
+        error = nil
+        
+        print("🔄 Принудительное обновление ламп с проверкой статуса...")
+        
+        do {
+            // Получаем данные ламп с обновленным статусом
+            let updatedLights = try await apiClient.getAllLights()
+                .eraseToAnyPublisher()
+                .asyncValue()
+            
+            print("✅ Обновлено \(updatedLights.count) ламп с актуальным статусом")
+            self.lights = updatedLights
+            
+        } catch {
+            print("❌ Ошибка обновления ламп: \(error)")
+            self.error = error
+        }
+        
+        isLoading = false
+    }
+    
+    /// Запускает мониторинг изменений состояния ламп в реальном времени
+    func startLightStatusMonitoring() {
+        print("🔄 Запускаем мониторинг статуса ламп в реальном времени...")
+        setupEventStreamSubscription()
+    }
+    
+    /// Останавливает мониторинг изменений состояния ламп
+    func stopLightStatusMonitoring() {
+        print("⏹️ Останавливаем мониторинг статуса ламп...")
+        apiClient.disconnectEventStream()
     }
     
     /// Добавляет найденную лампу в список (для поиска по серийному номеру)
@@ -550,7 +588,7 @@ class LightsViewModel: ObservableObject {
         eventStreamCancellable = apiClient.eventPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] event in
-                self?.handleEvent(event)
+                self?.handleLightEvent(event)
             }
         
         // Запускаем поток событий
@@ -598,43 +636,132 @@ class LightsViewModel: ObservableObject {
                 self?.error = error
             }
             .store(in: &cancellables)
+        
+        // Подписываемся на события изменения состояния ламп в реальном времени
+        setupEventStreamSubscription()
     }
     
-    /// Обрабатывает событие из потока
-    private func handleEvent(_ event: HueEvent) {
-        guard let eventData = event.data else { return }
+    /// Настраивает подписку на Event Stream для получения уведомлений об изменениях
+    private func setupEventStreamSubscription() {
+        print("🔄 Настраиваем подписку на Event Stream для реального времени...")
+        
+        apiClient.connectToEventStreamV2()
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .failure(let error):
+                        print("❌ Ошибка Event Stream: \(error.localizedDescription)")
+                    case .finished:
+                        print("🔄 Event Stream завершен")
+                    }
+                },
+                receiveValue: { [weak self] event in
+                    print("📡 Получено событие от Event Stream: \(event)")
+                    self?.handleLightEvent(event)
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    /// Обрабатывает события изменения состояния ламп
+    private func handleLightEvent(_ event: HueEvent) {
+        print("🔄 Обрабатываем событие лампы...")
+        
+        guard let eventData = event.data else {
+            print("⚠️ Событие без данных")
+            return
+        }
         
         for data in eventData {
-            switch data.type {
-            case "light":
-                // Обновляем конкретную лампу
-                if let lightId = data.id {
-                    updateLocalLightFromEvent(lightId, eventData: data)
-                }
-            default:
-                break
+            print("📊 Тип события: \(String(describing: data.type)), ID: \(data.id ?? "unknown")")
+            
+            // Обрабатываем только события ламп
+            if data.type == "light", let lightId = data.id {
+                print("💡 Обновляем лампу с ID: \(lightId)")
+                updateLightFromEvent(lightId: lightId, eventData: data)
             }
         }
     }
     
-    /// Обновляет локальное состояние лампы из события
-    private func updateLocalLightFromEvent(_ lightId: String, eventData: EventData) {
-        guard let index = lights.firstIndex(where: { $0.id == lightId }) else { return }
+    /// Обновляет локальное состояние лампы на основе события
+    private func updateLightFromEvent(lightId: String, eventData: EventData) {
+        guard let index = lights.firstIndex(where: { $0.id == lightId }) else {
+            print("⚠️ Лампа с ID \(lightId) не найдена в локальном списке")
+            return
+        }
         
+        print("🔄 Обновляем лампу \(lights[index].metadata.name)...")
+        
+        var isUpdated = false
+        
+        // Обновляем состояние включения/выключения
         if let on = eventData.on {
-            lights[index].on = on
+            let currentOn = lights[index].on.on
+            if currentOn != on.on {
+                lights[index].on = on
+                isUpdated = true
+                print("   ⚡ Изменено состояние: \(on.on ? "включена" : "выключена")")
+            }
         }
         
+        // Обновляем яркость
         if let dimming = eventData.dimming {
-            lights[index].dimming = dimming
+            if lights[index].dimming?.brightness != dimming.brightness {
+                lights[index].dimming = dimming
+                isUpdated = true
+                print("   🔆 Изменена яркость: \(dimming.brightness)%")
+            }
         }
         
+        // Обновляем цвет
         if let color = eventData.color {
             lights[index].color = color
+            isUpdated = true
+            print("   🎨 Изменен цвет")
         }
         
+        // Обновляем цветовую температуру
         if let colorTemp = eventData.color_temperature {
             lights[index].color_temperature = colorTemp
+            isUpdated = true
+            print("   🌡️ Изменена цветовая температура")
+        }
+        
+        // Принудительно обновляем статус reachable при любом событии
+        if isUpdated {
+            print("🔄 Обновляем статус reachable для лампы \(lightId)...")
+            Task {
+                await updateLightReachableStatus(lightId: lightId)
+            }
+        }
+    }
+    
+    /// Обновляет статус reachable для конкретной лампы
+    @MainActor
+    private func updateLightReachableStatus(lightId: String) async {
+        do {
+            // Получаем актуальный статус из API v1
+            let lightsV1 = try await apiClient.getLightsV1WithReachableStatus()
+                .eraseToAnyPublisher()
+                .asyncValue()
+            
+            // Находим соответствующую лампу в V1 API
+            if let index = lights.firstIndex(where: { $0.id == lightId }),
+               let lightV1 = apiClient.findMatchingV1Light(v2Light: lights[index], v1Lights: lightsV1) {
+                
+                let wasReachable = lights[index].isReachable
+                let newReachable = lightV1.state?.reachable ?? false
+                
+                if wasReachable != newReachable {
+                    lights[index].communicationStatus = newReachable ? .online : .offline
+                    print("   📡 Обновлен статус reachable: \(newReachable ? "доступна" : "недоступна")")
+                } else {
+                    print("   📡 Статус reachable не изменился: \(newReachable ? "доступна" : "недоступна")")
+                }
+            }
+        } catch {
+            print("❌ Ошибка обновления статуса reachable: \(error.localizedDescription)")
         }
     }
     
@@ -1117,5 +1244,33 @@ extension LightsViewModel {
     func clearSerialMappings() {
         UserDefaults.standard.removeObject(forKey: mappingsKey)
         print("🗑 Маппинги очищены")
+    }
+}
+
+// MARK: - Combine to Async/Await Extensions
+
+extension AnyPublisher {
+    /// Преобразует Publisher в async/await
+    func asyncValue() async throws -> Output {
+        return try await withCheckedThrowingContinuation { continuation in
+            var cancellable: AnyCancellable?
+            
+            cancellable = self
+                .sink(
+                    receiveCompletion: { completion in
+                        switch completion {
+                        case .finished:
+                            break
+                        case .failure(let error):
+                            continuation.resume(throwing: error)
+                        }
+                        cancellable?.cancel()
+                    },
+                    receiveValue: { value in
+                        continuation.resume(returning: value)
+                        cancellable?.cancel()
+                    }
+                )
+        }
     }
 }
