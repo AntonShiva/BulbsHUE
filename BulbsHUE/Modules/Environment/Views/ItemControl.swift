@@ -105,6 +105,81 @@ struct ItemControl: View {
 
 }
 
+// MARK: - Mock ItemControl для превью с уникальными цветами
+
+/// Специальный ItemControl для превью с уникальными темными цветами
+struct MockItemControl: View {
+    let light: Light
+    let mockColor: Color
+    @EnvironmentObject var appViewModel: AppViewModel
+    @StateObject private var itemControlViewModel: ItemControlViewModel
+    
+    init(light: Light, mockColor: Color) {
+        self.light = light
+        self.mockColor = mockColor
+        self._itemControlViewModel = StateObject(wrappedValue: ItemControlViewModel.createIsolated())
+    }
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ZStack {
+                ControlView(
+                    isOn: $itemControlViewModel.isOn,
+                    baseColor: mockColor,
+                    bulbName: light.metadata.name,
+                    bulbType: itemControlViewModel.getBulbType(),
+                    roomName: itemControlViewModel.getRoomName(),
+                    bulbIcon: itemControlViewModel.getBulbIcon(),
+                    roomIcon: itemControlViewModel.getRoomIcon(),
+                    onToggle: { newState in
+                        itemControlViewModel.setPower(newState)
+                    }
+                )
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.6))
+                            .frame(width: 8, height: 8)
+                        Text(itemControlViewModel.isOn ? "ON" : "OFF")
+                            .font(Font.custom("DMSans-Medium", size: 11))
+                            .foregroundStyle(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.8))
+                            .textCase(.uppercase)
+                    }
+                    Text(itemControlViewModel.getRoomName())
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .foregroundStyle(Color.white.opacity(0.75))
+                    Text(light.metadata.name)
+                        .font(Font.custom("DMSans-Medium", size: 14))
+                        .foregroundStyle(Color.white)
+                }
+                .adaptiveOffset(x: 40, y: -8)
+            }
+            
+            CustomSlider(
+                percent: $itemControlViewModel.brightness,
+                color: mockColor,
+                onChange: { value in
+                    itemControlViewModel.setBrightnessThrottled(value)
+                },
+                onCommit: { value in
+                    itemControlViewModel.commitBrightness(value)
+                }
+            )
+            .padding(.leading, 10)
+        }
+        .onAppear {
+            itemControlViewModel.configure(
+                with: LightControlService(appViewModel: appViewModel),
+                light: light
+            )
+        }
+        .onChange(of: light) { newLight in
+            itemControlViewModel.setCurrentLight(newLight)
+        }
+    }
+}
+
 #Preview {
     let appViewModel = AppViewModel()
     

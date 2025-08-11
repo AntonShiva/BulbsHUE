@@ -88,6 +88,9 @@ class AppViewModel: ObservableObject {
         // Настраиваем мониторинг производительности
         setupPerformanceMonitoring()
         
+        // Настраиваем наблюдение за состоянием приложения
+        setupAppStateObservation()
+        
         // Загружаем сохраненные настройки
         loadSavedSettings()
     }
@@ -470,6 +473,19 @@ class AppViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+    
+    /// Настраивает наблюдение за состоянием приложения для автоматического обновления данных
+    private func setupAppStateObservation() {
+        #if canImport(UIKit)
+        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+            .sink { [weak self] _ in
+                print("🔄 Приложение стало активным - обновляем данные ламп")
+                self?.lightsViewModel.loadLights()
+            }
+            .store(in: &cancellables)
+        #endif
+    }
+    
     // MARK: - Memory Management
 
     deinit {

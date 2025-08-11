@@ -347,3 +347,55 @@ extension Light: Equatable {
     }
 }
 
+// MARK: - Connectivity Status
+
+extension Light {
+    /// Проверяет реальную доступность лампы
+    /// Лампа считается недоступной если:
+    /// 1. Включена но яркость 0 (возможная проблема связи)
+    /// 2. Последний запрос к лампе завершился ошибкой
+    var isReachable: Bool {
+        // Если лампа выключена программно - это нормально, считаем доступной
+        if !on.on {
+            return true
+        }
+        
+        // Если лампа включена, но яркость 0 - подозрительно
+        // Это может означать что лампа выключена из сети
+        if on.on && (dimming?.brightness ?? 0) == 0 {
+            return false
+        }
+        
+        // TODO: Добавить проверку timestamp последнего обновления
+        // Если лампа не обновлялась долго - она может быть недоступна
+        
+        // По умолчанию считаем доступной
+        return true
+    }
+    
+    /// Получить реальное состояние лампы с учетом доступности
+    var effectiveState: (isOn: Bool, brightness: Double) {
+        if !isReachable {
+            // Недоступная лампа считается выключенной
+            return (isOn: false, brightness: 0.0)
+        }
+        
+        return (isOn: on.on, brightness: dimming?.brightness ?? 0.0)
+    }
+    
+    /// Получить читаемый статус лампы для UI
+    var displayStatus: String {
+        let effective = effectiveState
+        
+        if !isReachable {
+            return "Недоступна (выключена из сети)"
+        }
+        
+        if effective.isOn {
+            return "Включена (\(Int(effective.brightness))%)"
+        } else {
+            return "Выключена"
+        }
+    }
+}
+

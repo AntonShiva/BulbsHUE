@@ -86,20 +86,25 @@ class ItemControlViewModel: ObservableObject {
         
         currentLight = light
         
-        // Синхронизируем локальное состояние с данными лампы
-        let newIsOn = light.on.on
-        let newBrightness = light.dimming?.brightness ?? 100.0
+        // Получаем реальное состояние лампы с учетом доступности
+        let effectiveState = light.effectiveState
+        let isReachable = light.isReachable
         
-        // СИНХРОНИЗАЦИЯ ЛОГИКА:
-        if !newIsOn {
-            // Лампа выключена - яркость должна быть 0
+        // СИНХРОНИЗАЦИЯ ЛОГИКА с учетом реальной доступности:
+        if !isReachable {
+            // Лампа недоступна (выключена из сети) - показываем как выключенную
+            isOn = false
+            brightness = 0.0
+            print("⚠️ Лампа \(light.metadata.name) недоступна (выключена из сети)")
+        } else if !effectiveState.isOn {
+            // Лампа доступна, но выключена программно
             isOn = false
             brightness = 0.0
         } else {
-            // Лампа включена
+            // Лампа включена и доступна
             isOn = true
             // Если API показывает яркость 0 при включенной лампе - показываем минимум 1%
-            brightness = newBrightness > 0 ? newBrightness : 1.0
+            brightness = effectiveState.brightness > 0 ? effectiveState.brightness : 1.0
         }
     }
     
@@ -257,8 +262,17 @@ class ItemControlViewModel: ObservableObject {
             
             // Синхронизируем состояние только если пользователь не активно взаимодействует
             if debouncedTask == nil {
-                isOn = updatedLight.on.on
-                brightness = updatedLight.dimming?.brightness ?? brightness
+                let effectiveState = updatedLight.effectiveState
+                let isReachable = updatedLight.isReachable
+                
+                if !isReachable {
+                    // Лампа недоступна - показываем как выключенную
+                    isOn = false
+                    brightness = 0.0
+                } else {
+                    isOn = effectiveState.isOn
+                    brightness = effectiveState.brightness
+                }
             }
         }
     }
@@ -335,3 +349,5 @@ extension ItemControlViewModel {
         return viewModel
     }
 }
+
+// MARK: - Extensions

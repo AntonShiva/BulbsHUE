@@ -241,10 +241,16 @@ final class DataPersistenceService: ObservableObject {
             let lightDataModels = try modelContext.fetch(descriptor)
             let newLights = lightDataModels.map { $0.toLight() }
             
-            print("🔄 DataPersistenceService.loadAssignedLights: найдено \(newLights.count) ламп")
-            print("🔄 Лампы: \(newLights.map { $0.metadata.name })")
+            // ФИЛЬТР: Показываем только лампы с установленным архетипом (которые пользователь реально добавил)
+            let lightsWithType = newLights.filter { light in
+                guard let archetype = light.metadata.archetype else { return false }
+                return !archetype.isEmpty
+            }
             
-            assignedLights = newLights
+            print("🔄 DataPersistenceService.loadAssignedLights: найдено \(newLights.count) ламп, с типом: \(lightsWithType.count)")
+            print("🔄 Лампы с типом: \(lightsWithType.map { "\($0.metadata.name) (\($0.metadata.archetype ?? "нет типа"))" })")
+            
+            assignedLights = lightsWithType
             print("✅ @Published assignedLights обновлен с \(assignedLights.count) лампами")
         } catch {
             print("❌ Ошибка загрузки назначенных ламп: \(error)")
@@ -273,7 +279,85 @@ final class DataPersistenceService: ObservableObject {
 
 extension DataPersistenceService {
     /// Создать mock сервис для превью и тестов
+    /// Создать mock сервис для превью с тестовыми данными
     static func createMock() -> DataPersistenceService {
-        return DataPersistenceService()
+        let mockService = DataPersistenceService()
+        
+        // Создаем моковые лампы для превью
+        let mockLights: [Light] = [
+            Light(
+                id: "mock_light_01",
+                type: "light",
+                metadata: LightMetadata(name: "Living Room Ceiling", archetype: "TRADITIONAL LAMP"),
+                on: OnState(on: true),
+                dimming: Dimming(brightness: 85),
+                color: nil,
+                color_temperature: nil,
+                effects: nil,
+                effects_v2: nil,
+                mode: nil,
+                capabilities: nil,
+                color_gamut_type: nil,
+                color_gamut: nil,
+                gradient: nil
+            ),
+            Light(
+                id: "mock_light_02",
+                type: "light",
+                metadata: LightMetadata(name: "Bedroom Table Lamp", archetype: "SMART BULB"),
+                on: OnState(on: false),
+                dimming: Dimming(brightness: 0),
+                color: nil,
+                color_temperature: nil,
+                effects: nil,
+                effects_v2: nil,
+                mode: nil,
+                capabilities: nil,
+                color_gamut_type: nil,
+                color_gamut: nil,
+                gradient: nil
+            ),
+            Light(
+                id: "mock_light_03",
+                type: "light",
+                metadata: LightMetadata(name: "Kitchen Spots", archetype: "LED STRIP"),
+                on: OnState(on: true),
+                dimming: Dimming(brightness: 65),
+                color: nil,
+                color_temperature: nil,
+                effects: nil,
+                effects_v2: nil,
+                mode: nil,
+                capabilities: nil,
+                color_gamut_type: nil,
+                color_gamut: nil,
+                gradient: nil
+            ),
+            Light(
+                id: "mock_light_04",
+                type: "light",
+                metadata: LightMetadata(name: "Office Floor Lamp", archetype: "CEILING LAMP"),
+                on: OnState(on: true),
+                dimming: Dimming(brightness: 45),
+                color: nil,
+                color_temperature: nil,
+                effects: nil,
+                effects_v2: nil,
+                mode: nil,
+                capabilities: nil,
+                color_gamut_type: nil,
+                color_gamut: nil,
+                gradient: nil
+            )
+        ]
+        
+        // Добавляем моковые лампы в сервис как назначенные в Environment
+        DispatchQueue.main.async {
+            for light in mockLights {
+                mockService.saveLightData(light, isAssignedToEnvironment: true)
+            }
+        }
+        
+        return mockService
     }
 }

@@ -58,6 +58,11 @@ struct EnvironmentView: View {
                     dataPersistenceService: dataPersistenceService
                 )
             }
+            
+            // Обновляем данные ламп при каждом появлении экрана
+            print("🔄 EnvironmentView: Обновляем данные ламп")
+            appViewModel.lightsViewModel.loadLights()
+            environmentViewModel?.refreshLights()
         }
         .refreshable {
             // Поддержка pull-to-refresh
@@ -114,7 +119,83 @@ private struct AssignedLightsListView: View {
     }
 }
 
-#Preview {
+// MARK: - Mock Components для превью
+
+/// Компонент для отображения списка ламп с уникальными цветами в превью
+private struct MockAssignedLightsListView: View {
+    let lights: [Light]
+    let onRemoveLight: ((String) -> Void)?
+    
+    // Массив темных цветов для превью
+    private let mockColors: [Color] = [
+        Color(hue: 0.60, saturation: 0.8, brightness: 0.6),   // Темно-синий
+        Color(hue: 0.33, saturation: 0.8, brightness: 0.5),   // Темно-зеленый  
+        Color(hue: 0.83, saturation: 0.7, brightness: 0.6),   // Темно-фиолетовый
+        Color(hue: 0.08, saturation: 0.9, brightness: 0.6),   // Темно-оранжевый
+        Color(hue: 0.97, saturation: 0.8, brightness: 0.7),   // Темно-розовый
+        Color(hue: 0.50, saturation: 0.7, brightness: 0.5),   // Темно-бирюзовый
+    ]
+    
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 24) {
+                ForEach(Array(lights.enumerated()), id: \.element.id) { index, light in
+                    MockItemControl(
+                        light: light,
+                        mockColor: mockColors[index % mockColors.count]
+                    )
+                    .padding(.horizontal, 10)
+                    .contextMenu {
+                        Button("Убрать из Environment", role: .destructive) {
+                            onRemoveLight?(light.id)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .adaptiveOffset(y: 180)
+    }
+}
+
+#Preview("Environment with Mock Lights") {
+    EnvironmentView()
+        .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
+        .environmentObject(DataPersistenceService.createMock())
+}
+
+#Preview("Environment with Colorful Mock Lights") {
+    ZStack {
+        BG()
+        
+        Header(title: "ENVIRONMENT") {
+            MenuButton { }
+        } rightView: {
+            AddHeaderButton { }
+        }
+        .adaptiveOffset(y: -330)
+        
+        SelectorTabEnviromentView()
+            .adaptiveOffset(y: -264)
+        
+        // Используем MockAssignedLightsListView с цветными ItemControl
+        MockAssignedLightsListView(
+            lights: [
+                Light(id: "mock1", type: "light", metadata: LightMetadata(name: "Living Room Ceiling", archetype: "ceiling_round"), on: OnState(on: true), dimming: Dimming(brightness: 85), color: nil, color_temperature: nil, effects: nil, effects_v2: nil, mode: nil, capabilities: nil, color_gamut_type: nil, color_gamut: nil, gradient: nil),
+                Light(id: "mock2", type: "light", metadata: LightMetadata(name: "Bedroom Table Lamp", archetype: "table_shade"), on: OnState(on: false), dimming: Dimming(brightness: 0), color: nil, color_temperature: nil, effects: nil, effects_v2: nil, mode: nil, capabilities: nil, color_gamut_type: nil, color_gamut: nil, gradient: nil),
+                Light(id: "mock3", type: "light", metadata: LightMetadata(name: "Kitchen Spots", archetype: "ceiling_square"), on: OnState(on: true), dimming: Dimming(brightness: 65), color: nil, color_temperature: nil, effects: nil, effects_v2: nil, mode: nil, capabilities: nil, color_gamut_type: nil, color_gamut: nil, gradient: nil),
+                Light(id: "mock4", type: "light", metadata: LightMetadata(name: "Office Floor Lamp", archetype: "floor_shade"), on: OnState(on: true), dimming: Dimming(brightness: 45), color: nil, color_temperature: nil, effects: nil, effects_v2: nil, mode: nil, capabilities: nil, color_gamut_type: nil, color_gamut: nil, gradient: nil)
+            ],
+            onRemoveLight: nil
+        )
+        .adaptiveOffset(y: 30)
+    }
+    .environmentObject(NavigationManager.shared)
+    .environmentObject(AppViewModel())
+}
+
+#Preview("Environment with Figma") {
     EnvironmentView()
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())
@@ -123,7 +204,7 @@ private struct AssignedLightsListView: View {
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
 
-#Preview {
+#Preview("MasterView") {
     MasterView()
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())

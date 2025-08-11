@@ -77,9 +77,15 @@ class LightControlService: ObservableObject, LightControlling {
     }
     
     func getBulbType(for light: Light) -> String {
+        // Сначала проверяем архетип, который устанавливает пользователь
+        if let archetype = light.metadata.archetype, !archetype.isEmpty {
+            return archetype
+        }
+        
+        // Если архетип не установлен - используем тип по умолчанию
         switch light.type {
         case "light":
-            return "Smart Bulb"
+            return "Smart Light"
         case "grouped_light":
             return "Group Light"
         default:

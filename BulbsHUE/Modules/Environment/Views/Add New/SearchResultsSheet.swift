@@ -120,6 +120,15 @@ struct SearchResultsSheet: View {
             }
             .adaptiveOffset(y: 285)
         }
+        .onAppear {
+            // Обновляем данные ламп при каждом открытии экрана
+            print("🔄 SearchResultsSheet: Обновляем данные ламп")
+            lightsViewModel.loadLights()
+        }
+        .refreshable {
+            // Поддержка pull-to-refresh
+            lightsViewModel.loadLights()
+        }
         
     }
     // MARK: - Helper Functions
@@ -175,6 +184,9 @@ struct LightResultCell: View {
     }
     
     var body: some View {
+        let effectiveState = light.effectiveState
+        let isReachable = light.isReachable
+        
         HStack(spacing: 12) {
             // Иконка лампы с индикацией включения
             ZStack {
@@ -182,14 +194,22 @@ struct LightResultCell: View {
                     .resizable()
                     .scaledToFit()
                     .adaptiveFrame(width: 32, height: 32)
-                    .foregroundColor(light.on.on ? .yellow : .gray)
+                    .foregroundColor(effectiveState.isOn ? .yellow : .gray)
                 
                 // Индикатор питания
-                if light.on.on {
+                if effectiveState.isOn {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 10, height: 10)
                         .offset(x: 12, y: -12)
+                }
+                
+                // Индикатор недоступности
+                if !isReachable {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                        .offset(x: -12, y: 12)
                 }
             }
             
@@ -199,20 +219,20 @@ struct LightResultCell: View {
                     .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                     .textCase(.uppercase)
                 
-                // Статус питания
+                // Статус питания с учетом доступности
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(light.on.on ? Color.green : Color.red)
+                        .fill(getStatusColor(isReachable: isReachable, isOn: effectiveState.isOn))
                         .frame(width: 6, height: 6)
                     
-                    Text(light.on.on ? "Включена" : "Выключена")
+                    Text(getStatusText(isReachable: isReachable, isOn: effectiveState.isOn))
                         .font(Font.custom("DMSans-Light", size: 10))
                         .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.7))
                 }
                 
-                // Показываем яркость если включена
-                if light.on.on, let brightness = light.dimming?.brightness {
-                    Text("Яркость: \(Int(brightness))%")
+                // Показываем яркость если включена и доступна
+                if effectiveState.isOn && isReachable {
+                    Text("Яркость: \(Int(effectiveState.brightness))%")
                         .font(Font.custom("DMSans-Light", size: 10))
                         .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.5))
                 }
@@ -232,12 +252,28 @@ struct LightResultCell: View {
                 .adaptiveFrame(width: 332, height: 64)
                 .background(Color(red: 0.79, green: 1, blue: 1))
                 .cornerRadius(15)
-                .opacity(light.on.on ? 0.15 : 0.08) // Более яркий фон для включенных
+                .opacity(effectiveState.isOn && isReachable ? 0.15 : 0.08) // Более яркий фон для включенных и доступных
         )
         .onTapGesture {
             // При нажатии на ячейку лампы мигаем лампой для визуального подтверждения
             lightsViewModel.blinkLight(light)
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getStatusColor(isReachable: Bool, isOn: Bool) -> Color {
+        if !isReachable {
+            return Color.orange // Недоступна
+        }
+        return isOn ? Color.green : Color.red
+    }
+    
+    private func getStatusText(isReachable: Bool, isOn: Bool) -> String {
+        if !isReachable {
+            return "Недоступна"
+        }
+        return isOn ? "Включена" : "Выключена"
     }
 }
 #Preview {
