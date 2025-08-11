@@ -337,3 +337,13 @@ struct AlertState: Codable {
     }
 }
 
+// MARK: - Equatable Conformance
+
+extension Light: Equatable {
+    /// Сравнение ламп по уникальному идентификатору
+    /// Две лампы считаются равными, если у них одинаковый id
+    static func == (lhs: Light, rhs: Light) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
+

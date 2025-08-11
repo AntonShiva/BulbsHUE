@@ -17,26 +17,6 @@ struct BulbsHUEApp: App {
     /// Основной ViewModel приложения
     @StateObject private var appViewModel = AppViewModel()
     
-    /// Сервис для управления лампами - реализация протоколов
-    @StateObject private var lightControlService: LightControlService
-    
-    /// ViewModel для управления отдельными лампами
-    @StateObject private var itemControlViewModel: ItemControlViewModel
-    
-    // MARK: - Initialization
-    
-    init() {
-        // Создаём сервис с внедрением зависимости
-        let appVM = AppViewModel()
-        let lightService = LightControlService(appViewModel: appVM)
-        let itemVM = ItemControlViewModel(lightControlService: lightService)
-        
-        // Инициализируем StateObjects
-        _appViewModel = StateObject(wrappedValue: appVM)
-        _lightControlService = StateObject(wrappedValue: lightService)
-        _itemControlViewModel = StateObject(wrappedValue: itemVM)
-    }
-    
     // MARK: - Scene
     
     var body: some Scene {
@@ -44,7 +24,6 @@ struct BulbsHUEApp: App {
             MasterView()
                 .environmentObject(navigationManager)
                 .environmentObject(appViewModel)
-                .environmentObject(itemControlViewModel)
         }
     }
 }
