@@ -46,22 +46,9 @@ struct EnvironmentView: View {
                             viewModel.removeLightFromEnvironment(lightId)
                         }
                     )
+                    .adaptiveOffset(y: 30)
                 }
-                
-                // Индикатор загрузки
-                if viewModel.isLoading {
-                    ProgressView("Загрузка ламп...")
-                        .padding()
-                        .background(Color.black.opacity(0.7))
-                        .cornerRadius(8)
-                }
-            } else {
-                // Состояние инициализации
-                ProgressView("Инициализация...")
-                    .padding()
-                    .background(Color.black.opacity(0.7))
-                    .cornerRadius(8)
-            }
+             }
         }
         .onAppear {
             // Создаем ViewModel с обоими сервисами
