@@ -70,9 +70,10 @@ final class DataPersistenceService: ObservableObject {
     /// Сохранить или обновить лампу
     /// - Parameters:
     ///   - light: Light модель из API
-    ///   - isAssignedToEnvironment: Назначена ли лампа в Environment
-    func saveLightData(_ light: Light, isAssignedToEnvironment: Bool = false) {
-        print("🔄 DataPersistenceService.saveLightData: \(light.metadata.name), assigned: \(isAssignedToEnvironment)")
+    ///   - isAssignedToEnvironment: (опц.) Явно установить флаг назначения в Environment
+    ///       Если nil — сохраняем текущее значение без изменений (ВАЖНО: не затираем true на false)
+    func saveLightData(_ light: Light, isAssignedToEnvironment: Bool? = nil) {
+        print("🔄 DataPersistenceService.saveLightData: \(light.metadata.name), assigned: \(String(describing: isAssignedToEnvironment))")
         
         Task { @MainActor in
             isUpdating = true
@@ -81,13 +82,16 @@ final class DataPersistenceService: ObservableObject {
             if let existingLight = fetchLightData(by: light.id) {
                 // Обновляем существующую
                 existingLight.updateFromLight(light)
-                existingLight.isAssignedToEnvironment = isAssignedToEnvironment
-                print("✅ Обновлена существующая лампа: \(light.metadata.name)")
+                // ВАЖНО: не сбрасывать назначение при отсутствующем параметре
+                if let isAssignedToEnvironment {
+                    existingLight.isAssignedToEnvironment = isAssignedToEnvironment
+                }
+                print("✅ Обновлена существующая лампа: \(light.metadata.name) | assigned=\(existingLight.isAssignedToEnvironment)")
             } else {
                 // Создаем новую
-                let lightData = LightDataModel.fromLight(light, isAssignedToEnvironment: isAssignedToEnvironment)
+                let lightData = LightDataModel.fromLight(light, isAssignedToEnvironment: isAssignedToEnvironment ?? false)
                 modelContext.insert(lightData)
-                print("✅ Создана новая лампа: \(light.metadata.name)")
+                print("✅ Создана новая лампа: \(light.metadata.name) | assigned=\(lightData.isAssignedToEnvironment)")
             }
             
             saveContext()
