@@ -76,12 +76,19 @@ struct ControlView: View {
                 .adaptiveOffset(x: -100, y: -42)
             
             // Название лампы (основной текст)
-            Text(bulbName)
-                .font(Font.custom("DMSans-Regular", size: 20))
-                .kerning(4)
-                .foregroundColor(baseColor.preferredForeground)
-                .textCase(.uppercase)
-                .adaptiveOffset(x: -45, y: -3)
+            HStack {
+                 Text(bulbName)
+                     .font(Font.custom("DMSans-Regular", size: 20))
+                     .kerning(4)
+                     .foregroundColor(baseColor.preferredForeground)
+                     .textCase(.uppercase)
+                     .lineLimit(1)
+                     .truncationMode(.tail)
+                 
+                 Spacer()
+             }
+             .frame(width: 240) // Ширина контейнера для текста
+             .adaptiveOffset(x: -7, y: -3)
             
             // Тип лампы (подзаголовок)
             Text(bulbType)

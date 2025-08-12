@@ -32,6 +32,9 @@ class ItemControlViewModel: ObservableObject {
     /// Последняя отправленная яркость для предотвращения дублирования запросов
     @Published private var lastSentBrightness: Double = -1
     
+    /// Запомненная яркость для восстановления при включении лампы
+    private var rememberedBrightness: Double = 100.0
+    
     // MARK: - Private Properties
     
     /// Задача для дебаунса изменений яркости
@@ -100,11 +103,18 @@ class ItemControlViewModel: ObservableObject {
             // Лампа доступна, но выключена программно
             isOn = false
             brightness = 0.0
+            // Запоминаем последнюю яркость если она была больше 0
+            if effectiveState.brightness > 0 {
+                rememberedBrightness = effectiveState.brightness
+            }
         } else {
             // Лампа включена и доступна
             isOn = true
             // Если API показывает яркость 0 при включенной лампе - показываем минимум 1%
-            brightness = effectiveState.brightness > 0 ? effectiveState.brightness : 1.0
+            let currentBrightness = effectiveState.brightness > 0 ? effectiveState.brightness : 1.0
+            brightness = currentBrightness
+            // Обновляем запомненную яркость
+            rememberedBrightness = currentBrightness
         }
     }
     
@@ -121,10 +131,19 @@ class ItemControlViewModel: ObservableObject {
     /// - Parameter powerState: Новое состояние питания (true - включено, false - выключено)
     func setPower(_ powerState: Bool) {
         guard isConfigured else { return }
-        isOn = powerState
         
-        // СИНХРОНИЗАЦИЯ: Если лампа выключается - устанавливаем яркость в 0
-        if !powerState {
+        if powerState {
+            // Включаем лампу
+            isOn = true
+            // Восстанавливаем запомненную яркость или устанавливаем минимум 1%
+            let targetBrightness = rememberedBrightness > 0 ? rememberedBrightness : 1.0
+            brightness = targetBrightness
+        } else {
+            // Выключаем лампу - запоминаем текущую яркость если она больше 0
+            if brightness > 0 {
+                rememberedBrightness = brightness
+            }
+            isOn = false
             brightness = 0.0
         }
         
@@ -141,12 +160,21 @@ class ItemControlViewModel: ObservableObject {
         // СИНХРОНИЗАЦИЯ: Если яркость увеличивается при выключенной лампе - включаем лампу
         if value > 0 && !isOn {
             isOn = true
+            rememberedBrightness = value // Запоминаем новую яркость
             sendPowerUpdate(true)
         }
         // СИНХРОНИЗАЦИЯ: Если яркость = 0 и лампа включена - выключаем лампу
         else if value == 0 && isOn {
+            // Запоминаем предыдущую яркость перед выключением
+            if brightness > 0 {
+                rememberedBrightness = brightness
+            }
             isOn = false
             sendPowerUpdate(false)
+        }
+        // Обновляем запомненную яркость при изменении (если лампа включена)
+        else if value > 0 && isOn {
+            rememberedBrightness = value
         }
         
         // Отменяем предыдущую задачу дебаунса
@@ -184,12 +212,21 @@ class ItemControlViewModel: ObservableObject {
         // СИНХРОНИЗАЦИЯ: Если яркость увеличивается при выключенной лампе - включаем лампу
         if roundedValue > 0 && !isOn {
             isOn = true
+            rememberedBrightness = roundedValue
             sendPowerUpdate(true)
         }
         // СИНХРОНИЗАЦИЯ: Если яркость = 0 и лампа включена - выключаем лампу
         else if roundedValue == 0 && isOn {
+            // Запоминаем предыдущую яркость перед выключением
+            if brightness > 0 {
+                rememberedBrightness = brightness
+            }
             isOn = false
             sendPowerUpdate(false)
+        }
+        // Обновляем запомненную яркость при изменении (если лампа включена)
+        else if roundedValue > 0 && isOn {
+            rememberedBrightness = roundedValue
         }
         
         Task { [weak self] in
@@ -269,9 +306,19 @@ class ItemControlViewModel: ObservableObject {
                     // Лампа недоступна - показываем как выключенную
                     isOn = false
                     brightness = 0.0
+                } else if !effectiveState.isOn {
+                    // Лампа выключена - показываем 0, но запоминаем яркость если она есть
+                    isOn = false
+                    brightness = 0.0
+                    if effectiveState.brightness > 0 {
+                        rememberedBrightness = effectiveState.brightness
+                    }
                 } else {
-                    isOn = effectiveState.isOn
-                    brightness = effectiveState.brightness
+                    // Лампа включена - показываем актуальную яркость и запоминаем её
+                    isOn = true
+                    let currentBrightness = effectiveState.brightness > 0 ? effectiveState.brightness : 1.0
+                    brightness = currentBrightness
+                    rememberedBrightness = currentBrightness
                 }
             }
         }
