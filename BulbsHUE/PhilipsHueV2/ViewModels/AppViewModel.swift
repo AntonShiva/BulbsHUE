@@ -344,8 +344,8 @@ class AppViewModel: ObservableObject {
         if let savedIP = UserDefaults.standard.string(forKey: "HueBridgeIP"),
            let savedKey = UserDefaults.standard.string(forKey: "HueApplicationKey") {
             
-            recreateAPIClient(with: savedIP)
             applicationKey = savedKey
+            recreateAPIClient(with: savedIP)
             
             // Загружаем client key для Entertainment API из Keychain
             if let bridgeId = UserDefaults.standard.string(forKey: "HueBridgeID"),
@@ -361,7 +361,7 @@ class AppViewModel: ObservableObject {
             
             connectionStatus = .connected
             startEventStream()
-            loadAllData()
+            // loadAllData() теперь вызывается в recreateAPIClient после установки ключа
         } else {
             showSetup = true
         }
@@ -392,6 +392,12 @@ class AppViewModel: ObservableObject {
             if let key = self.applicationKey {
                 print("🔑 Устанавливаем application key в новый клиент")
                 self.apiClient.setApplicationKey(key)
+                
+                // ИСПРАВЛЕНИЕ: Загружаем данные только после установки ключа
+                print("🚀 Загружаем данные после установки application key...")
+                self.loadAllData()
+            } else {
+                print("⚠️ Application key отсутствует - пропускаем загрузку данных")
             }
         }
     }
@@ -689,11 +695,11 @@ extension AppViewModel {
     /// Загружает сохраненные настройки из Keychain
     func loadSavedSettingsFromKeychain() {
         if let credentials = HueKeychainManager.shared.getLastBridgeCredentials() {
-            // Пересоздаем API клиент
-            recreateAPIClient(with: credentials.bridgeIP)
-            
-            // Устанавливаем ключи
+            // Устанавливаем ключи сначала
             applicationKey = credentials.applicationKey
+            
+            // Пересоздаем API клиент (теперь loadAllData будет вызван в recreateAPIClient)
+            recreateAPIClient(with: credentials.bridgeIP)
             
             // Настраиваем Entertainment клиент если есть client key
             if let clientKey = credentials.clientKey {
@@ -709,7 +715,7 @@ extension AppViewModel {
             
             connectionStatus = .connected
             startEventStream()
-            loadAllData()
+            // loadAllData() теперь вызывается в recreateAPIClient после установки ключа
         } else {
             showSetup = true
         }
