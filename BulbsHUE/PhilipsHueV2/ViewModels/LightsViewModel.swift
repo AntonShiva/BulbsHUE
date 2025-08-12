@@ -83,32 +83,45 @@ class LightsViewModel: ObservableObject {
     }
     
     // MARK: - Public Methods
-    
+
     /// Загружает список всех ламп с обновлением статуса
-    func loadLights() {
-        isLoading = true
-        error = nil
-        
-        print("🚀 Загружаем лампы через API v2 HTTPS с обновлением статуса...")
-        
-        // Принудительно обновляем статус при каждом запросе
-        apiClient.getAllLights()
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        print("❌ Ошибка загрузки ламп: \(error)")
-                        self?.error = error
+        func loadLights() {
+            // ИСПРАВЛЕНИЕ: Проверяем наличие подключения перед загрузкой
+            guard apiClient.hasValidConnection() else {
+                print("⚠️ Нет подключения к мосту - пропускаем загрузку ламп")
+                lights = []
+                isLoading = false
+                return
+            }
+            
+            isLoading = true
+            error = nil
+            
+            print("🚀 Загружаем лампы через API v2 HTTPS с обновлением статуса...")
+            
+            // Принудительно обновляем статус при каждом запросе
+            apiClient.getAllLights()
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { [weak self] completion in
+                        self?.isLoading = false
+                        if case .failure(let error) = completion {
+                            print("❌ Ошибка загрузки ламп: \(error)")
+                            // ИСПРАВЛЕНИЕ: Не показываем ошибку авторизации при первом запуске
+                            if case HueAPIError.notAuthenticated = error {
+                                print("📝 Требуется авторизация - ждем настройки подключения")
+                            } else {
+                                self?.error = error
+                            }
+                        }
+                    },
+                    receiveValue: { [weak self] lights in
+                        print("✅ Загружено \(lights.count) ламп с актуальным статусом")
+                        self?.lights = lights
                     }
-                },
-                receiveValue: { [weak self] lights in
-                    print("✅ Загружено \(lights.count) ламп с актуальным статусом")
-                    self?.lights = lights
-                }
-            )
-            .store(in: &cancellables)
-    }
+                )
+                .store(in: &cancellables)
+        }
     
     /// Обновляет список ламп с принудительным обновлением статуса reachable
     @MainActor
@@ -171,7 +184,6 @@ class LightsViewModel: ObservableObject {
         print("✅ Лампа по серийному номеру добавлена")
     }
     
-
 
     
     /// Ищет добавленную лампу после сброса
@@ -628,18 +640,23 @@ class LightsViewModel: ObservableObject {
     // MARK: - Private Methods
     
     /// Настраивает привязки данных
-    private func setupBindings() {
-        // Подписываемся на ошибки от API клиента
-        apiClient.errorPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] error in
-                self?.error = error
-            }
-            .store(in: &cancellables)
-        
-        // Подписываемся на события изменения состояния ламп в реальном времени
-        setupEventStreamSubscription()
-    }
+        private func setupBindings() {
+            // Подписываемся на ошибки от API клиента
+            apiClient.errorPublisher
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] error in
+                    // ИСПРАВЛЕНИЕ: Игнорируем ошибки авторизации при первом запуске
+                    if case HueAPIError.notAuthenticated = error {
+                        print("📝 Требуется авторизация - ждем настройки подключения")
+                    } else {
+                        self?.error = error
+                    }
+                }
+                .store(in: &cancellables)
+            
+            // ИСПРАВЛЕНИЕ: НЕ запускаем Event Stream автоматически
+            // Он будет запущен после успешного подключения
+        }
     
     /// Настраивает подписку на Event Stream для получения уведомлений об изменениях
     private func setupEventStreamSubscription() {

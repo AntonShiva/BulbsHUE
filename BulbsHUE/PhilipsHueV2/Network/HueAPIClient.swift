@@ -301,7 +301,12 @@ class HueAPIClient: NSObject {
     }
     
 
-    
+    /// Проверяет наличие валидного подключения к мосту
+        func hasValidConnection() -> Bool {
+            return applicationKey != nil && !bridgeIP.isEmpty
+        }
+        
+
 
     
     /// Получает информацию о конкретной лампе

@@ -330,42 +330,64 @@ class AppViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // MARK: - Private Methods
-    
-    /// Загружает сохраненные настройки
-    private func loadSavedSettings() {
-        // Сначала пробуем загрузить из Keychain (новый метод)
-        if let credentials = HueKeychainManager.shared.getLastBridgeCredentials() {
-            loadSavedSettingsFromKeychain()
-            return
+    /// Настраивает наблюдение за состоянием приложения для автоматического обновления данных
+        private func setupAppStateObservation() {
+            #if canImport(UIKit)
+            NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+                .sink { [weak self] _ in
+                    // ИСПРАВЛЕНИЕ: Обновляем только если есть подключение
+                    if self?.connectionStatus == .connected {
+                        print("🔄 Приложение стало активным - обновляем данные ламп")
+                        self?.lightsViewModel.loadLights()
+                    } else {
+                        print("⚠️ Приложение стало активным - нет подключения, пропускаем обновление")
+                    }
+                }
+                .store(in: &cancellables)
+            #endif
         }
+    
+    // MARK: - Private Methods
         
-        // Fallback на старый метод с UserDefaults
-        if let savedIP = UserDefaults.standard.string(forKey: "HueBridgeIP"),
-           let savedKey = UserDefaults.standard.string(forKey: "HueApplicationKey") {
-            
-            applicationKey = savedKey
-            recreateAPIClient(with: savedIP)
-            
-            // Загружаем client key для Entertainment API из Keychain
-            if let bridgeId = UserDefaults.standard.string(forKey: "HueBridgeID"),
-               let clientKey = HueKeychainManager.shared.getClientKey(for: bridgeId) {
-                setupEntertainmentClient(clientKey: clientKey)
+        /// Загружает сохраненные настройки
+        private func loadSavedSettings() {
+            // Сначала пробуем загрузить из Keychain (новый метод)
+            if let credentials = HueKeychainManager.shared.getLastBridgeCredentials() {
+                loadSavedSettingsFromKeychain()
+                return
             }
             
-            currentBridge = Bridge(
-                id: "",
-                internalipaddress: savedIP,
-                port: 443
-            )
-            
-            connectionStatus = .connected
-            startEventStream()
-            // loadAllData() теперь вызывается в recreateAPIClient после установки ключа
-        } else {
-            showSetup = true
+            // Fallback на старый метод с UserDefaults
+            if let savedIP = UserDefaults.standard.string(forKey: "HueBridgeIP"),
+               let savedKey = UserDefaults.standard.string(forKey: "HueApplicationKey") {
+                
+                applicationKey = savedKey
+                recreateAPIClient(with: savedIP)
+                
+                // Загружаем client key для Entertainment API из Keychain
+                if let bridgeId = UserDefaults.standard.string(forKey: "HueBridgeID"),
+                   let clientKey = HueKeychainManager.shared.getClientKey(for: bridgeId) {
+                    setupEntertainmentClient(clientKey: clientKey)
+                }
+                
+                currentBridge = Bridge(
+                    id: "",
+                    internalipaddress: savedIP,
+                    port: 443
+                )
+                
+                connectionStatus = .connected
+                startEventStream()
+                // loadAllData() теперь вызывается в recreateAPIClient после установки ключа
+            } else {
+                // ИСПРАВЛЕНИЕ: При первом запуске НЕ пытаемся загружать данные
+                showSetup = true
+                connectionStatus = .disconnected
+                print("🚀 Первый запуск - ждем настройки подключения")
+            }
         }
-    }
+    
+
     
     /// Пересоздает API клиент с новым IP
     /// ИСПРАВЛЕНИЕ: Добавлено логирование и правильное обновление ViewModels
@@ -402,15 +424,23 @@ class AppViewModel: ObservableObject {
         }
     }
     
+
     /// Загружает все данные
-    private func loadAllData() {
-        lightsViewModel.loadLights()
-        scenesViewModel.loadScenes()
-        groupsViewModel.loadGroups()
-        sensorsViewModel.loadSensors()
-        rulesViewModel.loadRules()
-        loadBridgeCapabilities()
-    }
+        private func loadAllData() {
+            // ИСПРАВЛЕНИЕ: Проверяем подключение перед загрузкой
+            guard connectionStatus == .connected else {
+                print("⚠️ Нет подключения - пропускаем загрузку данных")
+                return
+            }
+            
+            print("📦 Загружаем все данные с моста...")
+            lightsViewModel.loadLights()
+            scenesViewModel.loadScenes()
+            groupsViewModel.loadGroups()
+            sensorsViewModel.loadSensors()
+            rulesViewModel.loadRules()
+            loadBridgeCapabilities()
+        }
     
     /// Запускает поток событий
     private func startEventStream() {
@@ -430,6 +460,7 @@ class AppViewModel: ObservableObject {
                 }
             )
     }
+    
     
     /// Обрабатывает событие из потока
     private func handleEvent(_ event: HueEvent) {
@@ -485,17 +516,7 @@ class AppViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    /// Настраивает наблюдение за состоянием приложения для автоматического обновления данных
-    private func setupAppStateObservation() {
-        #if canImport(UIKit)
-        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
-            .sink { [weak self] _ in
-                print("🔄 Приложение стало активным - обновляем данные ламп")
-                self?.lightsViewModel.loadLights()
-            }
-            .store(in: &cancellables)
-        #endif
-    }
+
     
     // MARK: - Memory Management
 
@@ -508,6 +529,7 @@ class AppViewModel: ObservableObject {
         entertainmentClient?.stopSession()
         entertainmentClient = nil
     }
+    
 }
 
 /// Статус подключения к мосту

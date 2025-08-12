@@ -51,19 +51,25 @@ struct EnvironmentView: View {
              }
         }
         .onAppear {
-            // Создаем ViewModel с обоими сервисами
-            if environmentViewModel == nil {
-                environmentViewModel = EnvironmentViewModel(
-                    appViewModel: appViewModel,
-                    dataPersistenceService: dataPersistenceService
-                )
-            }
-            
-            // Обновляем данные ламп при каждом появлении экрана
-            print("🔄 EnvironmentView: Обновляем данные ламп")
-            appViewModel.lightsViewModel.loadLights()
-            environmentViewModel?.refreshLights()
-        }
+                    // ИСПРАВЛЕНИЕ: Проверяем наличие подключения перед загрузкой
+                    if appViewModel.connectionStatus == .connected {
+                        // Создаем ViewModel с обоими сервисами
+                        if environmentViewModel == nil {
+                            environmentViewModel = EnvironmentViewModel(
+                                appViewModel: appViewModel,
+                                dataPersistenceService: dataPersistenceService
+                            )
+                        }
+                        
+                        // Обновляем данные ламп при каждом появлении экрана
+                        print("🔄 EnvironmentView: Обновляем данные ламп")
+                        appViewModel.lightsViewModel.loadLights()
+                        environmentViewModel?.refreshLights()
+                    } else {
+                        print("⚠️ EnvironmentView: Нет подключения - пропускаем загрузку")
+                    }
+                }
+
         .refreshable {
             // Поддержка pull-to-refresh
             environmentViewModel?.refreshLights()

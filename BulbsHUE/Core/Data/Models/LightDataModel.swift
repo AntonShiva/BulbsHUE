@@ -144,7 +144,11 @@ extension LightDataModel {
     /// - Parameter light: Light модель из API
     func updateFromLight(_ light: Light) {
         self.name = light.metadata.name
-        self.archetype = light.metadata.archetype ?? self.archetype
+        // ВАЖНО: Сохраняем существующий архетип если новый пустой
+        if let newArchetype = light.metadata.archetype, !newArchetype.isEmpty {
+            self.archetype = newArchetype
+        }
+        // Архетип НЕ перезаписываем если он nil или пустой - сохраняем старый
         self.isOn = light.on.on
         self.brightness = light.dimming?.brightness ?? self.brightness
         self.colorTemperature = light.color_temperature?.mirek
