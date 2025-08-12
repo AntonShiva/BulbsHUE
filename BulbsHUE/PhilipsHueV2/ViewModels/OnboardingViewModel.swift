@@ -23,6 +23,7 @@ class OnboardingViewModel: ObservableObject {
     @Published var linkButtonCountdown = 30
     @Published var discoveredBridges: [Bridge] = []
     @Published var selectedBridge: Bridge?
+    @Published var isConnecting = false // Добавляем флаг для защиты от повторных подключений
     
     // MARK: - Private Properties
     
@@ -341,7 +342,14 @@ class OnboardingViewModel: ObservableObject {
             return 
         }
         
+        // Защита от повторных вызовов
+        guard !isConnecting else {
+            print("⚠️ Подключение уже в процессе, игнорируем повторный вызов")
+            return
+        }
+        
         print("🔗 Начинаем подключение к мосту: \(bridge.id) at \(bridge.internalipaddress)")
+        isConnecting = true
         currentStep = .linkButton
         showLinkButtonAlert = true
         
@@ -381,6 +389,7 @@ class OnboardingViewModel: ObservableObject {
             appViewModel.createUserWithRetry(appName: "BulbsHUE", completion: { [weak self] success in
                 if success {
                     print("✅ Пользователь успешно создан! Подключение установлено!")
+                    self?.isConnecting = false // Сбрасываем флаг подключения
                     self?.cancelLinkButton()
                     self?.currentStep = .connected
                     
@@ -393,6 +402,7 @@ class OnboardingViewModel: ObservableObject {
                     if let error = self?.appViewModel.error as? HueAPIError,
                        case .localNetworkPermissionDenied = error {
                         print("🚫 Нет доступа к локальной сети!")
+                        self?.isConnecting = false // Сбрасываем флаг при ошибке
                         self?.cancelLinkButton()
                         self?.showLocalNetworkAlert = true
                     }
@@ -405,6 +415,7 @@ class OnboardingViewModel: ObservableObject {
         linkButtonTimer?.invalidate()
         linkButtonTimer = nil
         showLinkButtonAlert = false
+        isConnecting = false // Сбрасываем флаг подключения
     }
     
     // MARK: - Helpers

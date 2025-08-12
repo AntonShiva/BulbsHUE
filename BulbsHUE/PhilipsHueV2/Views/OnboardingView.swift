@@ -326,6 +326,7 @@ struct OnboardingView: View {
                         .buttonStyle(PrimaryButtonStyle())
                         .padding(.horizontal, 40)
                     }
+                    
                 }
             }
         }
@@ -372,6 +373,8 @@ struct OnboardingView: View {
                 
                 
             }
+            
+        
             
             Button("Подключиться") {
                 if let bridge = viewModel.discoveredBridges.first {
@@ -537,7 +540,6 @@ struct OnboardingView: View {
 }
 
 // MARK: - Button Styles
-
 
 /// Стиль вторичной кнопки (прозрачная с обводкой)
 struct SecondaryButtonStyle: ButtonStyle {
