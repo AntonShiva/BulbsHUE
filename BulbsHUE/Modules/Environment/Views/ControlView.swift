@@ -71,7 +71,7 @@ struct ControlView: View {
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .foregroundStyle(.white)
+                .foregroundStyle(baseColor.preferredForeground)
                 .adaptiveFrame(width: 32, height: 32)
                 .adaptiveOffset(x: -100, y: -42)
             
@@ -79,7 +79,7 @@ struct ControlView: View {
             Text(bulbName)
                 .font(Font.custom("DMSans-Regular", size: 20))
                 .kerning(4)
-                .foregroundColor(.white)
+                .foregroundColor(baseColor.preferredForeground)
                 .textCase(.uppercase)
                 .adaptiveOffset(x: -45, y: -3)
             
@@ -87,9 +87,9 @@ struct ControlView: View {
             Text(bulbType)
                 .font(Font.custom("DMSans-Light", size: 14))
                 .kerning(2.8)
-                .foregroundColor(.white)
+                .foregroundColor(baseColor.preferredForeground.opacity(0.9))
                 .textCase(.uppercase)
-                .adaptiveOffset(x: -70, y: 19)
+                .adaptiveOffset(x: -63, y: 19)
             
             // Разделительная линия
             Rectangle()
@@ -103,7 +103,7 @@ struct ControlView: View {
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .foregroundStyle(.white)
+                .foregroundStyle(baseColor.preferredForeground)
                 .adaptiveFrame(width: 16, height: 16)
                 .adaptiveOffset(x: -108, y: 46)
             
@@ -111,7 +111,7 @@ struct ControlView: View {
             Text(roomName)
                 .font(Font.custom("DMSans-Light", size: 12))
                 .kerning(2.4)
-                .foregroundColor(.white)
+                .foregroundColor(baseColor.preferredForeground.opacity(0.9))
                 .textCase(.uppercase)
                 .adaptiveOffset(x: -42, y: 46)
             
@@ -130,7 +130,7 @@ struct ControlView: View {
                 
                 Image(systemName: "ellipsis")
                     .font(.system(size: 22))
-                    .foregroundColor(.white)
+                    .foregroundColor(baseColor.preferredForeground)
                     .rotationEffect(Angle(degrees: 90))
             }
             .adaptiveOffset(x: 111, y: -43)

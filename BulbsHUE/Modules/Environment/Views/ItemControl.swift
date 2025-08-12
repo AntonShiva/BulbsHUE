@@ -54,25 +54,25 @@ struct ItemControl: View {
                     }
                 )
                 
-                // Статус питания и информация о лампе
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.6))
-                            .frame(width: 8, height: 8)
-                        Text(itemControlViewModel.isOn ? "ON" : "OFF")
-                            .font(Font.custom("DMSans-Medium", size: 11))
-                            .foregroundStyle(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.8))
-                            .textCase(.uppercase)
-                    }
-                    Text(itemControlViewModel.getRoomName())
-                        .font(Font.custom("DMSans-Regular", size: 12))
-                        .foregroundStyle(Color.white.opacity(0.75))
-                    Text(light.metadata.name)
-                        .font(Font.custom("DMSans-Medium", size: 14))
-                        .foregroundStyle(Color.white)
-                }
-                .adaptiveOffset(x: 40, y: -8)
+//                // Статус питания и информация о лампе
+//                VStack(alignment: .leading, spacing: 6) {
+//                    HStack(spacing: 8) {
+//                        Circle()
+//                            .fill(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.6))
+//                            .frame(width: 8, height: 8)
+//                        Text(itemControlViewModel.isOn ? "ON" : "OFF")
+//                            .font(Font.custom("DMSans-Medium", size: 11))
+//                            .foregroundStyle(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.8))
+//                            .textCase(.uppercase)
+//                    }
+//                    Text(itemControlViewModel.getRoomName())
+//                        .font(Font.custom("DMSans-Regular", size: 12))
+//                        .foregroundStyle(Color.white.opacity(0.75))
+//                    Text(light.metadata.name)
+//                        .font(Font.custom("DMSans-Medium", size: 14))
+//                        .foregroundStyle(Color.white)
+//                }
+//                .adaptiveOffset(x: 40, y: -8)
             }
             
             // Слайдер яркости справа
