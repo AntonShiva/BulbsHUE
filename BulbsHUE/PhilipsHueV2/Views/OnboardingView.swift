@@ -61,39 +61,33 @@ struct OnboardingView: View {
         }
         // MARK: - QR Code Sheets (закомментировано)
         /*
-        .sheet(isPresented: $viewModel.showQRScanner) {
-            QRCodeScannerView { code in
-                viewModel.handleScannedQR(code)
-            }
-        }
-        .alert("Разрешение камеры", isPresented: $viewModel.showCameraPermissionAlert) {
-            Button("Настройки") {
-                viewModel.openAppSettings()
-            }
-            Button("Отмена", role: .cancel) { }
-        } message: {
-            Text("Для сканирования QR-кода необходимо разрешение на использование камеры. Откройте настройки и разрешите доступ к камере.")
-        }
-        */
-//        .alert("Доступ к локальной сети", isPresented: $viewModel.showLocalNetworkAlert) {
-//            Button("Настройки") {
-//                viewModel.openAppSettings()
-//            }
-//            Button("Отмена", role: .cancel) { }
-//        } message: {
-//            Text("Для подключения к Hue Bridge необходим доступ к локальной сети. Откройте Настройки > BulbsHUE > Локальная сеть и включите доступ.")
-//        }
-//        .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
-//            Button("Готово") {
-//                viewModel.showLinkButtonAlert = false
-//                viewModel.nextStep() // Переходим к linkButtonStepView
-//            }
-//            Button("Отмена", role: .cancel) {
-//                viewModel.cancelLinkButton()
-//            }
-//        } message: {
-//            Text("Нажмите кнопку на мосту для подключения.\n\nНажмите кнопку на внешнем устройстве")
-//        }
+         .sheet(isPresented: $viewModel.showQRScanner) {
+         QRCodeScannerView { code in
+         viewModel.handleScannedQR(code)
+         }
+         }
+         .alert("Разрешение камеры", isPresented: $viewModel.showCameraPermissionAlert) {
+         Button("Настройки") {
+         viewModel.openAppSettings()
+         }
+         Button("Отмена", role: .cancel) { }
+         } message: {
+         Text("Для сканирования QR-кода необходимо разрешение на использование камеры. Откройте настройки и разрешите доступ к камере.")
+         }
+         */
+        // Убрали лишний алерт - iOS сам покажет запрос разрешения
+        // .alert("Доступ к локальной сети", isPresented: $viewModel.showLocalNetworkAlert) {
+        //        .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
+        //            Button("Готово") {
+        //                viewModel.showLinkButtonAlert = false
+        //                viewModel.nextStep() // Переходим к linkButtonStepView
+        //            }
+        //            Button("Отмена", role: .cancel) {
+        //                viewModel.cancelLinkButton()
+        //            }
+        //        } message: {
+        //            Text("Нажмите кнопку на мосту для подключения.\n\nНажмите кнопку на внешнем устройстве")
+        //        }
     }
     
     // MARK: - Content Views
@@ -117,12 +111,12 @@ struct OnboardingView: View {
         
         // MARK: - QR Code Steps (закомментировано)
         /*
-        case .cameraPermission:
-            cameraPermissionStepView
-        case .qrScanner:
-            // Этот экран больше не нужен - сразу открываем камеру
-            EmptyView()
-        */
+         case .cameraPermission:
+         cameraPermissionStepView
+         case .qrScanner:
+         // Этот экран больше не нужен - сразу открываем камеру
+         EmptyView()
+         */
     }
     
     // MARK: - Step Views
@@ -146,12 +140,33 @@ struct OnboardingView: View {
                     .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
+                
+                // Новое: Разрешение на поиск в локальной сети
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "network")
+                        .foregroundColor(.cyan)
+                        .font(.title3)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Нам нужно Ваше разрешение на поиск этого устройства в вашей локальной сети.")
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                        
+                        Text("После нажатия \"Поиск\" iOS может запросить разрешение на доступ к локальной сети - необходимо выбрать \"Разрешить\".")
+                            .foregroundColor(.white.opacity(0.8))
+                            .font(.caption)
+                    }
+                }
+                .padding()
+                .background(Color.white.opacity(0.1))
+                .cornerRadius(12)
             }
             
             // Кнопки действий
             VStack(spacing: 16) {
                 Button("Да") {
-                    viewModel.nextStep()
+                    // Запрашиваем разрешение локальной сети на первом экране
+                    viewModel.requestLocalNetworkPermissionOnWelcome()
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 
@@ -163,48 +178,25 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 40)
         }
-    }
-    
-    // MARK: - QR Camera Permission Step (закомментировано)
-    /*
-    /// Экран разрешения камеры (как на третьем скриншоте)
-    private var cameraPermissionStepView: some View {
-        VStack(spacing: 40) {
-            bridgeImageView
-            
-            VStack(spacing: 16) {
-                Text("Приложение «Hue» запрашивает доступ к камере.")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                
-                Text("Приложение будет использовать вашу камеру для сканирования QR-кодов, использования дополненной реальности и т. д.")
-                    .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-            }
-            
-            VStack(spacing: 16) {
-                Button("Разрешить") {
-                    viewModel.requestCameraPermission()
+        .alert("Нужно разрешение", isPresented: $viewModel.showPermissionAlert) {
+            Button("Перейти в Настройки") {
+                // Открываем настройки приложения
+                if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(settingsUrl)
                 }
-                .buttonStyle(PrimaryButtonStyle())
-                
-                Button("Не разрешать") {
-                    viewModel.showCameraPermissionAlert = true
-                }
-                .buttonStyle(SecondaryButtonStyle())
             }
-            .padding(.horizontal, 40)
+            Button("Повторить") {
+                viewModel.requestLocalNetworkPermissionOnWelcome()
+            }
+            Button("Отмена", role: .cancel) { }
+        } message: {
+            Text("Для поиска Hue Bridge необходимо разрешить приложению доступ к локальной сети. Пожалуйста, выберите \"Разрешить\" в диалоге системы или перейдите в Настройки > Конфиденциальность > Локальная сеть.")
         }
     }
-    */
     
 
     
-    /// Экран разрешения локальной сети (как на четвертом скриншоте)
+    /// Экран разрешения локальной сети с предварительным запросом
     private var localNetworkPermissionStepView: some View {
         VStack(spacing: 40) {
             bridgeWithRouterImageView
@@ -215,23 +207,26 @@ struct OnboardingView: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Подключите блок управления Hue Bridge к питанию, затем с помощью поставляемого в комплекте кабеля соедините его со своим ")
+                VStack(alignment: .leading, spacing: 12) {
+                    // Основная инструкция
+                    (Text("Подключите блок управления Hue Bridge к питанию, затем с помощью поставляемого в комплекте кабеля соедините его со своим ")
                         .foregroundColor(.white.opacity(0.8))
-                    +
-                    Text("маршрутизатором Wi-Fi")
+                     +
+                     Text("маршрутизатором Wi-Fi")
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
-                    +
-                    Text(". Ваш блок управления Hue Bridge должен быть подключен ")
+                     +
+                     Text(". Ваш блок управления Hue Bridge должен быть подключен ")
                         .foregroundColor(.white.opacity(0.8))
-                    +
-                    Text("к той же сети Wi-Fi")
+                     +
+                     Text("к той же сети Wi-Fi")
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
-                    +
-                    Text(", что и ваше мобильное устройство, только в этом случае приложение Hue сможет его обнаружить.")
-                        .foregroundColor(.white.opacity(0.8))
+                     +
+                     Text(", что и ваше мобильное устройство.")
+                        .foregroundColor(.white.opacity(0.8)))
+                    
+                  
                 }
                 .font(.body)
                 .multilineTextAlignment(.leading)
@@ -240,19 +235,24 @@ struct OnboardingView: View {
             
             VStack(spacing: 16) {
                 Button("Поиск") {
-                    // Переходим к следующему шагу
+                    // Переходим к поиску (разрешение уже получено на первом экране)
                     viewModel.nextStep()
+                    // Задержка для анимации перехода, затем начинаем поиск
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        viewModel.startBridgeSearch()
+                    }
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 
                 Button("Мне нужна помощь") {
                     viewModel.showLocalNetworkInfo()
                 }
-                .buttonStyle(SecondaryButtonStyle())
             }
-            .padding(.horizontal, 40)
+            .buttonStyle(SecondaryButtonStyle())
         }
+        .padding(.horizontal, 40)
     }
+    
     
     /// Экран поиска мостов
     private var searchBridgesStepView: some View {
@@ -266,75 +266,135 @@ struct OnboardingView: View {
                     .foregroundColor(.white)
                 
                 if viewModel.isSearchingBridges {
-                    HStack(spacing: 12) {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .cyan))
+                                .scaleEffect(1.2)
+                            
+                            Text("Поиск устройств в локальной сети...")
+                                .font(.body)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                        }
                         
-                        Text("Поиск устройств в сети...")
-                            .font(.body)
+                        Text("Это может занять до 15 секунд")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                } else if !viewModel.discoveredBridges.isEmpty {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.title3)
+                            Text("Найдено устройств: \(viewModel.discoveredBridges.count)")
+                                .font(.body)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                        }
+                        
+                        Text("Выберите ваш Hue Bridge для подключения")
+                            .font(.caption)
                             .foregroundColor(.white.opacity(0.8))
                     }
                 } else {
-                    Text("Нажмите 'Поиск' для обнаружения Hue Bridge в локальной сети")
-                        .font(.body)
-                        .foregroundColor(.white.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
+                    VStack(spacing: 8) {
+                        Text("Готовы к поиску устройств")
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                        
+                        Text("Убедитесь, что Hue Bridge подключен к той же сети Wi-Fi")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                    }
                 }
             }
             
             if !viewModel.isSearchingBridges {
-                // Показываем разные кнопки в зависимости от того, найдены ли мосты
                 if viewModel.discoveredBridges.isEmpty {
-                    Button("Поиск") {
-                        viewModel.startBridgeSearch()
-                    }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .padding(.horizontal, 40)
-                } else {
-                    // Показываем найденные мосты и кнопку "Далее"
+                    // Кнопка поиска когда мосты не найдены
                     VStack(spacing: 16) {
-                        // Список найденных мостов
-                        ForEach(viewModel.discoveredBridges, id: \.id) { bridge in
-                            HStack {
-                                Image(systemName: "wifi.router")
-                                    .foregroundColor(.green)
-                                VStack(alignment: .leading) {
-                                    Text("Hue Bridge")
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.white)
-                                    Text(bridge.internalipaddress)
-                                        .font(.caption)
-                                        .foregroundColor(.white.opacity(0.8))
-                                }
-                                Spacer()
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                            }
-                            .padding()
-                            .background(Color.white.opacity(0.1))
-                            .cornerRadius(12)
-                            .padding(.horizontal, 40)
-                        }
-                        
-                        Button("Далее") {
-                            if let bridge = viewModel.discoveredBridges.first {
-                                viewModel.selectBridge(bridge)
-                            }
-                            viewModel.nextStep()
+                        Button("Начать поиск") {
+                            viewModel.startBridgeSearch()
                         }
                         .buttonStyle(PrimaryButtonStyle())
                         .padding(.horizontal, 40)
+                        
+                        Button("Мне нужна помощь") {
+                            viewModel.showLocalNetworkInfo()
+                        }
+                        .foregroundColor(.white.opacity(0.8))
                     }
-                    
+                } else {
+                    // Показываем найденные мосты и кнопку "Подключиться"
+                    VStack(spacing: 20) {
+                        // Список найденных мостов
+                        VStack(spacing: 12) {
+                            ForEach(viewModel.discoveredBridges, id: \.id) { bridge in
+                                HStack(spacing: 16) {
+                                    Image(systemName: "wifi.router.fill")
+                                        .foregroundColor(.cyan)
+                                        .font(.title2)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Philips Hue Bridge")
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.white)
+                                        Text("IP: \(bridge.internalipaddress)")
+                                            .font(.caption)
+                                            .foregroundColor(.white.opacity(0.8))
+                                        if !bridge.id.isEmpty {
+                                            Text("ID: \(bridge.id.prefix(8))...")
+                                                .font(.caption2)
+                                                .foregroundColor(.white.opacity(0.6))
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                        .font(.title2)
+                                }
+                                .padding()
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.cyan.opacity(0.3), lineWidth: 1)
+                                )
+                                .onTapGesture {
+                                    viewModel.selectBridge(bridge)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        
+                        VStack(spacing: 12) {
+                            Button("Подключиться") {
+                                if let bridge = viewModel.discoveredBridges.first {
+                                    viewModel.selectBridge(bridge)
+                                }
+                                viewModel.nextStep()
+                            }
+                            .buttonStyle(PrimaryButtonStyle())
+                            .padding(.horizontal, 40)
+                            
+                            Button("Повторить поиск") {
+                                viewModel.startBridgeSearch()
+                            }
+                            .foregroundColor(.white.opacity(0.8))
+                        }
+                    }
                 }
             }
         }
         .onAppear {
-            // Автоматически начинаем поиск при появлении экрана
-            if !viewModel.isSearchingBridges && viewModel.discoveredBridges.isEmpty {
-                viewModel.startBridgeSearch()
-            }
+            // НЕ начинаем поиск автоматически - только по кнопке
+            // Поиск теперь начинается только после получения разрешения локальной сети
         }
     }
     
@@ -374,7 +434,6 @@ struct OnboardingView: View {
                 
             }
             
-        
             
             Button("Подключиться") {
                 if let bridge = viewModel.discoveredBridges.first {
@@ -382,7 +441,7 @@ struct OnboardingView: View {
                 }
                 viewModel.nextStep()
                 // Показываем алерт перед переходом к linkButton
-//                viewModel.showLinkButtonAlert = true
+                //                viewModel.showLinkButtonAlert = true
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.horizontal, 40)
@@ -405,7 +464,7 @@ struct OnboardingView: View {
                     .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
-             
+                
             }
             
             Button("Отмена") {
@@ -537,8 +596,8 @@ struct OnboardingView: View {
             .frame(width: 30, height: 40)
         }
     }
+    
 }
-
 // MARK: - Button Styles
 
 /// Стиль вторичной кнопки (прозрачная с обводкой)
@@ -571,3 +630,41 @@ struct SecondaryButtonStyle: ButtonStyle {
     return OnboardingView(appViewModel: appViewModel)
         .environmentObject(appViewModel)
 }
+
+// MARK: - QR Camera Permission Step (закомментировано)
+/*
+ /// Экран разрешения камеры (как на третьем скриншоте)
+ private var cameraPermissionStepView: some View {
+ VStack(spacing: 40) {
+ bridgeImageView
+ 
+ VStack(spacing: 16) {
+ Text("Приложение «Hue» запрашивает доступ к камере.")
+ .font(.title3)
+ .fontWeight(.semibold)
+ .foregroundColor(.white)
+ .multilineTextAlignment(.center)
+ 
+ Text("Приложение будет использовать вашу камеру для сканирования QR-кодов, использования дополненной реальности и т. д.")
+ .font(.body)
+ .foregroundColor(.white.opacity(0.8))
+ .multilineTextAlignment(.center)
+ .padding(.horizontal, 20)
+ }
+ 
+ VStack(spacing: 16) {
+ Button("Разрешить") {
+ viewModel.requestCameraPermission()
+ }
+ .buttonStyle(PrimaryButtonStyle())
+ 
+ Button("Не разрешать") {
+ viewModel.showCameraPermissionAlert = true
+ }
+ .buttonStyle(SecondaryButtonStyle())
+ }
+ .padding(.horizontal, 40)
+ }
+ }
+ */
+

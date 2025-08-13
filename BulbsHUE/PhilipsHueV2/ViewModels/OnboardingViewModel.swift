@@ -18,12 +18,14 @@ class OnboardingViewModel: ObservableObject {
     // @Published var showQRScanner = false
     // @Published var showCameraPermissionAlert = false
     @Published var showLocalNetworkAlert = false
+    @Published var showPermissionAlert = false // Алерт для отклоненного разрешения
     @Published var showLinkButtonAlert = false
     @Published var isSearchingBridges = false
     @Published var linkButtonCountdown = 30
     @Published var discoveredBridges: [Bridge] = []
     @Published var selectedBridge: Bridge?
     @Published var isConnecting = false // Добавляем флаг для защиты от повторных подключений
+    @Published var isRequestingPermission = false // Флаг для предотвращения повторных запросов разрешения
     
     // MARK: - Private Properties
     
@@ -139,132 +141,87 @@ class OnboardingViewModel: ObservableObject {
         */
     }
     
-    // MARK: - Camera Permission (закомментировано - может понадобиться для QR-кода в будущем)
-    /*
-    func requestCameraPermission() {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            print("📷 Камера уже авторизована, открываем сканер")
-            showQRScanner = true
-        case .notDetermined:
-            print("📷 Запрашиваем разрешение камеры")
-            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                DispatchQueue.main.async {
+    // MARK: - Local Network Permission Request
+    
+    /// Запрашивает разрешение на локальную сеть на экране приветствия
+    func requestLocalNetworkPermissionOnWelcome() {
+        // Защита от повторных вызовов
+        guard !isRequestingPermission else {
+            print("⚠️ Запрос разрешения уже выполняется, игнорируем повторный вызов")
+            return
+        }
+        
+        print("🔍 Запрашиваем разрешение на локальную сеть...")
+        isRequestingPermission = true
+        
+        Task {
+            do {
+                let checker = LocalNetworkPermissionChecker()
+                let granted = try await checker.requestAuthorization()
+                
+                await MainActor.run {
+                    isRequestingPermission = false
+                    
                     if granted {
-                        print("✅ Разрешение камеры получено")
-                        self?.showQRScanner = true
+                        print("✅ Разрешение на локальную сеть получено, переходим к следующему шагу")
+                        nextStep()
                     } else {
-                        print("❌ Разрешение камеры отклонено")
-                        self?.showCameraPermissionAlert = true
+                        print("❌ Разрешение на локальную сеть отклонено, остаемся на экране приветствия")
+                        showPermissionAlert = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isRequestingPermission = false
+                    print("❌ Ошибка при запросе разрешения: \(error)")
+                    showPermissionAlert = true
+                }
+            }
+        }
+    }
+    
+    // MARK: - Bridge Search
+    
+    /// Запрашивает разрешение локальной сети и начинает поиск
+    func requestLocalNetworkPermissionAndSearch() {
+        print("🔍 Запрашиваем разрешение локальной сети и начинаем поиск мостов")
+        
+        if #available(iOS 14.0, *) {
+            let checker = LocalNetworkPermissionChecker()
+            Task {
+                do {
+                    let hasPermission = try await checker.requestAuthorization()
+                    await MainActor.run {
+                        if hasPermission {
+                            print("✅ Разрешение локальной сети получено, начинаем поиск")
+                            self.nextStep()  // Переходим к searchBridges
+                            // Задержка для анимации перехода, затем начинаем поиск
+                            Task {
+                                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 секунды
+                                await MainActor.run {
+                                    self.startBridgeSearch()
+                                }
+                            }
+                        } else {
+                            print("🚫 Разрешение локальной сети отклонено")
+                            self.showLocalNetworkAlert = true
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("❌ Ошибка при запросе разрешения: \(error)")
+                        self.showLocalNetworkAlert = true
                     }
                 }
             }
-        case .denied, .restricted:
-            print("❌ Камера запрещена или ограничена")
-            showCameraPermissionAlert = true
-        @unknown default:
-            break
-        }
-    }
-    */
-    
-    // MARK: - QR Code Handling (закомментировано - может понадобиться в будущем)
-    /*
-    func handleScannedQR(_ code: String) {
-        print("📱 OnboardingViewModel: Получен QR-код: '\(code)'")
-        showQRScanner = false
-        
-        let cleanedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Проверяем различные форматы QR-кодов Hue Bridge
-        if cleanedCode.hasPrefix("bridge-id:") {
-            // Основной формат Philips Hue: bridge-id:ECB5FAFFFE896811
-            print("✅ Распознан QR-код Philips Hue Bridge")
-            if let bridgeId = parseBridgeId(from: code) {
-                print("✅ Bridge ID успешно извлечен: \(bridgeId)")
-                searchForSpecificBridge(bridgeId: bridgeId)
-            } else {
-                print("⚠️ Не удалось извлечь Bridge ID, выполняем общий поиск")
-                startBridgeSearch()
-            }
-            currentStep = .searchBridges
-            
-        } else if cleanedCode.hasPrefix("S#") {
-            // Альтернативный формат: S#12345678
-            print("✅ Распознан альтернативный QR-код Hue Bridge")
-            let serialNumber = String(cleanedCode.dropFirst(2))
-            searchForSpecificBridge(bridgeId: serialNumber)
-            currentStep = .searchBridges
-            
-        } else if cleanedCode.hasPrefix("X-HM://") {
-            // HomeKit QR-код - НЕ Philips Hue
-            print("❌ Распознан HomeKit QR-код, но это не Philips Hue Bridge")
-            print("💡 QR-код рядом с HomeKit меткой предназначен для подключения к HomeKit")
-            print("💡 Для подключения к Hue используется поиск мостов в локальной сети")
-            
-            // Переходим сразу к поиску без QR-кода - мост находится в той же сети
-            print("🔍 Выполняем поиск Hue Bridge в локальной сети...")
-            currentStep = .searchBridges
-            startBridgeSearch()
-            
         } else {
-            print("❌ Неизвестный формат QR-кода: \(cleanedCode)")
-            print("💡 Продолжаем с поиском мостов в локальной сети")
-            
-            // Переходим к сетевому поиску
-            print("🔍 Выполняем поиск Hue Bridge в локальной сети...")
-            currentStep = .searchBridges
-            startBridgeSearch()
-        }
-    } 
-    /// Парсинг ID моста из QR-кода
-    private func parseBridgeId(from input: String) -> String? {
-        let cleaned = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        print("🔍 Парсинг QR-кода: '\(cleaned)'")
-        
-        // ГЛАВНЫЙ ФОРМАТ с фото: bridge-id:ECB5FAFFFE896811
-        if cleaned.hasPrefix("bridge-id:") {
-            let bridgeId = String(cleaned.dropFirst(10)).trimmingCharacters(in: .whitespacesAndNewlines)
-            print("✅ Извлечен Bridge ID из 'bridge-id:' формата: \(bridgeId)")
-            return bridgeId.uppercased()
-        }
-        
-        // Альтернативные форматы с bridge-id
-        if cleaned.contains("bridge-id") {
-            let patterns = [
-                #"bridge-id:\s*([A-Fa-f0-9]{12,16})"#,
-                #"bridge-id\s+([A-Fa-f0-9]{12,16})"#,
-                #"bridge-id\s*:\s*([A-Fa-f0-9]{12,16})"#
-            ]
-            
-            for pattern in patterns {
-                if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-                   let match = regex.firstMatch(in: cleaned, options: [], range: NSRange(location: 0, length: cleaned.count)),
-                   let range = Range(match.range(at: 1), in: cleaned) {
-                    let bridgeId = String(cleaned[range])
-                    print("✅ Извлечен Bridge ID через regex: \(bridgeId)")
-                    return bridgeId.uppercased()
-                }
+            // Для iOS < 14 сразу переходим к поиску
+            nextStep()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.startBridgeSearch()
             }
         }
-        
-        // Если ничего не подошло, ищем hex последовательность
-        let hexPattern = #"[A-Fa-f0-9]{12,16}"#
-        if let regex = try? NSRegularExpression(pattern: hexPattern, options: []),
-           let match = regex.firstMatch(in: cleaned, options: [], range: NSRange(location: 0, length: cleaned.count)),
-           let range = Range(match.range, in: cleaned) {
-            let bridgeId = String(cleaned[range])
-            print("✅ Найден возможный Bridge ID (hex): \(bridgeId)")
-            return bridgeId.uppercased()
-        }
-        
-        print("❌ Не удалось извлечь Bridge ID из: '\(cleaned)'")
-        return nil
     }
-    */
-    
-    // MARK: - Bridge Search
         
         func startBridgeSearch() {
             print("🔍 Начинаем поиск мостов в сети")
@@ -385,10 +342,12 @@ class OnboardingViewModel: ObservableObject {
             let deviceName = Host.current().localizedName ?? "Mac"
             #endif
             
+            print("🔐 OnboardingViewModel: Попытка создания пользователя...")
+            
             // Используем улучшенный метод с проверкой локальной сети
             appViewModel.createUserWithRetry(appName: "BulbsHUE", completion: { [weak self] success in
                 if success {
-                    print("✅ Пользователь успешно создан! Подключение установлено!")
+                    print("✅ OnboardingViewModel: Пользователь успешно создан! Подключение установлено!")
                     self?.isConnecting = false // Сбрасываем флаг подключения
                     self?.cancelLinkButton()
                     self?.currentStep = .connected
@@ -398,7 +357,30 @@ class OnboardingViewModel: ObservableObject {
                         self?.appViewModel.showSetup = false
                     }
                 } else {
-                    // Проверяем ошибку локальной сети
+                    print("❌ OnboardingViewModel: Ошибка создания пользователя")
+                    
+                    // Проверяем тип ошибки
+                    if let error = self?.appViewModel.error {
+                        print("🔍 OnboardingViewModel: Тип ошибки: \(error)")
+                        
+                        if let hueError = error as? HueAPIError {
+                            switch hueError {
+                            case .linkButtonNotPressed:
+                                print("⏳ OnboardingViewModel: Кнопка Link не нажата - продолжаем попытки")
+                                // Не нужно ничего делать - продолжаем попытки
+                                return
+                            case .localNetworkPermissionDenied:
+                                print("🚫 OnboardingViewModel: Локальная сеть заблокирована")
+                                self?.cancelLinkButton()
+                                self?.currentStep = .welcome // Возвращаемся к началу
+                                return
+                            default:
+                                print("⚠️ OnboardingViewModel: Другая ошибка Hue API: \(hueError)")
+                            }
+                        }
+                    }
+                    
+                    // Проверяем ошибку локальной сети для совместимости
                     if let error = self?.appViewModel.error as? HueAPIError,
                        case .localNetworkPermissionDenied = error {
                         print("🚫 Нет доступа к локальной сети!")
@@ -478,13 +460,23 @@ extension OnboardingViewModel {
         
         if #available(iOS 14.0, *) {
             let checker = LocalNetworkPermissionChecker()
-            checker.checkLocalNetworkPermission { [weak self] hasPermission in
-                if hasPermission {
-                    print("✅ Разрешение локальной сети получено")
-                    self?.proceedWithConnection(bridge: bridge)
-                } else {
-                    print("🚫 Нет разрешения локальной сети")
-                    self?.showLocalNetworkAlert = true
+            Task {
+                do {
+                    let hasPermission = try await checker.requestAuthorization()
+                    await MainActor.run {
+                        if hasPermission {
+                            print("✅ Разрешение локальной сети получено")
+                            self.proceedWithConnection(bridge: bridge)
+                        } else {
+                            print("🚫 Нет разрешения локальной сети")
+                            self.showLocalNetworkAlert = true
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("❌ Ошибка при запросе разрешения: \(error)")
+                        self.showLocalNetworkAlert = true
+                    }
                 }
             }
         } else {
@@ -520,3 +512,128 @@ enum OnboardingStep {
     case linkButton
     case connected
 }
+
+// MARK: - Camera Permission (закомментировано - может понадобиться для QR-кода в будущем)
+/*
+func requestCameraPermission() {
+    switch AVCaptureDevice.authorizationStatus(for: .video) {
+    case .authorized:
+        print("📷 Камера уже авторизована, открываем сканер")
+        showQRScanner = true
+    case .notDetermined:
+        print("📷 Запрашиваем разрешение камеры")
+        AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+            DispatchQueue.main.async {
+                if granted {
+                    print("✅ Разрешение камеры получено")
+                    self?.showQRScanner = true
+                } else {
+                    print("❌ Разрешение камеры отклонено")
+                    self?.showCameraPermissionAlert = true
+                }
+            }
+        }
+    case .denied, .restricted:
+        print("❌ Камера запрещена или ограничена")
+        showCameraPermissionAlert = true
+    @unknown default:
+        break
+    }
+}
+*/
+
+// MARK: - QR Code Handling (закомментировано - может понадобиться в будущем)
+/*
+func handleScannedQR(_ code: String) {
+    print("📱 OnboardingViewModel: Получен QR-код: '\(code)'")
+    showQRScanner = false
+    
+    let cleanedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
+    
+    // Проверяем различные форматы QR-кодов Hue Bridge
+    if cleanedCode.hasPrefix("bridge-id:") {
+        // Основной формат Philips Hue: bridge-id:ECB5FAFFFE896811
+        print("✅ Распознан QR-код Philips Hue Bridge")
+        if let bridgeId = parseBridgeId(from: code) {
+            print("✅ Bridge ID успешно извлечен: \(bridgeId)")
+            searchForSpecificBridge(bridgeId: bridgeId)
+        } else {
+            print("⚠️ Не удалось извлечь Bridge ID, выполняем общий поиск")
+            startBridgeSearch()
+        }
+        currentStep = .searchBridges
+        
+    } else if cleanedCode.hasPrefix("S#") {
+        // Альтернативный формат: S#12345678
+        print("✅ Распознан альтернативный QR-код Hue Bridge")
+        let serialNumber = String(cleanedCode.dropFirst(2))
+        searchForSpecificBridge(bridgeId: serialNumber)
+        currentStep = .searchBridges
+        
+    } else if cleanedCode.hasPrefix("X-HM://") {
+        // HomeKit QR-код - НЕ Philips Hue
+        print("❌ Распознан HomeKit QR-код, но это не Philips Hue Bridge")
+        print("💡 QR-код рядом с HomeKit меткой предназначен для подключения к HomeKit")
+        print("💡 Для подключения к Hue используется поиск мостов в локальной сети")
+        
+        // Переходим сразу к поиску без QR-кода - мост находится в той же сети
+        print("🔍 Выполняем поиск Hue Bridge в локальной сети...")
+        currentStep = .searchBridges
+        startBridgeSearch()
+        
+    } else {
+        print("❌ Неизвестный формат QR-кода: \(cleanedCode)")
+        print("💡 Продолжаем с поиском мостов в локальной сети")
+        
+        // Переходим к сетевому поиску
+        print("🔍 Выполняем поиск Hue Bridge в локальной сети...")
+        currentStep = .searchBridges
+        startBridgeSearch()
+    }
+}
+/// Парсинг ID моста из QR-кода
+private func parseBridgeId(from input: String) -> String? {
+    let cleaned = input.trimmingCharacters(in: .whitespacesAndNewlines)
+    
+    print("🔍 Парсинг QR-кода: '\(cleaned)'")
+    
+    // ГЛАВНЫЙ ФОРМАТ с фото: bridge-id:ECB5FAFFFE896811
+    if cleaned.hasPrefix("bridge-id:") {
+        let bridgeId = String(cleaned.dropFirst(10)).trimmingCharacters(in: .whitespacesAndNewlines)
+        print("✅ Извлечен Bridge ID из 'bridge-id:' формата: \(bridgeId)")
+        return bridgeId.uppercased()
+    }
+    
+    // Альтернативные форматы с bridge-id
+    if cleaned.contains("bridge-id") {
+        let patterns = [
+            #"bridge-id:\s*([A-Fa-f0-9]{12,16})"#,
+            #"bridge-id\s+([A-Fa-f0-9]{12,16})"#,
+            #"bridge-id\s*:\s*([A-Fa-f0-9]{12,16})"#
+        ]
+        
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+               let match = regex.firstMatch(in: cleaned, options: [], range: NSRange(location: 0, length: cleaned.count)),
+               let range = Range(match.range(at: 1), in: cleaned) {
+                let bridgeId = String(cleaned[range])
+                print("✅ Извлечен Bridge ID через regex: \(bridgeId)")
+                return bridgeId.uppercased()
+            }
+        }
+    }
+    
+    // Если ничего не подошло, ищем hex последовательность
+    let hexPattern = #"[A-Fa-f0-9]{12,16}"#
+    if let regex = try? NSRegularExpression(pattern: hexPattern, options: []),
+       let match = regex.firstMatch(in: cleaned, options: [], range: NSRange(location: 0, length: cleaned.count)),
+       let range = Range(match.range, in: cleaned) {
+        let bridgeId = String(cleaned[range])
+        print("✅ Найден возможный Bridge ID (hex): \(bridgeId)")
+        return bridgeId.uppercased()
+    }
+    
+    print("❌ Не удалось извлечь Bridge ID из: '\(cleaned)'")
+    return nil
+}
+*/

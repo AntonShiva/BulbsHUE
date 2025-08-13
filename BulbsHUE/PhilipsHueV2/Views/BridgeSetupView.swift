@@ -283,36 +283,55 @@ struct BridgeSetupView: View {
         return nil
     }
     
-    /// Поиск мостов в сети согласно Philips Hue Discovery Guide
+    /// Поиск мостов в сети с улучшенной диагностикой
     private func searchForBridges() {
-        print("🔍 Запускаем комплексный поиск Hue Bridge...")
+        print("🔍 Запускаем улучшенный поиск Hue Bridge...")
         isSearching = true
+        
+        // Показываем сетевую диагностику
+        let networkInfo = NetworkDiagnostics.getCurrentNetworkInfo()
+        print(networkInfo)
         
         // Очищаем предыдущие результаты
         viewModel.discoveredBridges.removeAll()
         
-        // Запускаем поиск (mDNS + N-UPnP параллельно)
-        viewModel.searchForBridges()
-        
-        // Таймаут поиска согласно рекомендациям:
-        // - UPnP/mDNS: максимум 5 секунд
-        // - N-UPnP: максимум 8 секунд
-        // - Общий таймаут: 10 секунд
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-            self.isSearching = false
-            self.handleDiscoveryResults()
+        // Используем новый улучшенный discovery
+        if #available(iOS 12.0, *) {
+            let discovery = HueBridgeDiscovery()
+            discovery.discoverBridges { bridges in
+                DispatchQueue.main.async {
+                    self.isSearching = false
+                    self.viewModel.discoveredBridges = bridges
+                    self.handleDiscoveryResults()
+                }
+            }
+        } else {
+            // Fallback для старых версий
+            viewModel.searchForBridges()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
+                self.isSearching = false
+                self.handleDiscoveryResults()
+            }
         }
     }
     
-    /// Обработка результатов поиска мостов
+    /// Обработка результатов поиска мостов с диагностикой
     private func handleDiscoveryResults() {
         let foundBridges = viewModel.discoveredBridges
         
         print("📊 Результаты поиска: найдено \(foundBridges.count) мостов")
         
         if foundBridges.isEmpty {
-            print("❌ Мосты не найдены. Предлагаем ручной ввод IP.")
-            showNoBridgesFoundAlert()
+            print("❌ Мосты не найдены. Запускаем диагностику...")
+            
+            // Генерируем диагностический отчет
+            NetworkDiagnostics.generateDiagnosticReport { report in
+                DispatchQueue.main.async {
+                    print("🔍 ДИАГНОСТИЧЕСКИЙ ОТЧЕТ:")
+                    print(report)
+                    self.showNoBridgesFoundAlert()
+                }
+            }
         } else if foundBridges.count == 1 {
             print("✅ Найден один мост: \(foundBridges[0].internalipaddress)")
             selectedBridge = foundBridges.first
@@ -321,6 +340,9 @@ struct BridgeSetupView: View {
             }
         } else {
             print("🔀 Найдено несколько мостов: \(foundBridges.count)")
+            for bridge in foundBridges {
+                print("   - \(bridge.name) (\(bridge.id)) at \(bridge.internalipaddress)")
+            }
             showMultipleBridgesSelection(foundBridges)
         }
     }

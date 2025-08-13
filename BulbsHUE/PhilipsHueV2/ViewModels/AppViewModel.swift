@@ -120,14 +120,23 @@ class AppViewModel: ObservableObject {
         // Используем Cloud Discovery и IP scan (не требуют специальных entitlements)
         if #available(iOS 14.0, *) {
             let permissionChecker = LocalNetworkPermissionChecker()
-            permissionChecker.checkLocalNetworkPermission { [weak self] hasPermission in
-                if hasPermission {
-                    self?.startDiscoveryProcess()
-                } else {
-                    print("❌ Отсутствует разрешение локальной сети")
-                    DispatchQueue.main.async {
-                        self?.connectionStatus = .disconnected
-                        self?.error = HueAPIError.localNetworkPermissionDenied
+            Task {
+                do {
+                    let hasPermission = try await permissionChecker.requestAuthorization()
+                    await MainActor.run {
+                        if hasPermission {
+                            self.startDiscoveryProcess()
+                        } else {
+                            print("❌ Отсутствует разрешение локальной сети")
+                            self.connectionStatus = .disconnected
+                            self.error = HueAPIError.localNetworkPermissionDenied
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("❌ Ошибка при запросе разрешения локальной сети: \(error)")
+                        self.connectionStatus = .disconnected
+                        self.error = HueAPIError.localNetworkPermissionDenied
                     }
                 }
             }
@@ -870,16 +879,21 @@ extension AppViewModel {
             .sink(
                 receiveCompletion: { result in
                     if case .failure(let error) = result {
-                        print("❌ Ошибка создания пользователя: \(error)")
+                        print("❌ AppViewModel: Ошибка создания пользователя: \(error)")
                         
                         // Специальная обработка ошибки локальной сети
                         if let nsError = error as NSError?,
                            nsError.code == -1009 {
-                            print("🚫 Нет доступа к локальной сети!")
+                            print("🚫 AppViewModel: Нет доступа к локальной сети!")
                             self.error = HueAPIError.localNetworkPermissionDenied
-                        } else if case HueAPIError.linkButtonNotPressed = error as? HueAPIError ?? HueAPIError.invalidResponse {
-                            print("⏳ Кнопка Link еще не нажата")
+                        } else if let hueError = error as? HueAPIError,
+                                  case .linkButtonNotPressed = hueError {
+                            print("⏳ AppViewModel: Кнопка Link еще не нажата")
+                            self.error = HueAPIError.linkButtonNotPressed
                             // Это нормально - продолжаем попытки
+                        } else {
+                            print("⚠️ AppViewModel: Неизвестная ошибка: \(error)")
+                            self.error = error as? HueAPIError ?? HueAPIError.invalidResponse
                         }
                         
                         completion(false)

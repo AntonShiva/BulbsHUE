@@ -1330,8 +1330,8 @@ extension HueAPIClient {
     
     /// Создает нового пользователя с правильной обработкой локальной сети
     func createUserWithLocalNetworkCheck(appName: String, deviceName: String) -> AnyPublisher<AuthenticationResponse, Error> {
-        // Используем HTTP вместо HTTPS для локальной сети
-        guard let url = URL(string: "http://\(bridgeIP)/api") else {
+        // Используем HTTPS для API v2 (современный безопасный подход)
+        guard let url = baseURLHTTPS?.appendingPathComponent("/api") else {
             return Fail(error: HueAPIError.invalidURL)
                 .eraseToAnyPublisher()
         }
@@ -1339,7 +1339,7 @@ extension HueAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 5.0 // Короткий таймаут для локальной сети
+        request.timeoutInterval = 10.0 // Увеличенный таймаут для HTTPS
         
         let body = [
             "devicetype": "\(appName)#\(deviceName)",
@@ -1353,15 +1353,24 @@ extension HueAPIClient {
                 .eraseToAnyPublisher()
         }
         
-        // Используем URLSession.shared для локальных запросов
-        return URLSession.shared.dataTaskPublisher(for: request)
+        // Используем HTTPS сессию с правильной проверкой сертификата
+        return sessionHTTPS.dataTaskPublisher(for: request)
             .tryMap { data, response in
                 // Логируем ответ для отладки
                 if let httpResponse = response as? HTTPURLResponse {
-                    print("🌐 HTTP Status: \(httpResponse.statusCode)")
+                    print("🌐 HueAPIClient: HTTPS Status: \(httpResponse.statusCode)")
+                    print("🌐 HueAPIClient: URL: \(httpResponse.url?.absoluteString ?? "unknown")")
                     
                     if let responseString = String(data: data, encoding: .utf8) {
-                        print("📦 Response: \(responseString)")
+                        print("📦 HueAPIClient: Response: \(responseString)")
+                    }
+                    
+                    // Проверяем статус код
+                    if httpResponse.statusCode != 200 {
+                        print("❌ HueAPIClient: Неожиданный статус код: \(httpResponse.statusCode)")
+                        if httpResponse.statusCode == 403 {
+                            throw HueAPIError.localNetworkPermissionDenied
+                        }
                     }
                 }
                 
@@ -1369,21 +1378,31 @@ extension HueAPIClient {
             }
             .decode(type: [AuthenticationResponse].self, decoder: JSONDecoder())
             .tryMap { responses in
+                print("🔍 HueAPIClient: Получено \(responses.count) ответов")
+                
                 // Проверяем ответ
                 if let response = responses.first {
+                    print("🔍 HueAPIClient: Первый ответ: \(response)")
+                    
                     if let error = response.error {
-                        print("❌ Hue API Error: \(error.description ?? "Unknown")")
+                        print("❌ HueAPIClient: Hue API Error - Type: \(error.type ?? -1), Description: \(error.description ?? "Unknown")")
                         
                         // Код 101 означает что кнопка Link не нажата
                         if error.type == 101 {
+                            print("⏳ HueAPIClient: Link button not pressed (code 101)")
                             throw HueAPIError.linkButtonNotPressed
                         } else {
+                            print("⚠️ HueAPIClient: Other Hue API error: \(error.type ?? 0)")
                             throw HueAPIError.httpError(statusCode: error.type ?? 0)
                         }
-                    } else if response.success != nil {
-                        print("✅ Успешная авторизация!")
+                    } else if let success = response.success {
+                        print("✅ HueAPIClient: Успешная авторизация! Username: \(success.username ?? "unknown")")
                         return response
+                    } else {
+                        print("❌ HueAPIClient: Ответ не содержит ни success, ни error")
                     }
+                } else {
+                    print("❌ HueAPIClient: Массив ответов пуст")
                 }
                 
                 throw HueAPIError.invalidResponse
