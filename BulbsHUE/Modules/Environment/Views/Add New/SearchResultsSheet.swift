@@ -147,6 +147,8 @@ struct SearchResultsSheet: View {
         }
         .onAppear {
             // Обновляем данные ламп при каждом открытии экрана с принудительным обновлением статуса
+            // ✅ НОВОЕ ПОВЕДЕНИЕ: HueAPIClient.updateLightCommunicationStatus теперь обновляет 
+            // статус связи в памяти через LightsViewModel для мгновенного отклика UI
             print("🔄 SearchResultsSheet: Обновляем данные ламп с актуальным статусом")
             Task {
                 await lightsViewModel.refreshLightsWithStatus()
@@ -221,6 +223,8 @@ struct LightResultCell: View {
     }
     
     var body: some View {
+        // ✅ ИСПОЛЬЗОВАНИЕ СТАТУСА СВЯЗИ: effectiveState и isReachable учитывают 
+        // CommunicationStatus который обновляется в реальном времени через HueAPIClient
         let effectiveState = light.effectiveState
         let isReachable = light.isReachable
         let effectiveBrightness = light.effectiveBrightness

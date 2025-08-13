@@ -80,6 +80,9 @@ class LightsViewModel: ObservableObject {
     init(apiClient: HueAPIClient) {
         self.apiClient = apiClient
         setupBindings()
+        
+        // Устанавливаем обратную связь для обновления статуса связи
+        apiClient.setLightsViewModel(self)
     }
     
     // MARK: - Public Methods
@@ -635,6 +638,24 @@ class LightsViewModel: ObservableObject {
     func stopAutoRefresh() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+    }
+    
+    /// Обновляет статус связи конкретной лампы в памяти для мгновенного отклика UI
+    /// - Parameters:
+    ///   - lightId: ID лампы
+    ///   - status: Новый статус связи
+    func updateLightCommunicationStatus(lightId: String, status: CommunicationStatus) {
+        guard let index = lights.firstIndex(where: { $0.id == lightId }) else {
+            print("⚠️ LightsViewModel: Лампа с ID \(lightId) не найдена для обновления статуса")
+            return
+        }
+        
+        // Обновляем статус лампы в памяти
+        lights[index].communicationStatus = status
+        print("✅ LightsViewModel: Обновлен статус связи лампы \(lightId): \(status)")
+        
+        // Публикуем изменение для UI
+        objectWillChange.send()
     }
     
     // MARK: - Private Methods

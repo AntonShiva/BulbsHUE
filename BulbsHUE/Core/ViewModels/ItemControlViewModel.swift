@@ -270,6 +270,15 @@ class ItemControlViewModel: ObservableObject {
         return service.getRoomIcon(for: light)
     }
     
+    /// Проверить доступность лампы по сети
+    /// - Returns: true если лампа доступна, false если недоступна (обесточена)
+    func isLightReachable() -> Bool {
+        guard let light = currentLight else { 
+            return false 
+        }
+        return light.isReachable
+    }
+    
     // MARK: - Private Methods
     
     /// Настройка наблюдателей для синхронизации через протокол
@@ -294,8 +303,18 @@ class ItemControlViewModel: ObservableObject {
         
         // Находим обновлённую версию текущей лампы
         if let updatedLight = lights.first(where: { $0.id == currentLightId }) {
+            let wasReachable = currentLight?.isReachable ?? true
+            let isNowReachable = updatedLight.isReachable
+            
             // Обновляем текущую лампу
             currentLight = updatedLight
+            
+            // Если изменился статус связи - принудительно обновляем UI
+            if wasReachable != isNowReachable {
+                print("🔄 ItemControlViewModel: Изменился статус связи лампы \(currentLightId): \(isNowReachable ? "доступна" : "недоступна")")
+                // Принудительно обновляем UI для индикатора "Обесточена"
+                objectWillChange.send()
+            }
             
             // Синхронизируем состояние только если пользователь не активно взаимодействует
             if debouncedTask == nil {

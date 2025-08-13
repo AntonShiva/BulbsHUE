@@ -32,6 +32,9 @@ class HueAPIClient: NSObject {
     /// Сервис для персистентного хранения данных
     private weak var dataPersistenceService: DataPersistenceService?
     
+    /// Weak reference на LightsViewModel для обновления статуса связи
+    private weak var lightsViewModel: LightsViewModel?
+    
     /// URLSession с настроенной проверкой сертификата
     /// Исправлено для iOS 17+ совместимости
     private lazy var session: URLSession = {
@@ -141,6 +144,12 @@ class HueAPIClient: NSObject {
     /// - Parameter key: Application key полученный при регистрации
     func setApplicationKey(_ key: String) {
         self.applicationKey = key
+    }
+    
+    /// Устанавливает LightsViewModel для обновления статуса связи
+    /// - Parameter viewModel: LightsViewModel который будет получать обновления статуса
+    func setLightsViewModel(_ viewModel: LightsViewModel) {
+        self.lightsViewModel = viewModel
     }
     
     // MARK: - Authentication
@@ -1301,29 +1310,18 @@ extension HueAPIClient: URLSessionDelegate, URLSessionDataDelegate {
         updateLightCommunicationStatus(lightId: lightId, status: .online)
     }
     
-    /// Обновляет статус связи лампы в DataPersistenceService
+    /// Обновляет статус связи лампы в LightsViewModel (в памяти)
     private func updateLightCommunicationStatus(lightId: String, status: CommunicationStatus) {
         DispatchQueue.main.async { [weak self] in
-            // ✅ ВРЕМЕННО ОТКЛЮЧЕНО: не сохраняем статус связи в БД при каждом управлении
-            // Это вызывало бесконечные циклы обновлений в UI
-            print("[HueAPIClient] Обновлен статус связи лампы \(lightId): \(status) (не сохраняется в БД)")
+            print("[HueAPIClient] Обновляем статус связи лампы \(lightId): \(status)")
             
-            /*
-            guard let dataPersistenceService = self?.dataPersistenceService else {
-                print("[HueAPIClient] DataPersistenceService не доступен")
-                return
+            // Обновляем статус в LightsViewModel для мгновенного отклика UI
+            if let lightsViewModel = self?.lightsViewModel {
+                lightsViewModel.updateLightCommunicationStatus(lightId: lightId, status: status)
+                print("[HueAPIClient] ✅ Статус связи обновлен в LightsViewModel")
+            } else {
+                print("[HueAPIClient] ⚠️ LightsViewModel недоступен для обновления статуса")
             }
-            
-            // Находим лампу в сохраненных данных и обновляем её статус
-            let savedLights = dataPersistenceService.fetchAllLights()
-            if let lightToUpdate = savedLights.first(where: { $0.id == lightId }) {
-                // Создаем копию лампы с обновленным статусом связи
-                var updatedLight = lightToUpdate
-                updatedLight.communicationStatus = status
-                dataPersistenceService.saveLightData(updatedLight)
-                print("[HueAPIClient] Обновлен статус связи лампы \(lightId): \(status)")
-            }
-            */
         }
     }
 }

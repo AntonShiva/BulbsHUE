@@ -55,17 +55,17 @@ struct ItemControl: View {
                     }
                 )
                 
-//                // Статус питания и информация о лампе
-//                VStack(alignment: .leading, spacing: 6) {
-//                    HStack(spacing: 8) {
-//                        Circle()
-//                            .fill(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.6))
-//                            .frame(width: 8, height: 8)
-//                        Text(itemControlViewModel.isOn ? "ON" : "OFF")
-//                            .font(Font.custom("DMSans-Medium", size: 11))
-//                            .foregroundStyle(itemControlViewModel.isOn ? Color.green.opacity(0.9) : Color.gray.opacity(0.8))
-//                            .textCase(.uppercase)
-//                    }
+                // Индикатор статуса лампы (недоступность по сети)
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(itemControlViewModel.isLightReachable() ? Color.green.opacity(0) : Color.red.opacity(0.6))
+                        .frame(width: 8, height: 8)
+                    Text(itemControlViewModel.isLightReachable() ? "" : "Обесточена")
+                        .font(Font.custom("DMSans-Medium", size: 11))
+                        .foregroundStyle(itemControlViewModel.isLightReachable() ? Color.green.opacity(0.9) : Color.red.opacity(0.8))
+                        .textCase(.uppercase)
+                }
+                .adaptiveOffset(x: -10, y: -38)
 //                    Text(itemControlViewModel.getRoomName())
 //                        .font(Font.custom("DMSans-Regular", size: 12))
 //                        .foregroundStyle(Color.white.opacity(0.75))
@@ -73,7 +73,7 @@ struct ItemControl: View {
 //                        .font(Font.custom("DMSans-Medium", size: 14))
 //                        .foregroundStyle(Color.white)
 //                }
-//                .adaptiveOffset(x: 40, y: -8)
+                
             }
             
             // Слайдер яркости справа
@@ -217,6 +217,18 @@ struct MockItemControl: View {
                         .foregroundStyle(Color.white)
                 }
                 .adaptiveOffset(x: 40, y: -8)
+                
+                // Индикатор статуса лампы для Mock версии
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(itemControlViewModel.isLightReachable() ? Color.green.opacity(0) : Color.red.opacity(0.6))
+                        .frame(width: 8, height: 8)
+                    Text(itemControlViewModel.isLightReachable() ? "" : "Обесточена")
+                        .font(Font.custom("DMSans-Medium", size: 11))
+                        .foregroundStyle(itemControlViewModel.isLightReachable() ? Color.green.opacity(0.9) : Color.red.opacity(0.8))
+                        .textCase(.uppercase)
+                }
+                .adaptiveOffset(x: -10, y: -38)
             }
             
             CustomSlider(
