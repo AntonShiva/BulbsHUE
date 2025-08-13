@@ -53,6 +53,6 @@ extension Color {
 
     /// Рекомендуемый цвет переднего плана (текст/иконки) на данном фоне
     var preferredForeground: Color {
-        isLightBackground ? Color.black.opacity(0.9) : Color.white
+        isLightBackground ? Color.black.opacity(0.8) : Color.white
     }
 }

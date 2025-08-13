@@ -89,6 +89,7 @@ struct ControlView: View {
              }
              .frame(width: 250) // Ширина контейнера для текста
              .adaptiveOffset(x: -3, y: -3)
+            
             HStack {
             // Тип лампы (подзаголовок)
             Text(bulbType)
@@ -106,7 +107,7 @@ struct ControlView: View {
             
             // Разделительная линия
             Rectangle()
-                .fill(Color(red: 0.79, green: 1, blue: 1))
+                .fill(baseColor.preferredForeground)
                 .adaptiveFrame(width: 153, height: 2)
                 .opacity(0.2)
                 .adaptiveOffset(x: -42, y: 33)
@@ -145,7 +146,8 @@ struct ControlView: View {
             
             // Кнопка дополнительных настроек (справа вверху)
             ZStack {
-                BGCircle()
+                Circle()
+                    .stroke(baseColor.preferredForeground.opacity(0.2), lineWidth: 2.2)
                     .adaptiveFrame(width: 36, height: 36)
                 
                 Image(systemName: "ellipsis")

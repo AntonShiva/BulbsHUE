@@ -79,7 +79,7 @@ class LightControlService: ObservableObject, LightControlling {
     func getBulbType(for light: Light) -> String {
         // Сначала проверяем архетип, который устанавливает пользователь
         if let archetype = light.metadata.archetype, !archetype.isEmpty {
-            return archetype
+            return getCategoryName(for: archetype)
         }
         
         // Если архетип не установлен - используем тип по умолчанию
@@ -93,23 +93,106 @@ class LightControlService: ObservableObject, LightControlling {
         }
     }
     
+    /// Получить название категории по архетипу
+    private func getCategoryName(for archetype: String) -> String {
+        let archetypeLower = archetype.lowercased()
+        
+        // Определяем категорию на основе архетипа
+        if archetypeLower.contains("traditional") || 
+           archetypeLower.contains("desk") ||
+           archetypeLower.contains("table") ||
+           archetypeLower.contains("wash") {
+            return "TABLE"
+        }
+        else if archetypeLower.contains("christmas") ||
+                archetypeLower.contains("floor") ||
+                archetypeLower.contains("shade") ||
+                archetypeLower.contains("lantern") ||
+                archetypeLower.contains("bollard") ||
+                archetypeLower.contains("ground") ||
+                archetypeLower.contains("recessed floor") ||
+                archetypeLower.contains("light bar") {
+            return "FLOOR"
+        }
+        else if archetypeLower.contains("wall") ||
+                archetypeLower.contains("dual") {
+            return "WALL"
+        }
+        else if archetypeLower.contains("pendant") ||
+                archetypeLower.contains("ceiling") ||
+                archetypeLower.contains("spot") ||
+                archetypeLower.contains("recessed ceiling") ||
+                archetypeLower.contains("tube") ||
+                archetypeLower.contains("horizontal") {
+            return "CEILING"
+        }
+        else {
+            // Все остальные (signature, rounded, flood, candelabra, filament, mini, lightstrip, etc.)
+            return "OTHER"
+        }
+    }
+    
     func getBulbIcon(for light: Light) -> String {
+        // Сначала проверяем архетип (выбранную пользователем категорию)
+        if let archetype = light.metadata.archetype, !archetype.isEmpty {
+            return getCategoryIcon(for: archetype)
+        }
+        
+        // Если архетип не установлен - используем маппинг по комнатам (legacy)
         let roomName = getRoomName(for: light).lowercased()
         
-        // Маппинг комнат на иконки ламп
         switch roomName {
         case _ where roomName.contains("living"):
-            return "f2" // Floor lamp for living room
+            return "floor" // Floor category icon
         case _ where roomName.contains("bedroom"):
-            return "t1" // Table lamp for bedroom
+            return "table" // Table category icon
         case _ where roomName.contains("kitchen"):
-            return "c1" // Ceiling lamp for kitchen
+            return "ceiling" // Ceiling category icon
         case _ where roomName.contains("bathroom"):
-            return "c2" // Ceiling lamp for bathroom
+            return "ceiling" // Ceiling category icon
         case _ where roomName.contains("office"):
-            return "t2" // Table lamp for office
+            return "table" // Table category icon
         default:
-            return "f2" // Default floor lamp
+            return "floor" // Default floor category icon
+        }
+    }
+    
+    /// Получить иконку категории по архетипу
+    private func getCategoryIcon(for archetype: String) -> String {
+        let archetypeLower = archetype.lowercased()
+        
+        // Определяем категорию на основе архетипа
+        if archetypeLower.contains("traditional") || 
+           archetypeLower.contains("desk") ||
+           archetypeLower.contains("table") ||
+           archetypeLower.contains("wash") {
+            return "table"
+        }
+        else if archetypeLower.contains("christmas") ||
+                archetypeLower.contains("floor") ||
+                archetypeLower.contains("shade") ||
+                archetypeLower.contains("lantern") ||
+                archetypeLower.contains("bollard") ||
+                archetypeLower.contains("ground") ||
+                archetypeLower.contains("recessed floor") ||
+                archetypeLower.contains("light bar") {
+            return "floor"
+        }
+        else if archetypeLower.contains("wall") ||
+                archetypeLower.contains("dual") {
+            return "wall"
+        }
+        else if archetypeLower.contains("pendant") ||
+                archetypeLower.contains("ceiling") ||
+                archetypeLower.contains("spot") ||
+                archetypeLower.contains("recessed ceiling") ||
+                archetypeLower.contains("tube") ||
+                archetypeLower.contains("horizontal") {
+            return "ceiling"
+        }
+        else {
+            // Все остальные (signature, rounded, flood, candelabra, filament, mini, lightstrip, etc.)
+            return "other"
         }
     }
     

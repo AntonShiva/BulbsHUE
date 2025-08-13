@@ -85,7 +85,7 @@ struct CustomSlider: View {
                 // Проценты — поверх
                 Text("\(Int(percent))%")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(color.preferredForeground)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 8)
                     .shadow(radius: 1)
