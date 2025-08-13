@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 /// Компонент для управления отдельной лампой
 /// Использует изолированную ViewModel для каждой лампы
@@ -92,14 +93,76 @@ struct ItemControl: View {
         }
         .onAppear {
             // Конфигурируем изолированную ViewModel с сервисом из appViewModel
-            itemControlViewModel.configure(
-                with: LightControlService(appViewModel: appViewModel),
-                light: light
-            )
+            let lightService = LightControlService(appViewModel: appViewModel)
+            itemControlViewModel.configure(with: lightService, light: light)
+            
+            // ИСПРАВЛЕНИЕ: Получаем актуальные данные из DataPersistenceService, 
+            // а не используем устаревший объект Light из API
+            loadActualLightData()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("LightDataUpdated"))) { notification in
+            // Обновляемся только при изменениях archetype, не при управлении лампой
+            if let userInfo = notification.userInfo,
+               let updateType = userInfo["updateType"] as? String,
+               updateType == "archetype" {
+                print("🔄 ItemControl: Получено обновление archetype из БД")
+                loadActualLightData()
+            }
         }
         .onChange(of: light) { newLight in
-            // Обновляем лампу если она изменилась извне
+            // ✅ Просто обновляем ViewModel БЕЗ сохранения в БД
+            print("🔄 ItemControl.onChange: Обновление состояния от API (on=\(newLight.on.on), brightness=\(newLight.dimming?.brightness ?? 0))")
+            
+            // Если есть сохранённый archetype в БД - используем его, иначе берём из API
+            if let dataService = appViewModel.dataService {
+                let savedLights = dataService.fetchAssignedLights()
+                if let savedLight = savedLights.first(where: { $0.id == newLight.id }),
+                   let savedArchetype = savedLight.metadata.archetype,
+                   !savedArchetype.isEmpty {
+                    // Создаём гибридный объект: состояние из API + archetype из БД
+                    var hybridLight = newLight
+                    hybridLight.metadata.archetype = savedArchetype
+                    print("🔀 Обновлён гибридный объект: состояние из API + archetype '\(savedArchetype)' из БД")
+                    itemControlViewModel.setCurrentLight(hybridLight)
+                    return
+                }
+            }
+            
+            // Если в БД нет - используем данные из API как есть
             itemControlViewModel.setCurrentLight(newLight)
+        }
+
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Загрузить актуальные данные лампы из DataPersistenceService
+    private func loadActualLightData() {
+        print("🔄 ItemControl.loadActualLightData для лампы: \(light.metadata.name) (ID: \(light.id))")
+        
+        // Получаем актуальные данные из DataPersistenceService через AppViewModel
+        if let dataPersistenceService = appViewModel.dataService {
+            let savedLights = dataPersistenceService.fetchAssignedLights()
+            if let savedLight = savedLights.first(where: { $0.id == light.id }) {
+                print("✅ Найдена лампа в БД с archetype: '\(savedLight.metadata.archetype ?? "nil")'")
+                
+                // СОЗДАЁМ ГИБРИДНЫЙ ОБЪЕКТ: archetype из БД + актуальное состояние из API
+                var hybridLight = light // Начинаем с актуальных данных из API
+                hybridLight.metadata.archetype = savedLight.metadata.archetype // Заменяем только archetype
+                
+                print("🔀 Создан гибридный объект Light:")
+                print("   └── archetype из БД: '\(hybridLight.metadata.archetype ?? "nil")'")
+                print("   └── состояние из API: on=\(hybridLight.on.on), brightness=\(hybridLight.dimming?.brightness ?? 0)")
+                
+                // Обновляем ViewModel с гибридными данными
+                itemControlViewModel.setCurrentLight(hybridLight)
+            } else {
+                print("⚠️ Лампа не найдена в БД, используем данные из API")
+                itemControlViewModel.setCurrentLight(light)
+            }
+        } else {
+            print("⚠️ DataPersistenceService недоступен, используем данные из API")
+            itemControlViewModel.setCurrentLight(light)
         }
     }
 

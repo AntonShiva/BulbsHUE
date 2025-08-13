@@ -73,20 +73,30 @@ final class DataPersistenceService: ObservableObject {
     ///   - isAssignedToEnvironment: (опц.) Явно установить флаг назначения в Environment
     ///       Если nil — сохраняем текущее значение без изменений (ВАЖНО: не затираем true на false)
     func saveLightData(_ light: Light, isAssignedToEnvironment: Bool? = nil) {
-        print("🔄 DataPersistenceService.saveLightData: \(light.metadata.name), assigned: \(String(describing: isAssignedToEnvironment))")
+        print("🔄 DataPersistenceService.saveLightData:")
+        print("   └── Лампа: '\(light.metadata.name)' (ID: \(light.id))")
+        print("   └── archetype: '\(light.metadata.archetype ?? "nil")'")
+        print("   └── isAssignedToEnvironment: \(String(describing: isAssignedToEnvironment))")
         
         Task { @MainActor in
             isUpdating = true
             
             // Проверяем, существует ли уже эта лампа
             if let existingLight = fetchLightData(by: light.id) {
-                // Обновляем существующую
+                // Обновляем существующую базовыми полями
                 existingLight.updateFromLight(light)
+                // Если вызов идёт из UI (передан параметр назначения),
+                // то это сохранение выбора пользователя: принудительно фиксируем подтип
+                if isAssignedToEnvironment != nil,
+                   let selectedSubtype = light.metadata.archetype,
+                   !selectedSubtype.isEmpty {
+                    existingLight.archetype = selectedSubtype
+                }
                 // ВАЖНО: не сбрасывать назначение при отсутствующем параметре
                 if let isAssignedToEnvironment {
                     existingLight.isAssignedToEnvironment = isAssignedToEnvironment
                 }
-                print("✅ Обновлена существующая лампа: \(light.metadata.name) | assigned=\(existingLight.isAssignedToEnvironment)")
+                print("✅ Обновлена существующая лампа: '\(light.metadata.name)' | archetype='\(existingLight.archetype)' | assigned=\(existingLight.isAssignedToEnvironment)")
             } else {
                 // Создаем новую
                 let lightData = LightDataModel.fromLight(light, isAssignedToEnvironment: isAssignedToEnvironment ?? false)
@@ -98,6 +108,15 @@ final class DataPersistenceService: ObservableObject {
             
             // Обновляем @Published свойства для UI
             loadAssignedLights()
+            
+            // Уведомляем компоненты об обновлении данных
+            // Определяем тип обновления
+            let updateType = (isAssignedToEnvironment != nil) ? "archetype" : "status"
+            NotificationCenter.default.post(
+                name: Notification.Name("LightDataUpdated"), 
+                object: nil, 
+                userInfo: ["updateType": updateType, "lightId": light.id]
+            )
             
             isUpdating = false
             print("🔄 DataPersistenceService.saveLightData завершен")

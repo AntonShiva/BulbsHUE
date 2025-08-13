@@ -1304,6 +1304,11 @@ extension HueAPIClient: URLSessionDelegate, URLSessionDataDelegate {
     /// Обновляет статус связи лампы в DataPersistenceService
     private func updateLightCommunicationStatus(lightId: String, status: CommunicationStatus) {
         DispatchQueue.main.async { [weak self] in
+            // ✅ ВРЕМЕННО ОТКЛЮЧЕНО: не сохраняем статус связи в БД при каждом управлении
+            // Это вызывало бесконечные циклы обновлений в UI
+            print("[HueAPIClient] Обновлен статус связи лампы \(lightId): \(status) (не сохраняется в БД)")
+            
+            /*
             guard let dataPersistenceService = self?.dataPersistenceService else {
                 print("[HueAPIClient] DataPersistenceService не доступен")
                 return
@@ -1318,6 +1323,7 @@ extension HueAPIClient: URLSessionDelegate, URLSessionDataDelegate {
                 dataPersistenceService.saveLightData(updatedLight)
                 print("[HueAPIClient] Обновлен статус связи лампы \(lightId): \(status)")
             }
+            */
         }
     }
 }

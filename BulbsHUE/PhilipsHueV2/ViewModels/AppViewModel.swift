@@ -75,6 +75,11 @@ class AppViewModel: ObservableObject {
     /// Сервис для персистентного хранения данных
     private weak var dataPersistenceService: DataPersistenceService?
     
+    /// Публичный доступ к DataPersistenceService для других компонентов
+    var dataService: DataPersistenceService? {
+        return dataPersistenceService
+    }
+    
     // MARK: - Initialization
     
     init(dataPersistenceService: DataPersistenceService? = nil) {

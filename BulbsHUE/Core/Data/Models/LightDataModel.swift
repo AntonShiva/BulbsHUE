@@ -21,7 +21,7 @@ final class LightDataModel {
     /// Название лампы
     var name: String
     
-    /// Тип архетипа лампы (ceiling, floor, table, wall, other)
+    /// Тип архетипа лампы (название подтипа: "DESK LAMP", "CEILING ROUND", etc.)
     var archetype: String
     
     /// Состояние включения лампы
@@ -143,12 +143,41 @@ extension LightDataModel {
     /// Обновить данные из Light модели
     /// - Parameter light: Light модель из API
     func updateFromLight(_ light: Light) {
+        print("🔄 LightDataModel.updateFromLight:")
+        print("   └── Текущий archetype в БД: '\(self.archetype)'")
+        print("   └── Новый archetype из API: '\(light.metadata.archetype ?? "nil")'")
+        
         self.name = light.metadata.name
-        // ВАЖНО: Сохраняем существующий архетип если новый пустой
-        if let newArchetype = light.metadata.archetype, !newArchetype.isEmpty {
+        
+        // ВАЖНО: НЕ затирать пользовательский выбор подтипа из UI данными из API!
+        // Если в локальном хранилище уже есть подтип из наших BulbTypeModels (пользовательский выбор),
+        // НИКОГДА не заменяем его на archetype из API Philips Hue (например, sultan_bulb)
+        
+        let ourSubtypes = [
+            // TABLE
+            "TRADITIONAL LAMP", "DESK LAMP", "TABLE WASH",
+            // FLOOR  
+            "CHRISTMAS TREE", "FLOOR SHADE", "FLOOR LANTERN", "BOLLARD", "GROUND SPOT", "RECESSED FLOOR", "LIGHT BAR",
+            // WALL
+            "WALL LANTERN", "WALL SHADE", "WALL SPOT", "DUAL WALL LIGHT",
+            // CEILING
+            "PENDANT ROUND", "PENDANT HORIZONTAL", "CEILING ROUND", "CEILING SQUARE", "SINGLE SPOT", "DOUBLE SPOT", "RECESSED CEILING", "PEDANT SPOT", "CEILING HORIZONTAL", "CEILING TUBE",
+            // OTHER
+            "SIGNATURE BULB", "ROUNDED BULB", "SPOT", "FLOOD LIGHT", "CANDELABRA BULB", "FILAMENT BULB", "MINI-BULB", "HUE LIGHTSTRIP", "LIGHTGUIDE", "PLAY LIGHT BAR", "HUE BLOOM", "HUE IRIS", "SMART PLUG", "HUE CENTRIS", "HUE TUBE", "HUE SIGNE", "FLOODLIGHT CAMERA", "TWILIGHT"
+        ]
+        
+        // Если текущий archetype - это пользовательский выбор, НЕ перезаписываем его
+        if ourSubtypes.contains(self.archetype.uppercased()) {
+            print("   └── Сохраняем пользовательский подтип: '\(self.archetype)' (НЕ перезаписываем на '\(light.metadata.archetype ?? "nil")')")
+        } else if self.archetype.isEmpty,
+                  let newArchetype = light.metadata.archetype,
+                  !newArchetype.isEmpty {
+            print("   └── Устанавливаем archetype из API: '\(newArchetype)'")
             self.archetype = newArchetype
+        } else {
+            print("   └── Не изменяем archetype")
         }
-        // Архетип НЕ перезаписываем если он nil или пустой - сохраняем старый
+        
         self.isOn = light.on.on
         self.brightness = light.dimming?.brightness ?? self.brightness
         self.colorTemperature = light.color_temperature?.mirek
