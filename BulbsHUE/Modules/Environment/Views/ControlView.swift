@@ -87,16 +87,22 @@ struct ControlView: View {
                  
                  Spacer()
              }
-             .frame(width: 240) // Ширина контейнера для текста
-             .adaptiveOffset(x: -7, y: -3)
-            
+             .frame(width: 250) // Ширина контейнера для текста
+             .adaptiveOffset(x: -3, y: -3)
+            HStack {
             // Тип лампы (подзаголовок)
             Text(bulbType)
                 .font(Font.custom("DMSans-Light", size: 14))
                 .kerning(2.8)
                 .foregroundColor(baseColor.preferredForeground.opacity(0.9))
                 .textCase(.uppercase)
-                .adaptiveOffset(x: -63, y: 19)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                
+                Spacer()
+            }
+            .frame(width: 200)
+                .adaptiveOffset(x: -25, y: 19)
             
             // Разделительная линия
             Rectangle()
@@ -104,7 +110,7 @@ struct ControlView: View {
                 .adaptiveFrame(width: 153, height: 2)
                 .opacity(0.2)
                 .adaptiveOffset(x: -42, y: 33)
-            
+           
             // Иконка комнаты
             Image(roomIcon)
                 .renderingMode(.template)
@@ -115,12 +121,19 @@ struct ControlView: View {
                 .adaptiveOffset(x: -108, y: 46)
             
             // Название комнаты
+            HStack {
             Text(roomName)
                 .font(Font.custom("DMSans-Light", size: 12))
                 .kerning(2.4)
                 .foregroundColor(baseColor.preferredForeground.opacity(0.9))
                 .textCase(.uppercase)
-                .adaptiveOffset(x: -42, y: 46)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                
+                Spacer()
+            }
+            .frame(width: 180)
+                .adaptiveOffset(x: -10, y: 46)
             
             // Переключатель включения/выключения
             CustomToggle(isOn: $isOn)
