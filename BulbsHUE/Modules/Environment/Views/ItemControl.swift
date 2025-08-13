@@ -113,16 +113,15 @@ struct ItemControl: View {
             // ✅ Просто обновляем ViewModel БЕЗ сохранения в БД
             print("🔄 ItemControl.onChange: Обновление состояния от API (on=\(newLight.on.on), brightness=\(newLight.dimming?.brightness ?? 0))")
             
-            // Если есть сохранённый archetype в БД - используем его, иначе берём из API
+            // Если есть сохранённые userSubtype и иконка в БД - используем их, иначе берём из API
             if let dataService = appViewModel.dataService {
                 let savedLights = dataService.fetchAssignedLights()
-                if let savedLight = savedLights.first(where: { $0.id == newLight.id }),
-                   let savedArchetype = savedLight.metadata.archetype,
-                   !savedArchetype.isEmpty {
-                    // Создаём гибридный объект: состояние из API + archetype из БД
+                if let savedLight = savedLights.first(where: { $0.id == newLight.id }) {
+                    // Создаём гибридный объект: состояние из API + пользовательские подтип и иконка из БД
                     var hybridLight = newLight
-                    hybridLight.metadata.archetype = savedArchetype
-                    print("🔀 Обновлён гибридный объект: состояние из API + archetype '\(savedArchetype)' из БД")
+                    hybridLight.metadata.archetype = savedLight.metadata.archetype // ← userSubtype
+                    hybridLight.metadata.userSubtypeIcon = savedLight.metadata.userSubtypeIcon // ← иконка
+                    print("🔀 Обновлён гибридный объект: состояние из API + userSubtype '\(savedLight.metadata.archetype ?? "nil")' + иконка '\(savedLight.metadata.userSubtypeIcon ?? "nil")' из БД")
                     itemControlViewModel.setCurrentLight(hybridLight)
                     return
                 }
@@ -144,14 +143,16 @@ struct ItemControl: View {
         if let dataPersistenceService = appViewModel.dataService {
             let savedLights = dataPersistenceService.fetchAssignedLights()
             if let savedLight = savedLights.first(where: { $0.id == light.id }) {
-                print("✅ Найдена лампа в БД с archetype: '\(savedLight.metadata.archetype ?? "nil")'")
+                print("✅ Найдена лампа в БД с userSubtype: '\(savedLight.metadata.archetype ?? "nil")' и иконкой: '\(savedLight.metadata.userSubtypeIcon ?? "nil")'")
                 
-                // СОЗДАЁМ ГИБРИДНЫЙ ОБЪЕКТ: archetype из БД + актуальное состояние из API
+                // СОЗДАЁМ ГИБРИДНЫЙ ОБЪЕКТ: пользовательские данные из БД + актуальное состояние из API
                 var hybridLight = light // Начинаем с актуальных данных из API
-                hybridLight.metadata.archetype = savedLight.metadata.archetype // Заменяем только archetype
+                hybridLight.metadata.archetype = savedLight.metadata.archetype // Заменяем на userSubtype
+                hybridLight.metadata.userSubtypeIcon = savedLight.metadata.userSubtypeIcon // Заменяем на пользовательскую иконку
                 
                 print("🔀 Создан гибридный объект Light:")
-                print("   └── archetype из БД: '\(hybridLight.metadata.archetype ?? "nil")'")
+                print("   └── userSubtype из БД: '\(hybridLight.metadata.archetype ?? "nil")'")
+                print("   └── userIcon из БД: '\(hybridLight.metadata.userSubtypeIcon ?? "nil")'")
                 print("   └── состояние из API: on=\(hybridLight.on.on), brightness=\(hybridLight.dimming?.brightness ?? 0)")
                 
                 // Обновляем ViewModel с гибридными данными

@@ -71,16 +71,16 @@ class BulbTypeManager: ObservableObject {
             "DUAL WALL LIGHT"     // w4
         ],
         "CEILING": [
-            "PENDANT ROUND",      // с1
-            "PENDANT HORIZONTAL", // с2
-            "CEILING ROUND",      // с3
-            "CEILING SQUARE",     // с4
-            "SINGLE SPOT",        // с5
-            "DOUBLE SPOT",        // с6
-            "RECESSED CEILING",   // с7
-            "PEDANT SPOT",        // с8
-            "CEILING HORIZONTAL", // с9
-            "CEILING TUBE"        // с10
+            "PENDANT ROUND",      // c1
+            "PENDANT HORIZONTAL", // c2
+            "CEILING ROUND",      // c3
+            "CEILING SQUARE",     // c4
+            "SINGLE SPOT",        // c5
+            "DOUBLE SPOT",        // c6
+            "RECESSED CEILING",   // c7
+            "PEDANT SPOT",        // c8
+            "CEILING HORIZONTAL", // c9
+            "CEILING TUBE"        // c10
         ],
         "OTHER": [
             "SIGNATURE BULB",     // o1
@@ -91,16 +91,16 @@ class BulbTypeManager: ObservableObject {
             "FILAMENT BULB",      // o6
             "MINI-BULB",          // o7
             "HUE LIGHTSTRIP",     // o8
-            "LIGHTGUIDE",         // o9
-            "LIGHTGUIDE",         // o10
-            "LIGHTGUIDE",         // o11
-            "LIGHTGUIDE",         // o12
-            "LIGHTGUIDE",         // o13
-            "HUE LIGHTSTRIP",     // o14
+            "LIGHTGUIDE BASIC",   // o9
+            "LIGHTGUIDE SLIM",    // o10
+            "LIGHTGUIDE WIDE",    // o11
+            "LIGHTGUIDE CURVED",  // o12
+            "LIGHTGUIDE FLEX",    // o13
+            "HUE LIGHTSTRIP PLUS", // o14
             "PLAY LIGHT BAR",     // o15
             "HUE BLOOM",          // o16
-            "PLAY LIGHT BAR",     // o17
-            "HUE BLOOM",          // o18
+            "PLAY LIGHT BAR DUAL", // o17
+            "HUE BLOOM MINI",     // o18
             "HUE IRIS",           // o19
             "SMART PLUG",         // o20
             "HUE CENTRIS",        // o21
@@ -108,8 +108,8 @@ class BulbTypeManager: ObservableObject {
             "HUE SIGNE",          // o23
             "FLOODLIGHT CAMERA",  // o24
             "TWILIGHT",           // o25
-            "TWILIGHT",           // o26
-            "TWILIGHT"            // o27
+            "TWILIGHT PRO",       // o26
+            "TWILIGHT MINI"       // o27
         ]
     ]
     
@@ -119,7 +119,7 @@ class BulbTypeManager: ObservableObject {
             generateBulbType(name: "TABLE", iconName: "table", iconPrefix: "t", count: 3),
             generateBulbType(name: "FLOOR", iconName: "floor", iconPrefix: "f", count: 7),
             generateBulbType(name: "WALL", iconName: "wall", iconPrefix: "w", count: 4),
-            generateBulbType(name: "CEILING", iconName: "ceiling", iconWidth: 24, iconHeight: 20, iconPrefix: "с", count: 10),
+            generateBulbType(name: "CEILING", iconName: "ceiling", iconWidth: 24, iconHeight: 20, iconPrefix: "c", count: 10),
             generateBulbType(name: "OTHER", iconName: "other", iconPrefix: "o", count: 27)
         ]
     }()

@@ -314,8 +314,44 @@ struct LightMetadata: Codable {
     /// Пользовательское имя лампы
     var name: String = "Новая лампа"
     
-    /// Архетип лампы (тип установки)
+    /// Архетип лампы (тип установки или пользовательский подтип)
     var archetype: String?
+    
+    /// Иконка пользовательского подтипа (не из API, локальное поле)
+    var userSubtypeIcon: String?
+    
+    /// Пользовательские CodingKeys для исключения локального поля из декодирования
+    enum CodingKeys: String, CodingKey {
+        case name, archetype
+        // userSubtypeIcon не включена - она не декодируется из JSON
+    }
+    
+    /// Инициализатор с параметрами
+    init(name: String = "Новая лампа", archetype: String? = nil, userSubtypeIcon: String? = nil) {
+        self.name = name
+        self.archetype = archetype
+        self.userSubtypeIcon = userSubtypeIcon
+    }
+    
+    /// Инициализатор из декодера с установкой значений по умолчанию для локальных полей
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Новая лампа"
+        archetype = try container.decodeIfPresent(String.self, forKey: .archetype)
+        
+        // Локальное поле устанавливается по умолчанию
+        self.userSubtypeIcon = nil
+    }
+    
+    /// Кодирование - исключаем локальные поля
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(archetype, forKey: .archetype)
+        // userSubtypeIcon не кодируется
+    }
 }
 
 /// Настройки динамики перехода

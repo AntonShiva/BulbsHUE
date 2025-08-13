@@ -86,22 +86,37 @@ final class DataPersistenceService: ObservableObject {
                 // Обновляем существующую базовыми полями
                 existingLight.updateFromLight(light)
                 // Если вызов идёт из UI (передан параметр назначения),
-                // то это сохранение выбора пользователя: принудительно фиксируем подтип
+                // то это сохранение выбора пользователя: принудительно фиксируем подтип и иконку
                 if isAssignedToEnvironment != nil,
                    let selectedSubtype = light.metadata.archetype,
                    !selectedSubtype.isEmpty {
-                    existingLight.archetype = selectedSubtype
+                    existingLight.userSubtype = selectedSubtype  // ← Сохраняем название подтипа
+                    existingLight.userSubtypeIcon = light.metadata.userSubtypeIcon ?? "o2"  // ← Сохраняем иконку
                 }
                 // ВАЖНО: не сбрасывать назначение при отсутствующем параметре
                 if let isAssignedToEnvironment {
                     existingLight.isAssignedToEnvironment = isAssignedToEnvironment
                 }
-                print("✅ Обновлена существующая лампа: '\(light.metadata.name)' | archetype='\(existingLight.archetype)' | assigned=\(existingLight.isAssignedToEnvironment)")
+                print("✅ Обновлена существующая лампа: '\(light.metadata.name)' | userSubtype='\(existingLight.userSubtype)' | icon='\(existingLight.userSubtypeIcon)' | assigned=\(existingLight.isAssignedToEnvironment)")
             } else {
-                // Создаем новую
-                let lightData = LightDataModel.fromLight(light, isAssignedToEnvironment: isAssignedToEnvironment ?? false)
+                // Создаем новую с пользовательским подтипом из UI
+                let userSubtype = light.metadata.archetype ?? "Smart Light"
+                let userSubtypeIcon = light.metadata.userSubtypeIcon ?? "o2"
+                let lightData = LightDataModel(
+                    lightId: light.id,
+                    name: light.metadata.name,
+                    userSubtype: userSubtype,  // ← Пользовательский выбор названия
+                    userSubtypeIcon: userSubtypeIcon,  // ← Пользовательский выбор иконки
+                    apiArchetype: nil,         // ← API данные пока неизвестны
+                    isOn: light.on.on,
+                    brightness: light.dimming?.brightness ?? 50.0,
+                    colorTemperature: light.color_temperature?.mirek,
+                    colorX: light.color?.xy?.x,
+                    colorY: light.color?.xy?.y,
+                    isAssignedToEnvironment: isAssignedToEnvironment ?? false
+                )
                 modelContext.insert(lightData)
-                print("✅ Создана новая лампа: \(light.metadata.name) | assigned=\(lightData.isAssignedToEnvironment)")
+                print("✅ Создана новая лампа: \(light.metadata.name) | userSubtype='\(lightData.userSubtype)' | icon='\(lightData.userSubtypeIcon)' | assigned=\(lightData.isAssignedToEnvironment)")
             }
             
             saveContext()

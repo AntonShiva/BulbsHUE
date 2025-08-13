@@ -164,14 +164,14 @@ struct SelectCategoriesSheet: View {
         
         // Создаем обновленную лампу
         var updatedLight = selectedLight
-        // ИСПРАВЛЕНИЕ: Сохраняем НАЗВАНИЕ подтипа вместо иконки в archetype
-        // Это правильно с архитектурной точки зрения - archetype должен содержать тип лампы
-        updatedLight.metadata.archetype = selectedSubtype.name  // ✅ Сохраняем название подтипа!
+        // ✅ НОВАЯ ЛОГИКА: Сохраняем и название подтипа, и иконку как отдельные концепты
+        updatedLight.metadata.archetype = selectedSubtype.name  // ← Название подтипа
+        updatedLight.metadata.userSubtypeIcon = selectedSubtype.iconName  // ← Иконка подтипа
         
         // Сохраняем лампу в DataPersistenceService
         if let dataPersistenceService = nav.dataPersistenceService {
             dataPersistenceService.saveLightData(updatedLight, isAssignedToEnvironment: true)
-            print("✅ Лампа сохранена с архетипом (подтипом): \(selectedSubtype.name)")
+            print("✅ Лампа сохранена: подтип='\(selectedSubtype.name)', иконка='\(selectedSubtype.iconName)'")
         }
         
         // Возвращаемся к основному экрану

@@ -21,8 +21,14 @@ final class LightDataModel {
     /// Название лампы
     var name: String
     
-    /// Тип архетипа лампы (название подтипа: "DESK LAMP", "CEILING ROUND", etc.)
-    var archetype: String
+    /// Пользовательский подтип лампы (название подтипа: "DESK LAMP", "CEILING ROUND", etc.)
+    var userSubtype: String
+    
+    /// Иконка пользовательского подтипа (например: "t2", "c3", "o1", etc.)
+    var userSubtypeIcon: String
+    
+    /// Архетип из Philips Hue API (техническая информация: "sultan_bulb", "classic_bulb", etc.)
+    var apiArchetype: String?
     
     /// Состояние включения лампы
     var isOn: Bool
@@ -59,7 +65,9 @@ final class LightDataModel {
     init(
         lightId: String,
         name: String,
-        archetype: String,
+        userSubtype: String,
+        userSubtypeIcon: String,
+        apiArchetype: String? = nil,
         isOn: Bool = false,
         brightness: Double = 50.0,
         colorTemperature: Int? = nil,
@@ -69,7 +77,9 @@ final class LightDataModel {
     ) {
         self.lightId = lightId
         self.name = name
-        self.archetype = archetype
+        self.userSubtype = userSubtype
+        self.userSubtypeIcon = userSubtypeIcon
+        self.apiArchetype = apiArchetype
         self.isOn = isOn
         self.brightness = brightness
         self.colorTemperature = colorTemperature
@@ -93,7 +103,9 @@ extension LightDataModel {
         return LightDataModel(
             lightId: light.id,
             name: light.metadata.name,
-            archetype: light.metadata.archetype ?? "other",
+            userSubtype: "Smart Light", // ← Дефолтный подтип (пользователь выберет свой)
+            userSubtypeIcon: "o2", // ← Дефолтная иконка "rounded bulb"
+            apiArchetype: light.metadata.archetype, // ← Сохраняем API данные отдельно
             isOn: light.on.on,
             brightness: light.dimming?.brightness ?? 50.0,
             colorTemperature: light.color_temperature?.mirek,
@@ -127,7 +139,8 @@ extension LightDataModel {
         
         let metadata = LightMetadata(
             name: name,
-            archetype: archetype
+            archetype: userSubtype,  // ← Используем пользовательский подтип для отображения
+            userSubtypeIcon: userSubtypeIcon  // ← Добавляем иконку
         )
         
         return Light(
@@ -144,38 +157,29 @@ extension LightDataModel {
     /// - Parameter light: Light модель из API
     func updateFromLight(_ light: Light) {
         print("🔄 LightDataModel.updateFromLight:")
-        print("   └── Текущий archetype в БД: '\(self.archetype)'")
-        print("   └── Новый archetype из API: '\(light.metadata.archetype ?? "nil")'")
+        print("   └── Текущий userSubtype в БД: '\(self.userSubtype)'")
+        print("   └── Текущая userSubtypeIcon в БД: '\(self.userSubtypeIcon)'")
+        print("   └── Новый apiArchetype из API: '\(light.metadata.archetype ?? "nil")'")
         
         self.name = light.metadata.name
         
-        // ВАЖНО: НЕ затирать пользовательский выбор подтипа из UI данными из API!
-        // Если в локальном хранилище уже есть подтип из наших BulbTypeModels (пользовательский выбор),
-        // НИКОГДА не заменяем его на archetype из API Philips Hue (например, sultan_bulb)
+        // ✅ НОВАЯ ЛОГИКА: Полностью разделяем пользовательский выбор и API данные
         
-        let ourSubtypes = [
-            // TABLE
-            "TRADITIONAL LAMP", "DESK LAMP", "TABLE WASH",
-            // FLOOR  
-            "CHRISTMAS TREE", "FLOOR SHADE", "FLOOR LANTERN", "BOLLARD", "GROUND SPOT", "RECESSED FLOOR", "LIGHT BAR",
-            // WALL
-            "WALL LANTERN", "WALL SHADE", "WALL SPOT", "DUAL WALL LIGHT",
-            // CEILING
-            "PENDANT ROUND", "PENDANT HORIZONTAL", "CEILING ROUND", "CEILING SQUARE", "SINGLE SPOT", "DOUBLE SPOT", "RECESSED CEILING", "PEDANT SPOT", "CEILING HORIZONTAL", "CEILING TUBE",
-            // OTHER
-            "SIGNATURE BULB", "ROUNDED BULB", "SPOT", "FLOOD LIGHT", "CANDELABRA BULB", "FILAMENT BULB", "MINI-BULB", "HUE LIGHTSTRIP", "LIGHTGUIDE", "PLAY LIGHT BAR", "HUE BLOOM", "HUE IRIS", "SMART PLUG", "HUE CENTRIS", "HUE TUBE", "HUE SIGNE", "FLOODLIGHT CAMERA", "TWILIGHT"
-        ]
+        // 1. Всегда обновляем API архетип (техническая информация)
+        self.apiArchetype = light.metadata.archetype
+        print("   └── Обновлён apiArchetype: '\(self.apiArchetype ?? "nil")'")
         
-        // Если текущий archetype - это пользовательский выбор, НЕ перезаписываем его
-        if ourSubtypes.contains(self.archetype.uppercased()) {
-            print("   └── Сохраняем пользовательский подтип: '\(self.archetype)' (НЕ перезаписываем на '\(light.metadata.archetype ?? "nil")')")
-        } else if self.archetype.isEmpty,
-                  let newArchetype = light.metadata.archetype,
-                  !newArchetype.isEmpty {
-            print("   └── Устанавливаем archetype из API: '\(newArchetype)'")
-            self.archetype = newArchetype
+        // 2. userSubtype и userSubtypeIcon обновляем ТОЛЬКО если они были дефолтными
+        if self.userSubtype == "Smart Light" && self.userSubtypeIcon == "o2", 
+           let apiArchetype = light.metadata.archetype,
+           !apiArchetype.isEmpty {
+            // Конвертируем API архетип в читаемый вид только для дефолтных ламп
+            let (newSubtype, newIcon) = convertApiArchetypeToUserData(apiArchetype)
+            self.userSubtype = newSubtype
+            self.userSubtypeIcon = newIcon
+            print("   └── Обновлены userSubtype='\(self.userSubtype)' и icon='\(self.userSubtypeIcon)' из API (так как были дефолтные)")
         } else {
-            print("   └── Не изменяем archetype")
+            print("   └── userSubtype и icon НЕ изменены: '\(self.userSubtype)' + '\(self.userSubtypeIcon)' (пользовательский выбор)")
         }
         
         self.isOn = light.on.on
@@ -184,5 +188,23 @@ extension LightDataModel {
         self.colorX = light.color?.xy?.x
         self.colorY = light.color?.xy?.y
         self.lastUpdated = Date()
+    }
+    
+    /// Конвертирует API архетип в пользовательские данные (название + иконка)
+    private func convertApiArchetypeToUserData(_ apiArchetype: String) -> (subtype: String, icon: String) {
+        switch apiArchetype.lowercased() {
+        case "sultan_bulb":
+            return ("SIGNATURE BULB", "o1")
+        case "classic_bulb":
+            return ("ROUNDED BULB", "o2")
+        case "vintage_bulb", "edison_bulb":
+            return ("FILAMENT BULB", "o6")
+        case "globe_bulb":
+            return ("ROUNDED BULB", "o2")
+        case "candle_bulb":
+            return ("CANDELABRA BULB", "o5")
+        default:
+            return ("Smart Light", "o2")
+        }
     }
 }

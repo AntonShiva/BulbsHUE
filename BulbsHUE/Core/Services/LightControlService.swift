@@ -71,48 +71,24 @@ class LightControlService: ObservableObject, LightControlling {
         print("🏠 getRoomName для лампы '\(light.metadata.name)' (ID: \(light.id))")
         print("   └── archetype: '\(light.metadata.archetype ?? "nil")'")
         
-        // ❌ ПРОБЛЕМА: archetype сейчас содержит подтип лампы (например "DESK LAMP"), 
-        // а не ID комнаты! Это неправильно.
-        // TODO: Нужно добавить отдельное поле для roomId
+        // ✅ НОВАЯ ЛОГИКА: archetype теперь ТОЛЬКО пользовательский подтип лампы
+        // Для комнат нужен отдельный механизм (например, через группы или отдельное поле)
         
-        // ВРЕМЕННОЕ РЕШЕНИЕ: Не используем archetype как roomId для ламп с выбранным подтипом
-        if let archetype = light.metadata.archetype, !archetype.isEmpty {
-            // Проверяем, является ли archetype подтипом лампы (а не ID комнаты)
-            // Все подтипы из BulbTypeModels.swift содержат описательные названия
-            let allKnownSubtypes = [
-                // НАШИ ПОДТИПЫ (из BulbTypeModels)
-                "TRADITIONAL LAMP", "DESK LAMP", "TABLE WASH",
-                "CHRISTMAS TREE", "FLOOR SHADE", "FLOOR LANTERN", "BOLLARD", "GROUND SPOT", "RECESSED FLOOR", "LIGHT BAR",
-                "WALL LANTERN", "WALL SHADE", "WALL SPOT", "DUAL WALL LIGHT",
-                "PENDANT ROUND", "PENDANT HORIZONTAL", "CEILING ROUND", "CEILING SQUARE", "SINGLE SPOT", "DOUBLE SPOT", "RECESSED CEILING", "PEDANT SPOT", "CEILING HORIZONTAL", "CEILING TUBE",
-                "SIGNATURE BULB", "ROUNDED BULB", "SPOT", "FLOOD LIGHT", "CANDELABRA BULB", "FILAMENT BULB", "MINI-BULB", "HUE LIGHTSTRIP", "LIGHTGUIDE", "PLAY LIGHT BAR", "HUE BLOOM", "HUE IRIS", "SMART PLUG", "HUE CENTRIS", "HUE TUBE", "HUE SIGNE", "FLOODLIGHT CAMERA", "TWILIGHT",
-                // АРХЕТИПЫ PHILIPS HUE API (которые не являются комнатами)
-                "SULTAN_BULB", "CLASSIC_BULB", "VINTAGE_BULB", "EDISON_BULB", "GLOBE_BULB", "CANDLE_BULB"
-            ]
-            
-            if allKnownSubtypes.contains(archetype.uppercased()) {
-                print("   └── archetype содержит подтип лампы, не комнату. Возвращаем 'Основная комната'")
-                return "Основная комната"
-            }
-            
-            // Если не подтип, пытаемся найти группу
-            let roomName = findGroup(by: archetype)?.metadata?.name ?? "Без комнаты"
-            print("   └── Найдена комната по archetype: '\(roomName)'")
-            return roomName
-        }
+        // TODO: Реализовать отдельное поле roomId в Light/LightDataModel
+        // Пока возвращаем дефолтную комнату
         
-        print("   └── archetype пустой, возвращаем 'Без комнаты'")
-        return "Без комнаты"
+        print("   └── Возвращаем дефолтную комнату (archetype теперь только для подтипов ламп)")
+        return "Основная комната"
     }
     
     func getBulbType(for light: Light) -> String {
         print("📝 getBulbType для лампы '\(light.metadata.name)' (ID: \(light.id))")
         print("   └── archetype: '\(light.metadata.archetype ?? "nil")'")
         
-        // Проверяем архетип (теперь это название подтипа)
+        // Проверяем архетип (это пользовательский подтип из userSubtype)
         if let archetype = light.metadata.archetype, !archetype.isEmpty {
-            // Возвращаем название подтипа напрямую (оно уже сохранено в archetype)
-            print("   └── Возвращаем сохранённый подтип: '\(archetype)'")
+            // Возвращаем пользовательский подтип напрямую
+            print("   └── Возвращаем пользовательский подтип: '\(archetype)'")
             return archetype
         }
         
@@ -164,37 +140,25 @@ class LightControlService: ObservableObject, LightControlling {
     
     func getBulbIcon(for light: Light) -> String {
         print("🖼️ getBulbIcon для лампы '\(light.metadata.name)' (ID: \(light.id))")
+        print("   └── userSubtypeIcon: '\(light.metadata.userSubtypeIcon ?? "nil")'")
         print("   └── archetype: '\(light.metadata.archetype ?? "nil")'")
         
-        // Сначала проверяем архетип (выбранную пользователем категорию)
+        // ✅ НОВАЯ ЛОГИКА: Приоритет у пользовательской иконки подтипа
+        if let userIcon = light.metadata.userSubtypeIcon, !userIcon.isEmpty {
+            print("   └── Возвращаем пользовательскую иконку: '\(userIcon)'")
+            return userIcon
+        }
+        
+        // Если пользовательской иконки нет, но есть подтип - пытаемся найти иконку по названию
         if let archetype = light.metadata.archetype, !archetype.isEmpty {
-            // Получаем иконку для подтипа (по названию подтипа)
             let icon = getSubtypeIcon(for: archetype)
-            print("   └── Получили иконку по архетипу '\(archetype)': '\(icon)'")
+            print("   └── Получили иконку по названию подтипа '\(archetype)': '\(icon)'")
             return icon
         }
         
-        // Если архетип не установлен - используем маппинг по комнатам (legacy)
-        let roomName = getRoomName(for: light).lowercased()
-        print("   └── Архетип пустой, используем комнату: '\(roomName)'")
-        
-        let defaultIcon: String
-        switch roomName {
-        case _ where roomName.contains("living"):
-            defaultIcon = "f2" // Floor lamp icon for living room
-        case _ where roomName.contains("bedroom"):
-            defaultIcon = "t2" // Table lamp icon for bedroom
-        case _ where roomName.contains("kitchen"):
-            defaultIcon = "с3" // Ceiling round icon for kitchen
-        case _ where roomName.contains("bathroom"):
-            defaultIcon = "с3" // Ceiling round icon for bathroom
-        case _ where roomName.contains("office"):
-            defaultIcon = "t2" // Desk lamp icon for office
-        default:
-            defaultIcon = "o2" // Default bulb icon (rounded bulb)
-        }
-        
-        print("   └── Возвращаем иконку по умолчанию: '\(defaultIcon)'")
+        // Если ничего нет - используем дефолтную иконку
+        let defaultIcon = "o2" // Rounded bulb
+        print("   └── Возвращаем дефолтную иконку: '\(defaultIcon)'")
         return defaultIcon
     }
     
@@ -239,27 +203,27 @@ class LightControlService: ObservableObject, LightControlling {
         case "dual wall light":
             return "w4"
             
-        // CEILING category (с1-с10)
+        // CEILING category (c1-c10)
         case "pendant round":
-            return "с1"
+            return "c1"
         case "pendant horizontal":
-            return "с2"
+            return "c2"
         case "ceiling round":
-            return "с3"
+            return "c3"
         case "ceiling square":
-            return "с4"
+            return "c4"
         case "single spot":
-            return "с5"
+            return "c5"
         case "double spot":
-            return "с6"
+            return "c6"
         case "recessed ceiling":
-            return "с7"
+            return "c7"
         case "pedant spot":
-            return "с8"
+            return "c8"
         case "ceiling horizontal":
-            return "с9"
+            return "c9"
         case "ceiling tube":
-            return "с10"
+            return "c10"
             
         // OTHER category (o1-o27)
         case "signature bulb":
@@ -278,26 +242,48 @@ class LightControlService: ObservableObject, LightControlling {
             return "o7"
         case "hue lightstrip":
             return "o8"
-        case "lightguide":
+        case "lightguide basic":
+            return "o7"
+        case "lightguide slim":
+            return "o8"
+        case "lightguide wide":
             return "o9"
+        case "lightguide curved":
+            return "o10"
+        case "lightguide flex":
+            return "o11"
+        case "twilight":
+            return "o12"
+        case "twilight pro":
+            return "o13"
+        case "twilight mini":
+            return "o14"
         case "play light bar":
-            return "o15"
-        case "hue bloom":
             return "o16"
+        case "play light bar dual":
+            return "o17"
+        case "hue bloom":
+            return "o20"
+        case "hue bloom mini":
+            return "o21"
+        case "candle socket":
+            return "o15"
+        case "christmas tree":
+            return "o18"
         case "hue iris":
             return "o19"
-        case "smart plug":
-            return "o20"
-        case "hue centris":
-            return "o21"
-        case "hue tube":
+        case "unknown":
             return "o22"
-        case "hue signe":
+        case "stripp":
             return "o23"
-        case "floodlight camera":
+        case "bollard":
             return "o24"
-        case "twilight":
+        case "wall washer":
             return "o25"
+        case "classic fixture":
+            return "o26"
+        case "hue centris":
+            return "o27"
             
         // АРХЕТИПЫ PHILIPS HUE API
         case "sultan_bulb":
