@@ -58,95 +58,138 @@ class HueBridgeDiscovery {
         }
         
         isDiscovering = true
-        
-        var allFoundBridges: [Bridge] = []
-        let lock = NSLock()
-        var completedTasks = 0
-        let totalTasks = 4 // Cloud + Smart Discovery + Legacy IP scan + mDNS
-        
-        // Безопасный wrapper для завершения задач
-        func safeTaskCompletion(bridges: [Bridge], taskName: String) {
-            lock.lock()
-            defer { lock.unlock() }
-            
-            print("✅ \(taskName) завершен, найдено: \(bridges.count) мостов")
-            
-            // Добавляем только уникальные мосты (сравнение по нормализованному ID и IP)
-            let uniqueBridges = bridges.map { b in
-                // Нормализуем ID (uppercased без двоеточий)
-                var normalized = b
-                normalized.id = b.normalizedId
-                return normalized
-            }.filter { newBridge in
-                !allFoundBridges.contains { existing in
-                    existing.normalizedId == newBridge.normalizedId ||
-                    existing.internalipaddress == newBridge.internalipaddress
-                }
+
+        // Функция для раннего завершения, если mDNS нашел мосты
+        func finishEarly(with bridges: [Bridge]) {
+            self.isDiscovering = false
+            let normalized = bridges.map { b -> Bridge in
+                var nb = b; nb.id = b.normalizedId; return nb
             }
-            allFoundBridges.append(contentsOf: uniqueBridges)
-            
-            completedTasks += 1
-            
-            // Если все задачи завершены, вызываем completion
-            if completedTasks >= totalTasks {
-                isDiscovering = false
-                DispatchQueue.main.async {
-                    print("🎯 Найдено всего уникальных мостов: \(allFoundBridges.count)")
-                    for bridge in allFoundBridges {
-                        print("   - \(bridge.name ?? "Unknown") (\(bridge.id)) at \(bridge.internalipaddress)")
-                    }
-                    print("📋 Discovery завершен с результатом: \(allFoundBridges.count) мостов")
-                    completion(allFoundBridges)
+            DispatchQueue.main.async {
+                print("🎯 mDNS нашёл мост(ы): \(normalized.count). Раннее завершение поиска")
+                for bridge in normalized {
+                    print("   - \(bridge.name ?? "Unknown") (\(bridge.id)) at \(bridge.internalipaddress)")
                 }
+                print("📋 Discovery завершен с результатом: \(normalized.count) мостов")
+                completion(normalized)
             }
         }
-        
-        // 1. Cloud Discovery (основной метод)
-        cloudDiscovery { bridges in
-            safeTaskCompletion(bridges: bridges, taskName: "Cloud Discovery")
-        }
-        
-        // 2. НОВОЕ: Smart Discovery - интеллектуальное обнаружение
-        SmartBridgeDiscovery.discoverBridgeIntelligently { bridges in
-            safeTaskCompletion(bridges: bridges, taskName: "Smart Discovery")
-        }
-        
-        // 3. Legacy IP Scan (резервный метод для случаев когда умные методы не работают)
-        ipScanDiscovery { bridges in
-            safeTaskCompletion(bridges: bridges, taskName: "Legacy IP Scan")
-        }
-        
-        // 4. mDNS Discovery (если доступен в iOS 14+)
+
+        // Сначала пробуем mDNS как первичный метод
         if #available(iOS 14.0, *) {
             attemptMDNSDiscovery { bridges in
-                safeTaskCompletion(bridges: bridges, taskName: "mDNS Discovery")
-            }
-        } else {
-            // Для старых версий iOS сразу завершаем эту задачу
-            safeTaskCompletion(bridges: [], taskName: "mDNS Discovery (недоступен)")
-        }
-        
-        // Таймаут для завершения поиска
-        DispatchQueue.global().asyncAfter(deadline: .now() + discoveryTimeout) { [weak self] in
-            self?.lock.lock()
-            defer { self?.lock.unlock() }
-            
-            guard let self = self, self.isDiscovering else { return }
-            
-            self.isDiscovering = false
-            DispatchQueue.main.async {
-                print("⏰ Таймаут поиска, найдено мостов: \(allFoundBridges.count)")
-                if allFoundBridges.isEmpty {
-                    print("❌ Мосты не найдены")
-                    
-                    // Запускаем детальную диагностику
-                    NetworkDiagnostics.generateDiagnosticReport { report in
-                        print("🔍 ДИАГНОСТИЧЕСКИЙ ОТЧЕТ:")
-                        print(report)
+                // Если mDNS нашёл хотя бы один мост — завершаем и не запускаем тяжелые сканирования
+                if !bridges.isEmpty {
+                    finishEarly(with: bridges)
+                    return
+                }
+
+                // Иначе запускаем остальные методы параллельно и агрегируем результат
+                var allFoundBridges: [Bridge] = []
+                let lock = NSLock()
+                var completedTasks = 0
+                let totalTasks = 3 // Cloud + Smart Discovery + Legacy IP scan
+
+                func safeTaskCompletion(bridges: [Bridge], taskName: String) {
+                    lock.lock()
+                    defer { lock.unlock() }
+
+                    print("✅ \(taskName) завершен, найдено: \(bridges.count) мостов")
+
+                    // Раннее завершение по Cloud Discovery
+                    if taskName == "Cloud Discovery", !bridges.isEmpty {
+                        finishEarly(with: bridges)
+                        return
+                    }
+
+                    let uniqueBridges = bridges.map { b in
+                        var normalized = b
+                        normalized.id = b.normalizedId
+                        return normalized
+                    }.filter { newBridge in
+                        !allFoundBridges.contains { existing in
+                            existing.normalizedId == newBridge.normalizedId ||
+                            existing.internalipaddress == newBridge.internalipaddress
+                        }
+                    }
+                    allFoundBridges.append(contentsOf: uniqueBridges)
+
+                    completedTasks += 1
+
+                    if completedTasks >= totalTasks {
+                        self.isDiscovering = false
+                        DispatchQueue.main.async {
+                            print("🎯 Найдено всего уникальных мостов: \(allFoundBridges.count)")
+                            for bridge in allFoundBridges {
+                                print("   - \(bridge.name ?? "Unknown") (\(bridge.id)) at \(bridge.internalipaddress)")
+                            }
+                            print("📋 Discovery завершен с результатом: \(allFoundBridges.count) мостов")
+                            completion(allFoundBridges)
+                        }
                     }
                 }
-                completion(allFoundBridges)
+
+                // 1. Cloud Discovery — строго последовательно
+                self.cloudDiscovery { bridges in
+                    if !bridges.isEmpty {
+                        finishEarly(with: bridges)
+                        return
+                    }
+
+                    // 2. Smart Discovery + 3. Legacy IP Scan — только если Cloud пуст
+                    SmartBridgeDiscovery.discoverBridgeIntelligently { bridges in
+                        safeTaskCompletion(bridges: bridges, taskName: "Smart Discovery")
+                    }
+
+                    self.ipScanDiscovery { bridges in
+                        safeTaskCompletion(bridges: bridges, taskName: "Legacy IP Scan")
+                    }
+
+                    // Таймаут для завершения поиска для fallback-ветки
+                    DispatchQueue.global().asyncAfter(deadline: .now() + self.discoveryTimeout) { [weak self] in
+                        guard let self = self, self.isDiscovering else { return }
+                        self.isDiscovering = false
+                        DispatchQueue.main.async {
+                            print("⏰ Таймаут поиска, найдено мостов: \(allFoundBridges.count)")
+                            if allFoundBridges.isEmpty {
+                                print("❌ Мосты не найдены")
+                                NetworkDiagnostics.generateDiagnosticReport { report in
+                                    print("🔍 ДИАГНОСТИЧЕСКИЙ ОТЧЕТ:")
+                                    print(report)
+                                }
+                            }
+                            completion(allFoundBridges)
+                        }
+                    }
+                }
             }
+        } else {
+            // Старые iOS — сразу запускаем fallback методы
+            var allFoundBridges: [Bridge] = []
+            let lock = NSLock()
+            var completedTasks = 0
+            let totalTasks = 3 // Cloud + Smart Discovery + Legacy IP scan
+
+            func safeTaskCompletion(bridges: [Bridge], taskName: String) {
+                lock.lock(); defer { lock.unlock() }
+                print("✅ \(taskName) завершен, найдено: \(bridges.count) мостов")
+                let uniqueBridges = bridges.filter { newBridge in
+                    !allFoundBridges.contains { existing in
+                        existing.normalizedId == newBridge.normalizedId ||
+                        existing.internalipaddress == newBridge.internalipaddress
+                    }
+                }
+                allFoundBridges.append(contentsOf: uniqueBridges)
+                completedTasks += 1
+                if completedTasks >= totalTasks {
+                    isDiscovering = false
+                    DispatchQueue.main.async { completion(allFoundBridges) }
+                }
+            }
+
+            cloudDiscovery { bridges in safeTaskCompletion(bridges: bridges, taskName: "Cloud Discovery") }
+            SmartBridgeDiscovery.discoverBridgeIntelligently { bridges in safeTaskCompletion(bridges: bridges, taskName: "Smart Discovery") }
+            ipScanDiscovery { bridges in safeTaskCompletion(bridges: bridges, taskName: "Legacy IP Scan") }
         }
     }
     
@@ -568,6 +611,11 @@ class HueBridgeDiscovery {
         let totalIPs = commonIPs.count
         
         for ip in commonIPs {
+            if !isDiscovering {
+                print("🛑 Останов IP-сканирования (раннее завершение)")
+                safeCompletion(foundBridges)
+                break
+            }
             checkIPWithRetry(ip, maxAttempts: 2) { bridge in
                 ipScanLock.lock()
                 if let bridge = bridge {
@@ -627,6 +675,10 @@ class HueBridgeDiscovery {
     /// Проверяет IP адрес с retry механизмом
     private func checkIPWithRetry(_ ip: String, maxAttempts: Int = 2, completion: @escaping (Bridge?) -> Void) {
         func attemptCheck(attempt: Int) {
+            if !isDiscovering {
+                completion(nil)
+                return
+            }
             checkIP(ip) { bridge in
                 if bridge != nil || attempt >= maxAttempts {
                     completion(bridge)
@@ -833,37 +885,119 @@ class HueBridgeDiscovery {
     @available(iOS 14.0, *)
     private func attemptMDNSDiscovery(completion: @escaping ([Bridge]) -> Void) {
         print("🎯 Пытаемся использовать mDNS поиск...")
-        
+
         let browser = NWBrowser(for: .bonjour(type: "_hue._tcp", domain: nil), using: .tcp)
-        var foundBridges: [Bridge] = []
-        
-        browser.browseResultsChangedHandler = { results, changes in
-            for result in results {
-                if case .service(let name, let type, let domain, _) = result.endpoint {
-                    print("🎯 mDNS найден сервис: \(name).\(type)\(domain)")
-                    // TODO: Resolving service to get IP would require more complex implementation
+        var hasCompleted = false
+        let completeOnce: ([Bridge]) -> Void = { bridges in
+            guard !hasCompleted else { return }
+            hasCompleted = true
+            completion(bridges)
+        }
+
+        // Вспомогательный резолвер NetService
+        final class ServiceResolver: NSObject, NetServiceDelegate {
+            private let onResolved: (String, Int) -> Void
+            private let onFailed: () -> Void
+
+            init(onResolved: @escaping (String, Int) -> Void, onFailed: @escaping () -> Void) {
+                self.onResolved = onResolved
+                self.onFailed = onFailed
+            }
+
+            func netService(_ sender: NetService, didNotResolve errorDict: [String : NSNumber]) {
+                onFailed()
+            }
+
+            func netServiceDidResolveAddress(_ sender: NetService) {
+                // Извлекаем первый IPv4 адрес
+                guard let addresses = sender.addresses else { onFailed(); return }
+                for addressData in addresses {
+                    addressData.withUnsafeBytes { (pointer: UnsafeRawBufferPointer) in
+                        guard let sockaddrPointer = pointer.baseAddress?.assumingMemoryBound(to: sockaddr.self) else { return }
+                        if sockaddrPointer.pointee.sa_family == sa_family_t(AF_INET) {
+                            let addrIn = UnsafeRawPointer(sockaddrPointer).assumingMemoryBound(to: sockaddr_in.self).pointee
+                            var ip = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                            var addr = addrIn.sin_addr
+                            inet_ntop(AF_INET, &addr, &ip, socklen_t(INET_ADDRSTRLEN))
+                            let ipString = String(cString: ip)
+                            self.onResolved(ipString, sender.port)
+                        }
+                    }
                 }
             }
         }
-        
+
+        let resolverQueue = DispatchQueue(label: "mdns.resolver.queue")
+        var activeServices: [NetService] = []
+        var activeResolvers: [ServiceResolver] = [] // Сохраняем делегаты, иначе NetService не вызовет callbacks
+        var bridges: [Bridge] = []
+
+        browser.browseResultsChangedHandler = { [weak self] results, _ in
+            guard let self = self else { return }
+            for result in results {
+                if case .service(let name, var type, var domain, _) = result.endpoint {
+                    // Нормализуем тип и домен для NetService
+                    if !type.hasSuffix(".") { type += "." }
+                    if domain.isEmpty { domain = "local." }
+                    if !domain.hasSuffix(".") { domain += "." }
+
+                    print("🎯 mDNS найден сервис: \(name).\(type)\(domain)")
+
+                    let service = NetService(domain: domain, type: type, name: name)
+                    let resolver = ServiceResolver(onResolved: { ip, port in
+                        // Подтверждаем, что это действительно Hue Bridge через /api/0/config
+                        self.checkIPViaConfig(ip) { confirmed in
+                            if let bridge = confirmed {
+                                // Найден подтвержденный мост — завершаем рано
+                                bridges = [bridge]
+                                browser.cancel()
+                                // Останавливаем все активные сервисы
+                                resolverQueue.async {
+                                    activeServices.forEach { $0.stop() }
+                                    activeServices.removeAll()
+                                    activeResolvers.removeAll()
+                                }
+                                completeOnce(bridges)
+                            }
+                        }
+                    }, onFailed: {
+                        // Игнорируем неудачные резолвы
+                    })
+                    service.delegate = resolver
+                    resolverQueue.async {
+                        activeServices.append(service)
+                        activeResolvers.append(resolver)
+                        // NetService требует run loop — планируем в основном цикле
+                        DispatchQueue.main.async {
+                            service.schedule(in: .main, forMode: .common)
+                            service.resolve(withTimeout: 3.0)
+                        }
+                    }
+                }
+            }
+        }
+
         browser.stateUpdateHandler = { state in
             switch state {
             case .ready:
                 print("🎯 mDNS browser готов")
             case .failed(let error):
                 print("❌ mDNS ошибка: \(error)")
-                completion([])
+                completeOnce([])
             default:
                 break
             }
         }
-        
+
         browser.start(queue: .global())
-        
-        // Краткий таймаут для mDNS
-        DispatchQueue.global().asyncAfter(deadline: .now() + 3.0) {
+
+        // Короткий общий таймаут: если за 7 сек ничего не нашли — отдаём пустой результат
+        DispatchQueue.global().asyncAfter(deadline: .now() + 7.0) {
             browser.cancel()
-            completion(foundBridges)
+            if !hasCompleted {
+                resolverQueue.async { activeServices.forEach { $0.stop() } }
+                completeOnce(bridges)
+            }
         }
     }
     
