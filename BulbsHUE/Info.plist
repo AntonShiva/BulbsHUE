@@ -8,6 +8,7 @@
             <string>DMSans-Light.ttf</string>
             <string>DMSans-Medium.ttf</string>
             <string>DMSans-Bold.ttf</string>
+            <string>InstrumentSans-Medium.ttf</string>
         </array>
         <key>NSCameraUsageDescription</key>
         <string>Приложению нужно разрешение для использования камеры для сканирования QR-кодов</string>
