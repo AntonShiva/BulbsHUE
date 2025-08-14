@@ -254,9 +254,10 @@ class SmartBridgeDiscovery {
                     }
                 }
                 
-                print("✅ Интеллектуально найден Hue Bridge на \(ip): \(bridgeID)")
+                let normalizedId = bridgeID.replacingOccurrences(of: ":", with: "").uppercased()
+                print("✅ Интеллектуально найден Hue Bridge на \(ip): \(normalizedId)")
                 let bridge = Bridge(
-                    id: bridgeID,
+                    id: normalizedId,
                     internalipaddress: ip,
                     port: 80,
                     name: name

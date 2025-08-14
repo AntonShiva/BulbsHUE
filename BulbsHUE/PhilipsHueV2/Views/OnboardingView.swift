@@ -60,29 +60,29 @@ struct OnboardingView: View {
             .navigationBarHidden(true)
             // Также добавьте алерт для отображения процесса в главном body OnboardingView:
 
-            .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
-                if viewModel.linkButtonPressed {
-                    Button("OK") {
-                        viewModel.showLinkButtonAlert = false
-                    }
-                } else {
-                    Button("Отмена") {
-                        viewModel.cancelLinkButton()
-                    }
-                }
-            } message: {
-                if viewModel.linkButtonPressed {
-                    Text("✅ Подключение успешно установлено!")
-                } else {
-                    VStack {
-                        Text("👆 Нажмите круглую кнопку Link на верхней части вашего Hue Bridge")
-                        Text("")
-                        if viewModel.linkButtonCountdown > 0 {
-                            Text("⏱ Осталось времени: \(viewModel.linkButtonCountdown) сек")
-                        }
-                    }
-                }
-            }
+//            .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
+//                if viewModel.linkButtonPressed {
+//                    Button("OK") {
+//                        viewModel.showLinkButtonAlert = false
+//                    }
+//                } else {
+//                    Button("Отмена") {
+//                        viewModel.cancelLinkButton()
+//                    }
+//                }
+//            } message: {
+//                if viewModel.linkButtonPressed {
+//                    Text("✅ Подключение успешно установлено!")
+//                } else {
+//                    VStack {
+//                        Text("👆 Нажмите круглую кнопку Link на верхней части вашего Hue Bridge")
+//                        Text("")
+//                        if viewModel.linkButtonCountdown > 0 {
+//                            Text("⏱ Осталось времени: \(viewModel.linkButtonCountdown) сек")
+//                        }
+//                    }
+//                }
+//            }
         }
         // MARK: - QR Code Sheets (закомментировано)
         /*
@@ -126,8 +126,6 @@ struct OnboardingView: View {
             localNetworkPermissionStepView
         case .searchBridges:
             searchBridgesStepView
-        case .bridgeFound:
-            bridgeFoundStepView
         case .linkButton:
             linkButtonStepView
         case .connected:
@@ -203,20 +201,20 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 40)
         }
-        .alert("Нужно разрешение", isPresented: $viewModel.showPermissionAlert) {
-            Button("Перейти в Настройки") {
-                // Открываем настройки приложения
-                if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(settingsUrl)
-                }
-            }
-            Button("Повторить") {
-                viewModel.requestLocalNetworkPermissionOnWelcome()
-            }
-            Button("Отмена", role: .cancel) { }
-        } message: {
-            Text("Для поиска Hue Bridge необходимо разрешить приложению доступ к локальной сети. Пожалуйста, выберите \"Разрешить\" в диалоге системы или перейдите в Настройки > Конфиденциальность > Локальная сеть.")
-        }
+//        .alert("Нужно разрешение", isPresented: $viewModel.showPermissionAlert) {
+//            Button("Перейти в Настройки") {
+//                // Открываем настройки приложения
+//                if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+//                    UIApplication.shared.open(settingsUrl)
+//                }
+//            }
+//            Button("Повторить") {
+//                viewModel.requestLocalNetworkPermissionOnWelcome()
+//            }
+//            Button("Отмена", role: .cancel) { }
+//        } message: {
+//            Text("Для поиска Hue Bridge необходимо разрешить приложению доступ к локальной сети. Пожалуйста, выберите \"Разрешить\" в диалоге системы или перейдите в Настройки > Конфиденциальность > Локальная сеть.")
+//        }
     }
     
 
@@ -423,55 +421,7 @@ struct OnboardingView: View {
         }
     }
     
-    /// Экран найденного моста (как на пятом скриншоте)
-    private var bridgeFoundStepView: some View {
-        VStack(spacing: 40) {
-            // Иконка с найденным мостом
-            ZStack {
-                Circle()
-                    .stroke(Color.white.opacity(0.2), lineWidth: 2)
-                    .frame(width: 200, height: 200)
-                
-                bridgeImageView
-                    .scaleEffect(0.8)
-                
-                // Зеленая галочка
-                VStack {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.green)
-                            .background(Color.white.clipShape(Circle()))
-                    }
-                    Spacer()
-                }
-                .frame(width: 200, height: 200)
-                .offset(x: 30, y: -30)
-            }
-            
-            VStack(spacing: 16) {
-                Text("Найден блок управления Hue.")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                
-                
-            }
-            
-            
-            Button("Подключиться") {
-                if let bridge = viewModel.discoveredBridges.first {
-                    viewModel.selectBridge(bridge)
-                }
-                viewModel.nextStep()
-                // Показываем алерт перед переходом к linkButton
-                //                viewModel.showLinkButtonAlert = true
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .padding(.horizontal, 40)
-        }
-    }
+    // Удалено: экран найденного моста больше не используется
     
     /// Экран нажатия кнопки Link с правильным ожиданием
     private var linkButtonStepView: some View {

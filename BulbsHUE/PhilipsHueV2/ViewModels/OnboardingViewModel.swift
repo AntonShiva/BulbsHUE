@@ -80,14 +80,22 @@ class OnboardingViewModel: ObservableObject {
         appViewModel.$discoveredBridges
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bridges in
-                self?.discoveredBridges = bridges
+                // Дедупликация по нормализованному ID и IP, чтобы избежать дублей из-за регистра
+                let unique = bridges.reduce(into: [Bridge]()) { acc, item in
+                    var normalized = item
+                    normalized.id = item.normalizedId
+                    if !acc.contains(where: { $0.normalizedId == normalized.normalizedId || $0.internalipaddress == normalized.internalipaddress }) {
+                        acc.append(normalized)
+                    }
+                }
+                self?.discoveredBridges = unique
                 if !bridges.isEmpty && self?.currentStep == .searchBridges {
-                    print("✅ Получены мосты от AppViewModel: \(bridges.count)")
+                    print("✅ Получены мосты от AppViewModel: \(bridges.count), уникальных: \(unique.count)")
                     
                     // Автоматически выбираем первый мост если он единственный
-                    if bridges.count == 1 {
+                    if unique.count == 1, let only = unique.first {
                         print("🎯 Автоматически выбираем единственный найденный мост")
-                        self?.selectBridge(bridges[0])
+                        self?.selectBridge(only)
                     }
                 }
             }
@@ -114,11 +122,9 @@ class OnboardingViewModel: ObservableObject {
             currentStep = .searchBridges
         case .searchBridges:
             if !discoveredBridges.isEmpty {
-                currentStep = .bridgeFound
+                // Пропускаем экран найденного моста и переходим сразу к Link Button
+                currentStep = .linkButton
             }
-        case .bridgeFound:
-            // Переходим к экрану Link Button и запускаем процесс подключения
-            currentStep = .linkButton
         case .linkButton:
             // Не переходим автоматически - ждем успешного подключения
             break
@@ -136,12 +142,10 @@ class OnboardingViewModel: ObservableObject {
             currentStep = .welcome
         case .searchBridges:
             currentStep = .localNetworkPermission
-        case .bridgeFound:
-            currentStep = .searchBridges
         case .linkButton:
             // При возврате отменяем попытки подключения
             cancelLinkButton()
-            currentStep = .bridgeFound
+            currentStep = .searchBridges
         case .connected:
             currentStep = .linkButton
         }
@@ -518,7 +522,6 @@ enum OnboardingStep {
     // case qrScanner
     case localNetworkPermission
     case searchBridges
-    case bridgeFound
     case linkButton
     case connected
 }

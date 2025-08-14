@@ -31,12 +31,16 @@ struct Bridge: Codable, Identifiable, Hashable {
     // MARK: - Hashable
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
+        // Хешируем по нормализованному ID (без учета регистра/двоеточий) и IP
+        hasher.combine(id.replacingOccurrences(of: ":", with: "").lowercased())
         hasher.combine(internalipaddress)
     }
     
     static func == (lhs: Bridge, rhs: Bridge) -> Bool {
-        return lhs.id == rhs.id && lhs.internalipaddress == rhs.internalipaddress
+        // Сравниваем ID без учета регистра/двоеточий и одинаковый IP
+        return lhs.id.replacingOccurrences(of: ":", with: "").caseInsensitiveCompare(
+            rhs.id.replacingOccurrences(of: ":", with: "")
+        ) == .orderedSame && lhs.internalipaddress == rhs.internalipaddress
     }
 }
 
@@ -119,6 +123,11 @@ struct StreamingLimits: Codable {
 }
 
 extension Bridge {
+    /// Нормализованный ID (без двоеточий, верхний регистр) для дедупликации
+    var normalizedId: String {
+        id.replacingOccurrences(of: ":", with: "").uppercased()
+    }
+    
     /// Серийный номер моста (вычисляется из ID или MAC адреса)
     var serialNumber: String? {
         // Если есть ID, возвращаем его

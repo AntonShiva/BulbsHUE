@@ -167,8 +167,16 @@ class AppViewModel: ObservableObject {
             for bridge in bridges {
                 print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
             }
-            
-            self?.discoveredBridges = bridges
+
+            // Дедупликация: нормализуем ID и удаляем повторы по ID/IP
+            let deduped: [Bridge] = bridges.reduce(into: []) { acc, item in
+                var normalized = item
+                normalized.id = item.normalizedId
+                if !acc.contains(where: { $0.normalizedId == normalized.normalizedId || $0.internalipaddress == normalized.internalipaddress }) {
+                    acc.append(normalized)
+                }
+            }
+            self?.discoveredBridges = deduped
             
             if bridges.isEmpty {
                 print("❌ Мосты не найдены")
@@ -177,7 +185,7 @@ class AppViewModel: ObservableObject {
                 self?.error = HueAPIError.localNetworkPermissionDenied
                 #endif
             } else {
-                print("✅ Найдено мостов: \(bridges.count)")
+                print("✅ Найдено мостов (уникальных): \(deduped.count)")
                 self?.connectionStatus = .discovered
                 self?.error = nil
             }

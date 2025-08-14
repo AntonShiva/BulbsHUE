@@ -71,9 +71,17 @@ class HueBridgeDiscovery {
             
             print("✅ \(taskName) завершен, найдено: \(bridges.count) мостов")
             
-            // Добавляем только уникальные мосты
-            let uniqueBridges = bridges.filter { newBridge in
-                !allFoundBridges.contains { $0.id == newBridge.id }
+            // Добавляем только уникальные мосты (сравнение по нормализованному ID и IP)
+            let uniqueBridges = bridges.map { b in
+                // Нормализуем ID (uppercased без двоеточий)
+                var normalized = b
+                normalized.id = b.normalizedId
+                return normalized
+            }.filter { newBridge in
+                !allFoundBridges.contains { existing in
+                    existing.normalizedId == newBridge.normalizedId ||
+                    existing.internalipaddress == newBridge.internalipaddress
+                }
             }
             allFoundBridges.append(contentsOf: uniqueBridges)
             
@@ -728,9 +736,10 @@ class HueBridgeDiscovery {
                     }
                 }
                 
-                print("✅ Найден Hue Bridge через /api/0/config на \(ip): \(bridgeID) (\(name))")
+                let normalizedId = bridgeID.replacingOccurrences(of: ":", with: "").uppercased()
+                print("✅ Найден Hue Bridge через /api/0/config на \(ip): \(normalizedId) (\(name))")
                 let bridge = Bridge(
-                    id: bridgeID,
+                    id: normalizedId,
                     internalipaddress: ip,
                     port: 80,
                     name: name
@@ -795,9 +804,10 @@ class HueBridgeDiscovery {
             let bridgeID = self.extractBridgeID(from: xmlString) ?? "unknown_\(ip.replacingOccurrences(of: ".", with: "_"))"
             let bridgeName = self.extractBridgeName(from: xmlString) ?? "Philips Hue Bridge"
             
-            print("✅ Найден Hue Bridge через XML на \(ip): \(bridgeID) (\(bridgeName))")
+            let normalizedId = bridgeID.replacingOccurrences(of: ":", with: "").uppercased()
+            print("✅ Найден Hue Bridge через XML на \(ip): \(normalizedId) (\(bridgeName))")
             let bridge = Bridge(
-                id: bridgeID,
+                id: normalizedId,
                 internalipaddress: ip,
                 port: 80,
                 name: bridgeName
