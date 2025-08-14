@@ -879,21 +879,16 @@ extension AppViewModel {
             .sink(
                 receiveCompletion: { result in
                     if case .failure(let error) = result {
-                        print("❌ AppViewModel: Ошибка создания пользователя: \(error)")
+                        print("❌ Ошибка создания пользователя: \(error)")
                         
                         // Специальная обработка ошибки локальной сети
                         if let nsError = error as NSError?,
                            nsError.code == -1009 {
-                            print("🚫 AppViewModel: Нет доступа к локальной сети!")
+                            print("🚫 Нет доступа к локальной сети!")
                             self.error = HueAPIError.localNetworkPermissionDenied
-                        } else if let hueError = error as? HueAPIError,
-                                  case .linkButtonNotPressed = hueError {
-                            print("⏳ AppViewModel: Кнопка Link еще не нажата")
-                            self.error = HueAPIError.linkButtonNotPressed
+                        } else if case HueAPIError.linkButtonNotPressed = error as? HueAPIError ?? HueAPIError.invalidResponse {
+                            print("⏳ Кнопка Link еще не нажата")
                             // Это нормально - продолжаем попытки
-                        } else {
-                            print("⚠️ AppViewModel: Неизвестная ошибка: \(error)")
-                            self.error = error as? HueAPIError ?? HueAPIError.invalidResponse
                         }
                         
                         completion(false)

@@ -342,12 +342,10 @@ class OnboardingViewModel: ObservableObject {
             let deviceName = Host.current().localizedName ?? "Mac"
             #endif
             
-            print("🔐 OnboardingViewModel: Попытка создания пользователя...")
-            
             // Используем улучшенный метод с проверкой локальной сети
             appViewModel.createUserWithRetry(appName: "BulbsHUE", completion: { [weak self] success in
                 if success {
-                    print("✅ OnboardingViewModel: Пользователь успешно создан! Подключение установлено!")
+                    print("✅ Пользователь успешно создан! Подключение установлено!")
                     self?.isConnecting = false // Сбрасываем флаг подключения
                     self?.cancelLinkButton()
                     self?.currentStep = .connected
@@ -357,30 +355,7 @@ class OnboardingViewModel: ObservableObject {
                         self?.appViewModel.showSetup = false
                     }
                 } else {
-                    print("❌ OnboardingViewModel: Ошибка создания пользователя")
-                    
-                    // Проверяем тип ошибки
-                    if let error = self?.appViewModel.error {
-                        print("🔍 OnboardingViewModel: Тип ошибки: \(error)")
-                        
-                        if let hueError = error as? HueAPIError {
-                            switch hueError {
-                            case .linkButtonNotPressed:
-                                print("⏳ OnboardingViewModel: Кнопка Link не нажата - продолжаем попытки")
-                                // Не нужно ничего делать - продолжаем попытки
-                                return
-                            case .localNetworkPermissionDenied:
-                                print("🚫 OnboardingViewModel: Локальная сеть заблокирована")
-                                self?.cancelLinkButton()
-                                self?.currentStep = .welcome // Возвращаемся к началу
-                                return
-                            default:
-                                print("⚠️ OnboardingViewModel: Другая ошибка Hue API: \(hueError)")
-                            }
-                        }
-                    }
-                    
-                    // Проверяем ошибку локальной сети для совместимости
+                    // Проверяем ошибку локальной сети
                     if let error = self?.appViewModel.error as? HueAPIError,
                        case .localNetworkPermissionDenied = error {
                         print("🚫 Нет доступа к локальной сети!")

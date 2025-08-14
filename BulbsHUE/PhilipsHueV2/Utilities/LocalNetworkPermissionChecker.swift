@@ -14,7 +14,6 @@ class LocalNetworkPermissionChecker: NSObject {
     private var browser: NWBrowser?
     private var netService: NetService?
     private var completion: ((Bool) -> Void)?
-    private var timeoutTimer: Timer?
     
     /// Статический метод для проверки разрешения с async/await
     static func checkLocalNetworkPermission() async -> Bool {
@@ -36,24 +35,6 @@ class LocalNetworkPermissionChecker: NSObject {
     private func requestAuthorization(completion: @escaping (Bool) -> Void) {
         self.completion = completion
         
-        #if targetEnvironment(simulator)
-        // В симуляторе всегда возвращаем true (локальная сеть доступна)
-        print("📱 Симулятор: разрешение локальной сети считается предоставленным")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            completion(true)
-        }
-        return
-        #endif
-        
-        print("📱 Реальное устройство: запрашиваем разрешение локальной сети...")
-        
-        // Таймаут для запроса разрешения (30 секунд)
-        timeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
-            print("⏰ Таймаут запроса разрешения локальной сети")
-            self?.cleanup()
-            self?.completion?(false)
-        }
-        
         // Создаем параметры для peer-to-peer соединений
         let parameters = NWParameters()
         parameters.includePeerToPeer = true
@@ -63,21 +44,17 @@ class LocalNetworkPermissionChecker: NSObject {
         self.browser = browser
         
         browser.stateUpdateHandler = { [weak self] newState in
-            print("🔍 Browser state: \(newState)")
             switch newState {
             case .failed(let error):
-                print("❌ Browser failed: \(error.localizedDescription)")
+                print("Browser failed: \(error.localizedDescription)")
                 self?.cleanup()
                 self?.completion?(false)
-            case .ready:
-                print("✅ Browser ready - разрешение получено")
-                self?.cleanup()
-                self?.completion?(true)
-            case .cancelled:
+            case .ready, .cancelled:
                 break
             case .waiting(let error):
-                print("⏳ Browser waiting: \(error)")
-                // Не сразу отмена - можем ждать ответа пользователя
+                print("Local network permission denied: \(error)")
+                self?.cleanup()
+                self?.completion?(false)
             default:
                 break
             }
@@ -97,8 +74,6 @@ class LocalNetworkPermissionChecker: NSObject {
     
     /// Очищает ресурсы
     private func cleanup() {
-        timeoutTimer?.invalidate()
-        timeoutTimer = nil
         self.browser?.cancel()
         self.browser = nil
         self.netService?.stop()
