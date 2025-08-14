@@ -3,35 +3,35 @@
 //  BulbsHUE
 //
 //  Created by Anton Reasin on 30.07.2025.
-//
 
 import SwiftUI
 import AVFoundation
 import Combine
 
-/// ViewModel для OnboardingView
+/// ViewModel для OnboardingView с правильной обработкой Link Button
 class OnboardingViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var currentStep: OnboardingStep = .welcome
-    // MARK: - QR Code Properties (закомментировано)
-    // @Published var showQRScanner = false
-    // @Published var showCameraPermissionAlert = false
     @Published var showLocalNetworkAlert = false
-    @Published var showPermissionAlert = false // Алерт для отклоненного разрешения
+    @Published var showPermissionAlert = false
     @Published var showLinkButtonAlert = false
     @Published var isSearchingBridges = false
     @Published var linkButtonCountdown = 30
     @Published var discoveredBridges: [Bridge] = []
     @Published var selectedBridge: Bridge?
-    @Published var isConnecting = false // Добавляем флаг для защиты от повторных подключений
-    @Published var isRequestingPermission = false // Флаг для предотвращения повторных запросов разрешения
+    @Published var isConnecting = false
+    @Published var isRequestingPermission = false
+    @Published var linkButtonPressed = false // Флаг нажатия кнопки
+    @Published var connectionError: String? = nil // Сообщение об ошибке
     
     // MARK: - Private Properties
     
     private var appViewModel: AppViewModel
     private var linkButtonTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
+    private var connectionAttempts = 0
+    private let maxConnectionAttempts = 30 // 30 попыток * 2 сек = 60 сек максимум
     
     // MARK: - Initialization
     
@@ -47,14 +47,30 @@ class OnboardingViewModel: ObservableObject {
         appViewModel.$connectionStatus
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
+                guard let self = self else { return }
+                
                 switch status {
                 case .connected:
-                    self?.currentStep = .connected
+                    print("✅ OnboardingViewModel: Подключение успешно установлено!")
+                    self.handleSuccessfulConnection()
+                    
                 case .discovered:
-                    if !(self?.discoveredBridges.isEmpty ?? true) {
-                        self?.currentStep = .bridgeFound
+                    if !self.discoveredBridges.isEmpty {
+                        print("📡 OnboardingViewModel: Мосты обнаружены")
+                        // Не переходим автоматически, ждем действия пользователя
                     }
-                default:
+                    
+                case .needsAuthentication:
+                    print("🔐 OnboardingViewModel: Требуется авторизация (нажатие Link Button)")
+                    // Остаемся на экране Link Button
+                    
+                case .disconnected:
+                    print("❌ OnboardingViewModel: Отключено")
+                    
+                case .searching:
+                    print("🔍 OnboardingViewModel: Поиск мостов...")
+                    
+                @unknown default:
                     break
                 }
             }
@@ -67,18 +83,22 @@ class OnboardingViewModel: ObservableObject {
                 self?.discoveredBridges = bridges
                 if !bridges.isEmpty && self?.currentStep == .searchBridges {
                     print("✅ Получены мосты от AppViewModel: \(bridges.count)")
-                    for bridge in bridges {
-                        print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
-                    }
-                    
-                    // Не переходим автоматически к bridgeFound - остаемся на searchBridges
-                    // и показываем кнопку "Далее" вместо "Поиск"
                     
                     // Автоматически выбираем первый мост если он единственный
                     if bridges.count == 1 {
                         print("🎯 Автоматически выбираем единственный найденный мост")
                         self?.selectBridge(bridges[0])
                     }
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Слушаем ошибки подключения
+        appViewModel.$error
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] error in
+                if let hueError = error as? HueAPIError {
+                    self?.handleConnectionError(hueError)
                 }
             }
             .store(in: &cancellables)
@@ -89,7 +109,6 @@ class OnboardingViewModel: ObservableObject {
     func nextStep() {
         switch currentStep {
         case .welcome:
-            // Сразу переходим к запросу разрешения локальной сети
             currentStep = .localNetworkPermission
         case .localNetworkPermission:
             currentStep = .searchBridges
@@ -98,22 +117,15 @@ class OnboardingViewModel: ObservableObject {
                 currentStep = .bridgeFound
             }
         case .bridgeFound:
+            // Переходим к экрану Link Button и запускаем процесс подключения
             currentStep = .linkButton
         case .linkButton:
-            currentStep = .connected
+            // Не переходим автоматически - ждем успешного подключения
+            break
         case .connected:
             // Завершаем онбординг
             appViewModel.showSetup = false
         }
-        
-        // MARK: - QR Code Steps (закомментировано)
-        /*
-        case .cameraPermission:
-            // После разрешения камеры сразу показываем сканер
-            requestCameraPermission()
-        case .qrScanner:
-            currentStep = .localNetworkPermission
-        */
     }
     
     func previousStep() {
@@ -127,27 +139,237 @@ class OnboardingViewModel: ObservableObject {
         case .bridgeFound:
             currentStep = .searchBridges
         case .linkButton:
+            // При возврате отменяем попытки подключения
+            cancelLinkButton()
             currentStep = .bridgeFound
         case .connected:
             currentStep = .linkButton
         }
-        
-        // MARK: - QR Code Steps (закомментировано)
-        /*
-        case .cameraPermission:
-            currentStep = .welcome
-        case .qrScanner:
-            currentStep = .cameraPermission
-        */
     }
     
-    // MARK: - Local Network Permission Request
+    // MARK: - Connection Management
     
-    /// Запрашивает разрешение на локальную сеть на экране приветствия
-    func requestLocalNetworkPermissionOnWelcome() {
+    /// Запускает процесс подключения к выбранному мосту
+    func startBridgeConnection() {
+        guard let bridge = selectedBridge else {
+            print("❌ Не выбран мост для подключения")
+            return
+        }
+        
         // Защита от повторных вызовов
+        guard !isConnecting else {
+            print("⚠️ Подключение уже в процессе")
+            return
+        }
+        
+        print("🔗 Начинаем подключение к мосту: \(bridge.id) at \(bridge.internalipaddress)")
+        isConnecting = true
+        connectionAttempts = 0
+        linkButtonPressed = false
+        connectionError = nil
+        
+        // Сначала подключаемся к мосту (устанавливаем соединение)
+        appViewModel.connectToBridge(bridge)
+        
+        // Показываем инструкцию о нажатии кнопки Link
+        showLinkButtonAlert = true
+        
+        // Запускаем таймер для периодических попыток создания пользователя
+        startLinkButtonPolling()
+    }
+    
+    /// Запускает периодическую проверку нажатия Link Button
+    private func startLinkButtonPolling() {
+        print("⏱ Запускаем опрос Link Button каждые 2 секунды")
+        
+        // Отменяем предыдущий таймер если есть
+        linkButtonTimer?.invalidate()
+        
+        // Создаем новый таймер для опроса каждые 2 секунды
+        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.attemptCreateUser()
+        }
+        
+        // Первая попытка сразу
+        attemptCreateUser()
+    }
+    
+    /// Попытка создать пользователя (проверка нажатия Link Button)
+    private func attemptCreateUser() {
+        connectionAttempts += 1
+        
+        print("🔐 Попытка #\(connectionAttempts) создания пользователя...")
+        
+        // Проверяем лимит попыток
+        if connectionAttempts >= maxConnectionAttempts {
+            print("⏰ Превышен лимит попыток подключения")
+            handleConnectionTimeout()
+            return
+        }
+        
+        // Обновляем обратный отсчет
+        linkButtonCountdown = max(0, 60 - (connectionAttempts * 2))
+        
+        // Пробуем создать пользователя
+        #if canImport(UIKit)
+        let deviceName = UIDevice.current.name
+        #else
+        let deviceName = Host.current().localizedName ?? "Mac"
+        #endif
+        
+        appViewModel.createUserWithRetry(appName: "BulbsHUE") { [weak self] success in
+            guard let self = self else { return }
+            
+            if success {
+                print("✅ Пользователь успешно создан! Link Button был нажат!")
+                self.linkButtonPressed = true
+                self.handleSuccessfulConnection()
+            } else {
+                // Проверяем тип ошибки
+                if let error = self.appViewModel.error as? HueAPIError {
+                    switch error {
+                    case .linkButtonNotPressed:
+                        // Это нормально - кнопка еще не нажата, продолжаем опрос
+                        print("⏳ Link Button еще не нажат, продолжаем ожидание...")
+                        
+                    case .localNetworkPermissionDenied:
+                        print("🚫 Нет доступа к локальной сети!")
+                        self.handleNetworkPermissionError()
+                        
+                    default:
+                        print("❌ Ошибка при создании пользователя: \(error)")
+                        // Продолжаем попытки для других ошибок
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Обработка успешного подключения
+    private func handleSuccessfulConnection() {
+        print("🎉 Подключение успешно установлено!")
+        
+        // Останавливаем таймер
+        linkButtonTimer?.invalidate()
+        linkButtonTimer = nil
+        
+        // Сбрасываем флаги
+        isConnecting = false
+        showLinkButtonAlert = false
+        linkButtonPressed = true
+        connectionError = nil
+        
+        // Переходим к экрану успешного подключения
+        currentStep = .connected
+        
+        // Закрываем онбординг через секунду
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.appViewModel.showSetup = false
+        }
+    }
+    
+    /// Обработка таймаута подключения
+    private func handleConnectionTimeout() {
+        print("⏰ Время ожидания истекло")
+        
+        cancelLinkButton()
+        
+        connectionError = "Время ожидания истекло. Убедитесь, что вы нажали круглую кнопку Link на Hue Bridge и попробуйте снова."
+        
+        // Показываем ошибку пользователю
+        showLinkButtonAlert = false
+    }
+    
+    /// Обработка ошибки доступа к локальной сети
+    private func handleNetworkPermissionError() {
+        cancelLinkButton()
+        showLocalNetworkAlert = true
+    }
+    
+    /// Обработка ошибок подключения
+    private func handleConnectionError(_ error: HueAPIError) {
+        switch error {
+        case .linkButtonNotPressed:
+            // Игнорируем - это нормальное состояние до нажатия кнопки
+            break
+            
+        case .localNetworkPermissionDenied:
+            connectionError = "Нет доступа к локальной сети. Разрешите доступ в настройках."
+            
+        case .bridgeNotFound:
+            connectionError = "Hue Bridge не найден в сети."
+            
+        case .notAuthenticated:
+            connectionError = "Ошибка авторизации. Попробуйте снова."
+            
+        default:
+            connectionError = "Ошибка подключения: \(error.localizedDescription)"
+        }
+    }
+    
+    /// Отмена процесса подключения
+    func cancelLinkButton() {
+        print("🚫 Отмена процесса подключения")
+        
+        linkButtonTimer?.invalidate()
+        linkButtonTimer = nil
+        showLinkButtonAlert = false
+        isConnecting = false
+        linkButtonPressed = false
+        connectionAttempts = 0
+        linkButtonCountdown = 30
+        connectionError = nil
+    }
+    
+    // MARK: - Bridge Selection
+    
+    func selectBridge(_ bridge: Bridge) {
+        print("📡 Выбран мост: \(bridge.id)")
+        selectedBridge = bridge
+        appViewModel.currentBridge = bridge
+    }
+    
+    // MARK: - Bridge Search
+    
+    func startBridgeSearch() {
+        print("🔍 Начинаем поиск мостов в сети")
+        isSearchingBridges = true
+        discoveredBridges.removeAll()
+        connectionError = nil
+        
+        appViewModel.searchForBridges()
+        
+        // Таймаут поиска
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
+            guard let self = self else { return }
+            
+            // Проверяем не подключились ли мы уже к мосту
+            if self.appViewModel.connectionStatus == .connected ||
+               self.appViewModel.connectionStatus == .needsAuthentication {
+                print("✅ Мост уже найден и подключен")
+                return
+            }
+            
+            self.isSearchingBridges = false
+            
+            if let error = self.appViewModel.error as? HueAPIError,
+               case .localNetworkPermissionDenied = error {
+                print("🚫 Отказано в разрешении локальной сети")
+                self.showLocalNetworkAlert = true
+            } else if self.discoveredBridges.isEmpty {
+                print("❌ Мосты не найдены")
+                self.connectionError = "Мосты не найдены в локальной сети. Проверьте подключение."
+            } else {
+                print("✅ Найдено мостов: \(self.discoveredBridges.count)")
+            }
+        }
+    }
+    
+    // MARK: - Local Network Permission
+    
+    func requestLocalNetworkPermissionOnWelcome() {
         guard !isRequestingPermission else {
-            print("⚠️ Запрос разрешения уже выполняется, игнорируем повторный вызов")
+            print("⚠️ Запрос разрешения уже выполняется")
             return
         }
         
@@ -163,10 +385,10 @@ class OnboardingViewModel: ObservableObject {
                     isRequestingPermission = false
                     
                     if granted {
-                        print("✅ Разрешение на локальную сеть получено, переходим к следующему шагу")
+                        print("✅ Разрешение на локальную сеть получено")
                         nextStep()
                     } else {
-                        print("❌ Разрешение на локальную сеть отклонено, остаемся на экране приветствия")
+                        print("❌ Разрешение на локальную сеть отклонено")
                         showPermissionAlert = true
                     }
                 }
@@ -178,201 +400,6 @@ class OnboardingViewModel: ObservableObject {
                 }
             }
         }
-    }
-    
-    // MARK: - Bridge Search
-    
-    /// Запрашивает разрешение локальной сети и начинает поиск
-    func requestLocalNetworkPermissionAndSearch() {
-        print("🔍 Запрашиваем разрешение локальной сети и начинаем поиск мостов")
-        
-        if #available(iOS 14.0, *) {
-            let checker = LocalNetworkPermissionChecker()
-            Task {
-                do {
-                    let hasPermission = try await checker.requestAuthorization()
-                    await MainActor.run {
-                        if hasPermission {
-                            print("✅ Разрешение локальной сети получено, начинаем поиск")
-                            self.nextStep()  // Переходим к searchBridges
-                            // Задержка для анимации перехода, затем начинаем поиск
-                            Task {
-                                try await Task.sleep(nanoseconds: 300_000_000) // 0.3 секунды
-                                await MainActor.run {
-                                    self.startBridgeSearch()
-                                }
-                            }
-                        } else {
-                            print("🚫 Разрешение локальной сети отклонено")
-                            self.showLocalNetworkAlert = true
-                        }
-                    }
-                } catch {
-                    await MainActor.run {
-                        print("❌ Ошибка при запросе разрешения: \(error)")
-                        self.showLocalNetworkAlert = true
-                    }
-                }
-            }
-        } else {
-            // Для iOS < 14 сразу переходим к поиску
-            nextStep()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.startBridgeSearch()
-            }
-        }
-    }
-        
-        func startBridgeSearch() {
-            print("🔍 Начинаем поиск мостов в сети")
-            isSearchingBridges = true
-            discoveredBridges.removeAll()
-            
-            appViewModel.searchForBridges()
-            
-            // Таймаут поиска - исправлено для предотвращения сброса после успешного подключения
-            DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
-                guard let self = self else { return }
-                
-                // ИСПРАВЛЕНИЕ: Проверяем не подключились ли мы уже к мосту
-                // Если мост уже подключен, не сбрасываем состояние
-                if self.appViewModel.connectionStatus == .connected ||
-                   self.appViewModel.connectionStatus == .needsAuthentication {
-                    print("✅ Мост уже найден и подключен, пропускаем таймаут")
-                    return
-                }
-                
-                self.isSearchingBridges = false
-                
-                // Проверяем результаты только если мост еще не подключен
-                if let error = self.appViewModel.error as? HueAPIError,
-                   case .localNetworkPermissionDenied = error {
-                    print("🚫 Отказано в разрешении локальной сети")
-                    self.showLocalNetworkAlert = true
-                } else if self.discoveredBridges.isEmpty {
-                    print("❌ Поиск завершен: мосты не найдены в локальной сети")
-                    print("💡 Проверьте:")
-                    print("   1. Мост подключен к той же Wi-Fi сети")
-                    print("   2. Мост включен и работает")
-                    print("   3. Разрешения локальной сети в настройках iOS")
-                } else {
-                    print("✅ Поиск завершен: найдено мостов: \(self.discoveredBridges.count)")
-                    // Остаемся на экране поиска, но показываем кнопку "Далее" вместо "Поиск"
-                    // Переход к bridgeFound будет только по нажатию кнопки
-                }
-            }
-        }
-    
-    private func searchForSpecificBridge(bridgeId: String) {
-        print("🔍 Ищем конкретный мост с ID: \(bridgeId)")
-        isSearchingBridges = true
-        
-        appViewModel.discoverBridge(bySerial: bridgeId) { [weak self] bridge in
-            DispatchQueue.main.async {
-                self?.isSearchingBridges = false
-                
-                if let bridge = bridge {
-                    print("✅ Мост найден: \(bridge.id) по адресу \(bridge.internalipaddress)")
-                    self?.discoveredBridges = [bridge]
-                    self?.selectedBridge = bridge
-                    self?.currentStep = .bridgeFound
-                } else {
-                    print("❌ Мост с ID \(bridgeId) не найден")
-                    // Пробуем общий поиск
-                    self?.startBridgeSearch()
-                }
-            }
-        }
-    }
-    
-    // MARK: - Bridge Connection
-    
-    func selectBridge(_ bridge: Bridge) {
-        print("📡 Выбран мост: \(bridge.id)")
-        selectedBridge = bridge
-        appViewModel.currentBridge = bridge
-    }
-    
-    func startBridgeConnection() {
-        guard let bridge = selectedBridge else { 
-            print("❌ Не выбран мост для подключения")
-            return 
-        }
-        
-        // Защита от повторных вызовов
-        guard !isConnecting else {
-            print("⚠️ Подключение уже в процессе, игнорируем повторный вызов")
-            return
-        }
-        
-        print("🔗 Начинаем подключение к мосту: \(bridge.id) at \(bridge.internalipaddress)")
-        isConnecting = true
-        currentStep = .linkButton
-        showLinkButtonAlert = true
-        
-        // Сначала подключаемся к мосту
-        appViewModel.connectToBridge(bridge)
-        
-        // Сразу начинаем попытки авторизации без таймера
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-            self?.startContinuousAuthentication()
-        }
-    }
-    
-    private func startContinuousAuthentication() {
-        // Запускаем непрерывные попытки авторизации каждые 2 секунды
-        linkButtonTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            print("🔐 Попытка создания пользователя...")
-            self?.attemptCreateUser()
-        }
-    }
-    
-    /// Попытка создать пользователя
-        private func attemptCreateUser() {
-            // Проверяем - может пользователь уже создан
-            if appViewModel.connectionStatus == .connected {
-                print("✅ Пользователь уже создан - останавливаем попытки")
-                cancelLinkButton()
-                return
-            }
-            
-            #if canImport(UIKit)
-            let deviceName = UIDevice.current.name
-            #else
-            let deviceName = Host.current().localizedName ?? "Mac"
-            #endif
-            
-            // Используем улучшенный метод с проверкой локальной сети
-            appViewModel.createUserWithRetry(appName: "BulbsHUE", completion: { [weak self] success in
-                if success {
-                    print("✅ Пользователь успешно создан! Подключение установлено!")
-                    self?.isConnecting = false // Сбрасываем флаг подключения
-                    self?.cancelLinkButton()
-                    self?.currentStep = .connected
-                    
-                    // Мгновенно закрываем setup после успешного подключения
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        self?.appViewModel.showSetup = false
-                    }
-                } else {
-                    // Проверяем ошибку локальной сети
-                    if let error = self?.appViewModel.error as? HueAPIError,
-                       case .localNetworkPermissionDenied = error {
-                        print("🚫 Нет доступа к локальной сети!")
-                        self?.isConnecting = false // Сбрасываем флаг при ошибке
-                        self?.cancelLinkButton()
-                        self?.showLocalNetworkAlert = true
-                    }
-                    // Иначе продолжаем попытки - кнопка Link может быть еще не нажата
-                }
-            })
-        }
-    
-    func cancelLinkButton() {
-        linkButtonTimer?.invalidate()
-        linkButtonTimer = nil
-        showLinkButtonAlert = false
-        isConnecting = false // Сбрасываем флаг подключения
     }
     
     // MARK: - Helpers
@@ -387,6 +414,8 @@ class OnboardingViewModel: ObservableObject {
         showLocalNetworkAlert = true
     }
 }
+
+
 extension OnboardingViewModel {
     
     /// Улучшенная попытка создания пользователя

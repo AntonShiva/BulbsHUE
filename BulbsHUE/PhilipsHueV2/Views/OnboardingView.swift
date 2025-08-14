@@ -58,6 +58,31 @@ struct OnboardingView: View {
                 }
             }
             .navigationBarHidden(true)
+            // Также добавьте алерт для отображения процесса в главном body OnboardingView:
+
+            .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
+                if viewModel.linkButtonPressed {
+                    Button("OK") {
+                        viewModel.showLinkButtonAlert = false
+                    }
+                } else {
+                    Button("Отмена") {
+                        viewModel.cancelLinkButton()
+                    }
+                }
+            } message: {
+                if viewModel.linkButtonPressed {
+                    Text("✅ Подключение успешно установлено!")
+                } else {
+                    VStack {
+                        Text("👆 Нажмите круглую кнопку Link на верхней части вашего Hue Bridge")
+                        Text("")
+                        if viewModel.linkButtonCountdown > 0 {
+                            Text("⏱ Осталось времени: \(viewModel.linkButtonCountdown) сек")
+                        }
+                    }
+                }
+            }
         }
         // MARK: - QR Code Sheets (закомментировано)
         /*
@@ -448,35 +473,193 @@ struct OnboardingView: View {
         }
     }
     
-    /// Экран нажатия кнопки Link
+    /// Экран нажатия кнопки Link с правильным ожиданием
     private var linkButtonStepView: some View {
         VStack(spacing: 40) {
-            bridgeImageView
+            // Анимированное изображение моста
+            ZStack {
+                bridgeImageView
+                
+                // Пульсирующее кольцо вокруг кнопки Link
+                if viewModel.isConnecting && !viewModel.linkButtonPressed {
+                    Circle()
+                        .stroke(Color.cyan, lineWidth: 2)
+                        .frame(width: 50, height: 50)
+                        .scaleEffect(viewModel.isConnecting ? 1.3 : 1.0)
+                        .opacity(viewModel.isConnecting ? 0.3 : 1.0)
+                        .animation(
+                            Animation.easeInOut(duration: 1.5)
+                                .repeatForever(autoreverses: true),
+                            value: viewModel.isConnecting
+                        )
+                        .offset(y: 30) // Позиционируем на кнопке Link
+                }
+                
+                // Индикатор успеха
+                if viewModel.linkButtonPressed {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title)
+                                .foregroundColor(.green)
+                                .background(Color.white.clipShape(Circle()))
+                        }
+                        Spacer()
+                    }
+                    .frame(width: 120, height: 120)
+                    .offset(x: 30, y: -30)
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.spring(), value: viewModel.linkButtonPressed)
+                }
+            }
             
             VStack(spacing: 16) {
-                Text("Подключение к мосту")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                
-                Text("Нажмите круглую кнопку Link на вашем Hue Bridge для завершения подключения")
-                    .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
+                if viewModel.linkButtonPressed {
+                    // Успешное подключение
+                    Text("Подключение установлено!")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.green)
+                        .transition(.opacity)
+                    
+                    Text("Hue Bridge успешно подключен к приложению")
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                    
+                } else if viewModel.isConnecting {
+                    // Процесс ожидания
+                    Text("Ожидание подключения")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
+                    VStack(spacing: 12) {
+                        // Инструкция с анимацией
+                        HStack(spacing: 8) {
+                            Image(systemName: "hand.point.up.fill")
+                                .foregroundColor(.cyan)
+                                .font(.title3)
+                                .symbolEffect(.pulse, value: viewModel.isConnecting)
+                            
+                            Text("Нажмите круглую кнопку Link")
+                                .font(.body)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                        }
+                        
+                        Text("на верхней части вашего Hue Bridge")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                        
+                        // Обратный отсчет
+                        if viewModel.linkButtonCountdown > 0 {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                                
+                                Text("Осталось: \(viewModel.linkButtonCountdown) сек")
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                            .padding(.top, 8)
+                        }
+                    }
                     .padding(.horizontal, 20)
-                
+                    
+                } else if let error = viewModel.connectionError {
+                    // Ошибка подключения
+                    Text("Ошибка подключения")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.red)
+                    
+                    Text(error)
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                    
+                } else {
+                    // Начальное состояние
+                    Text("Подключение к мосту")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
+                    Text("Для завершения настройки необходимо физическое подтверждение")
+                        .font(.body)
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
             }
             
-            Button("Отмена") {
-                viewModel.cancelLinkButton()
+            // Кнопки действий
+            VStack(spacing: 16) {
+                if viewModel.linkButtonPressed {
+                    // Кнопка продолжения после успешного подключения
+                    Button("Далее") {
+                        viewModel.nextStep()
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .transition(.opacity)
+                    
+                } else if viewModel.isConnecting {
+                    // Кнопка отмены во время ожидания
+                    Button("Отмена") {
+                        viewModel.cancelLinkButton()
+                        viewModel.previousStep()
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                    
+                } else if viewModel.connectionError != nil {
+                    // Кнопки после ошибки
+                    Button("Повторить попытку") {
+                        viewModel.connectionError = nil
+                        viewModel.startBridgeConnection()
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    
+                    Button("Назад") {
+                        viewModel.connectionError = nil
+                        viewModel.previousStep()
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                    
+                } else {
+                    // Начальная кнопка для запуска процесса
+                    Button("Начать подключение") {
+                        viewModel.startBridgeConnection()
+                    }
+                    .buttonStyle(PrimaryButtonStyle())
+                    
+                    Button("Назад") {
+                        viewModel.previousStep()
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
+                }
             }
-            .buttonStyle(SecondaryButtonStyle())
             .padding(.horizontal, 40)
+            .animation(.easeInOut, value: viewModel.linkButtonPressed)
+            .animation(.easeInOut, value: viewModel.isConnecting)
         }
         .onAppear {
-            // Автоматически начинаем процесс подключения когда появляется экран
-            if viewModel.selectedBridge != nil  {
-                viewModel.startBridgeConnection()
+            // Автоматически начинаем процесс подключения при появлении экрана
+            if viewModel.selectedBridge != nil && !viewModel.isConnecting {
+                // Небольшая задержка для плавности анимации
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    viewModel.startBridgeConnection()
+                }
+            }
+        }
+        .onDisappear {
+            // Если уходим с экрана - отменяем подключение
+            if viewModel.isConnecting && !viewModel.linkButtonPressed {
+                viewModel.cancelLinkButton()
             }
         }
     }
@@ -667,4 +850,10 @@ struct SecondaryButtonStyle: ButtonStyle {
  }
  }
  */
+
+// Файл: BulbsHUE/PhilipsHueV2/Views/OnboardingView.swift
+// Обновите метод linkButtonStepView (примерно строка 600)
+
+
+
 
