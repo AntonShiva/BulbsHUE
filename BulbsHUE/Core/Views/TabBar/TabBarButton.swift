@@ -26,7 +26,7 @@ struct TabBarButton: View {
     
     var body: some View {
         Button {
-            nav.currentRoute = route
+            nav.go(route)
         } label: {
              ZStack {
                 

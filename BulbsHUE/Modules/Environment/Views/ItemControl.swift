@@ -14,6 +14,8 @@ struct ItemControl: View {
     // MARK: - Environment Objects
     /// Основной ViewModel приложения для доступа к сервисам
     @EnvironmentObject var appViewModel: AppViewModel
+    /// Навигационный менеджер для управления переходами
+    @EnvironmentObject var nav: NavigationManager
     
     // MARK: - Properties
     
@@ -52,6 +54,10 @@ struct ItemControl: View {
                     onToggle: { newState in
                         // Обновляем состояние через ViewModel
                         itemControlViewModel.setPower(newState)
+                    },
+                    onMenuTap: {
+                        // Показываем MenuView для этой лампы
+                        nav.showMenuView(for: light)
                     }
                 )
                 
@@ -186,6 +192,7 @@ struct MockItemControl: View {
     let light: Light
     let mockColor: Color
     @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject var nav: NavigationManager
     @StateObject private var itemControlViewModel: ItemControlViewModel
     
     init(light: Light, mockColor: Color) {
@@ -207,6 +214,10 @@ struct MockItemControl: View {
                     roomIcon: itemControlViewModel.getRoomIcon(),
                     onToggle: { newState in
                         itemControlViewModel.setPower(newState)
+                    },
+                    onMenuTap: {
+                        // Показываем MenuView для этой лампы (даже в Mock режиме)
+                        nav.showMenuView(for: light)
                     }
                 )
                 

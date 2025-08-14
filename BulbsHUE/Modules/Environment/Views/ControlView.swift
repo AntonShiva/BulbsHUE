@@ -59,6 +59,9 @@ struct ControlView: View {
     /// Callback для обработки изменения состояния питания
     let onToggle: ((Bool) -> Void)?
     
+    /// Callback для показа меню настроек
+    let onMenuTap: (() -> Void)?
+    
     // MARK: - Initialization
     
     init(
@@ -69,7 +72,8 @@ struct ControlView: View {
         roomName: String = "Living Room",
         bulbIcon: String = "f2",
         roomIcon: String = "tr1",
-        onToggle: ((Bool) -> Void)? = nil
+        onToggle: ((Bool) -> Void)? = nil,
+        onMenuTap: (() -> Void)? = nil
     ) {
         self._isOn = isOn
         self.baseColor = baseColor
@@ -79,6 +83,7 @@ struct ControlView: View {
         self.bulbIcon = bulbIcon
         self.roomIcon = roomIcon
         self.onToggle = onToggle
+        self.onMenuTap = onMenuTap
     }
     
     // MARK: - Body
@@ -185,6 +190,9 @@ struct ControlView: View {
                     .rotationEffect(Angle(degrees: 90))
             }
             .adaptiveOffset(x: 111, y: -43)
+            .onTapGesture {
+                onMenuTap?()
+            }
         }
     }
 }

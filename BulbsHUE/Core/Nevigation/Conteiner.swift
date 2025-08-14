@@ -27,8 +27,31 @@ struct MainContainer: View {
             case .selectCategories:
                 // Этот экран также управляется состоянием в AddNewBulb
                 AddNewBulb()
+            case .menuView:
+                // Показываем MenuView с выбранной лампой
+                if let selectedLight = nav.selectedLightForMenu {
+                    MenuView(
+                        bulbName: selectedLight.metadata.name,
+                        bulbIcon: getBulbIcon(for: selectedLight),
+                        bulbType: getBulbType(for: selectedLight)
+                    )
+                } else {
+                    // Fallback если лампа не выбрана
+                    EnvironmentView()
+                }
             }
         }
         .transition(.opacity)
+    }
+    
+    // MARK: - Helper Methods
+    private func getBulbIcon(for light: Light) -> String {
+        // Возвращаем иконку из пользовательских настроек или дефолтную
+        return light.metadata.userSubtypeIcon ?? "f1"
+    }
+    
+    private func getBulbType(for light: Light) -> String {
+        // Возвращаем тип из пользовательских настроек или дефолтный
+        return light.metadata.userSubtypeName ?? light.metadata.archetype ?? "Smart Light"
     }
 }

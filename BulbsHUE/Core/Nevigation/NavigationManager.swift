@@ -21,6 +21,9 @@ enum Router: Equatable {
     case addNewBulb               // Экран добавления новой лампочки
     case searchResults            // Поиск лампочек в сети + результаты
     case selectCategories         // Выбор категории для лампочки
+    
+    // Меню настроек лампы
+    case menuView                 // Меню настроек конкретной лампы
 }
 
 class NavigationManager: ObservableObject {
@@ -34,6 +37,9 @@ class NavigationManager: ObservableObject {
     
     // Выбранная лампа для настройки категории
     @Published var selectedLight: Light? = nil
+    
+    // Выбранная лампа для показа MenuView
+    @Published var selectedLightForMenu: Light? = nil
     
     // Тип поиска ламп
     @Published var searchType: SearchType = .network
@@ -66,6 +72,9 @@ class NavigationManager: ObservableObject {
                 showSelectCategories = false
                 selectedLight = nil
             }
+            
+            // Обновляем видимость TabBar
+            togleTabBarVisible()
         }
     }
     
@@ -109,6 +118,25 @@ class NavigationManager: ObservableObject {
             showSelectCategories = false
             selectedLight = nil
             searchType = .network
+        }
+    }
+    
+    // MARK: - Методы для управления MenuView
+    func showMenuView(for light: Light) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            selectedLightForMenu = light
+            currentRoute = .menuView
+            togleTabBarVisible() // Обновляем видимость TabBar
+            print("📱 Показываем MenuView для лампы: \(light.metadata.name)")
+        }
+    }
+    
+    func hideMenuView() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            selectedLightForMenu = nil
+            currentRoute = .environment
+            togleTabBarVisible() // Обновляем видимость TabBar
+            print("📱 Скрываем MenuView")
         }
     }
 }
