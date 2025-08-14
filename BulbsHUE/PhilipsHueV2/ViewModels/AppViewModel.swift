@@ -854,6 +854,311 @@ extension AppViewModel {
             .store(in: &cancellables)
     }
 }
+// Файл: BulbsHUE/PhilipsHueV2/ViewModels/AppViewModel+LinkButton.swift
+// ИСПРАВЛЕНИЕ: Правильная обработка нажатия кнопки Link на внешнем устройстве
+
+
+extension AppViewModel {
+    
+    /// Улучшенный метод создания пользователя с правильным ожиданием Link Button
+    func createUserWithLinkButtonHandling(
+        appName: String = "BulbsHUE",
+        onProgress: @escaping (LinkButtonState) -> Void,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        
+        #if canImport(UIKit)
+        let deviceName = UIDevice.current.name
+        #else
+        let deviceName = Host.current().localizedName ?? "Mac"
+        #endif
+        
+        // Состояние процесса
+        var attemptCount = 0
+        let maxAttempts = 30 // 30 попыток * 2 сек = 60 секунд максимум
+        var timer: Timer?
+        
+        print("🔐 Начинаем процесс авторизации с Link Button...")
+        
+        // Функция для одной попытки
+        func attemptAuthorization() {
+            attemptCount += 1
+            
+            // Обновляем прогресс
+            onProgress(.waiting(attempt: attemptCount, maxAttempts: maxAttempts))
+            
+            print("🔐 Попытка #\(attemptCount) создания пользователя...")
+            
+            // Проверяем превышение лимита
+            if attemptCount > maxAttempts {
+                print("⏰ Время ожидания истекло (60 секунд)")
+                timer?.invalidate()
+                onProgress(.timeout)
+                completion(.failure(LinkButtonError.timeout))
+                return
+            }
+            
+            // Создаем правильный запрос для API v1/v2
+            createUserRequest(appName: appName, deviceName: deviceName) { [weak self] result in
+                switch result {
+                case .success(let response):
+                    // Проверяем ответ
+                    if let success = response.success,
+                       let username = success.username {
+                        // УСПЕХ! Кнопка была нажата
+                        print("✅ Link Button нажата! Пользователь создан!")
+                        print("📝 Username: \(username)")
+                        
+                        timer?.invalidate()
+                        
+                        // Сохраняем ключи
+                        self?.applicationKey = username
+                        
+                        if let clientKey = success.clientkey {
+                            print("🔑 Client key получен: \(clientKey)")
+                            self?.saveClientKey(clientKey)
+                        }
+                        
+                        // Обновляем состояние
+                        self?.connectionStatus = .connected
+                        onProgress(.success)
+                        completion(.success(username))
+                        
+                        // Запускаем загрузку данных
+                        self?.startEventStream()
+                        self?.loadAllData()
+                        
+                    } else if let error = response.error {
+                        // Обрабатываем ошибку
+                        self?.handleLinkButtonError(
+                            error: error,
+                            attemptCount: attemptCount,
+                            timer: &timer,
+                            onProgress: onProgress,
+                            completion: completion,
+                            attemptAuthorization: attemptAuthorization
+                        )
+                    }
+                    
+                case .failure(let error):
+                    print("❌ Сетевая ошибка: \(error)")
+                    // Продолжаем попытки при сетевых ошибках
+                    // Timer продолжит вызывать attemptAuthorization
+                }
+            }
+        }
+        
+        // Запускаем таймер для периодических попыток
+        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            attemptAuthorization()
+        }
+        
+        // Первая попытка сразу
+        attemptAuthorization()
+    }
+    
+    /// Обработчик ошибок Link Button
+    private func handleLinkButtonError(
+        error: AuthError,
+        attemptCount: Int,
+        timer: inout Timer?,
+        onProgress: @escaping (LinkButtonState) -> Void,
+        completion: @escaping (Result<String, Error>) -> Void,
+        attemptAuthorization: @escaping () -> Void
+    ) {
+        switch error.type {
+        case 101:
+            // Код 101 = Link button not pressed
+            // Это НОРМАЛЬНО - продолжаем ожидание
+            print("⏳ Кнопка Link еще не нажата, ожидаем... (попытка \(attemptCount))")
+            // Timer продолжает работать
+            
+        case 7:
+            // Invalid request
+            print("❌ Неверный запрос")
+            timer?.invalidate()
+            onProgress(.error("Неверный запрос к мосту"))
+            completion(.failure(LinkButtonError.invalidRequest))
+            
+        case 3:
+            // Resource not available
+            print("❌ Ресурс недоступен")
+            timer?.invalidate()
+            onProgress(.error("Мост недоступен"))
+            completion(.failure(LinkButtonError.bridgeUnavailable))
+            
+        default:
+            print("⚠️ Неизвестная ошибка: \(error.description ?? "Unknown")")
+            // Продолжаем попытки для других ошибок
+        }
+    }
+    
+    /// Создание запроса пользователя (работает с обоими API)
+    private func createUserRequest(
+        appName: String,
+        deviceName: String,
+        completion: @escaping (Result<AuthenticationResponse, Error>) -> Void
+    ) {
+        // Проверяем подключение к мосту
+        guard let bridge = currentBridge else {
+            completion(.failure(LinkButtonError.noBridgeSelected))
+            return
+        }
+        
+        // Используем HTTP для локальной сети (не HTTPS)
+        guard let url = URL(string: "http://\(bridge.internalipaddress)/api") else {
+            completion(.failure(LinkButtonError.invalidURL))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 5.0
+        
+        let body: [String: Any] = [
+            "devicetype": "\(appName)#\(deviceName)",
+            "generateclientkey": true // Для Entertainment API
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            completion(.failure(error))
+            return
+        }
+        
+        // Выполняем запрос
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    // Обрабатываем сетевые ошибки
+                    let nsError = error as NSError
+                    if nsError.code == -1009 {
+                        print("🚫 Нет доступа к локальной сети")
+                        completion(.failure(LinkButtonError.localNetworkDenied))
+                    } else {
+                        completion(.failure(error))
+                    }
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(.failure(LinkButtonError.noData))
+                    return
+                }
+                
+                // Логируем ответ для отладки
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📦 Ответ моста: \(responseString)")
+                }
+                
+                // Парсим ответ
+                do {
+                    // Hue API возвращает массив
+                    let responses = try JSONDecoder().decode([AuthenticationResponse].self, from: data)
+                    if let response = responses.first {
+                        completion(.success(response))
+                    } else {
+                        completion(.failure(LinkButtonError.emptyResponse))
+                    }
+                } catch {
+                    print("❌ Ошибка парсинга: \(error)")
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+    
+    /// Сохранение client key для Entertainment API
+    private func saveClientKey(_ clientKey: String) {
+        guard let bridgeId = currentBridge?.id else { return }
+        _ = HueKeychainManager.shared.saveClientKey(clientKey, for: bridgeId)
+        
+        // Настраиваем Entertainment клиент
+        setupEntertainmentClient(clientKey: clientKey)
+    }
+}
+
+// MARK: - Link Button State
+
+/// Состояние процесса Link Button
+enum LinkButtonState {
+    case idle
+    case waiting(attempt: Int, maxAttempts: Int)
+    case success
+    case error(String)
+    case timeout
+    
+    var description: String {
+        switch self {
+        case .idle:
+            return "Готов к подключению"
+        case .waiting(let attempt, let max):
+            return "Ожидание нажатия кнопки (\(attempt)/\(max))"
+        case .success:
+            return "Подключено успешно!"
+        case .error(let message):
+            return "Ошибка: \(message)"
+        case .timeout:
+            return "Время ожидания истекло"
+        }
+    }
+    
+    var isConnecting: Bool {
+        if case .waiting = self { return true }
+        return false
+    }
+    
+    var isSuccess: Bool {
+        if case .success = self { return true }
+        return false
+    }
+}
+
+// MARK: - Link Button Errors
+
+/// Специфичные ошибки Link Button
+enum LinkButtonError: LocalizedError {
+    case notPressed
+    case timeout
+    case invalidRequest
+    case bridgeUnavailable
+    case noBridgeSelected
+    case invalidURL
+    case noData
+    case emptyResponse
+    case localNetworkDenied
+    case unknown(String)
+    case tooManyAttempts
+    
+    var errorDescription: String? {
+        switch self {
+        case .notPressed:
+            return "Кнопка Link не нажата. Нажмите круглую кнопку на Hue Bridge."
+        case .timeout:
+            return "Время ожидания истекло (60 секунд). Попробуйте снова."
+        case .invalidRequest:
+            return "Неверный запрос к мосту. Проверьте подключение."
+        case .bridgeUnavailable:
+            return "Мост недоступен. Проверьте подключение к сети."
+        case .noBridgeSelected:
+            return "Не выбран мост для подключения."
+        case .invalidURL:
+            return "Неверный адрес моста."
+        case .noData:
+            return "Нет данных от моста."
+        case .emptyResponse:
+            return "Пустой ответ от моста."
+        case .localNetworkDenied:
+            return "Нет доступа к локальной сети. Разрешите доступ в настройках."
+        case .unknown(let message):
+            return "Неизвестная ошибка: \(message)"
+        case .tooManyAttempts:
+            return "Слишком много попыток. Подождите минуту и попробуйте снова"
+        }
+    }
+}
 
 extension AppViewModel {
     
@@ -928,26 +1233,26 @@ extension AppViewModel {
     }
 }
 
-/// Ошибки при нажатии кнопки Link
-enum LinkButtonError: LocalizedError {
-    case notPressed
-    case tooManyAttempts
-    case timeout
-    case invalidRequest
-    case unknown(String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .notPressed:
-            return "Нажмите кнопку Link на Hue Bridge"
-        case .tooManyAttempts:
-            return "Слишком много попыток. Подождите минуту и попробуйте снова"
-        case .timeout:
-            return "Время ожидания истекло. Попробуйте снова"
-        case .invalidRequest:
-            return "Неверный запрос. Проверьте подключение к мосту"
-        case .unknown(let message):
-            return "Ошибка: \(message)"
-        }
-    }
-}
+///// Ошибки при нажатии кнопки Link
+//enum LinkButtonError: LocalizedError {
+//    case notPressed
+//    case tooManyAttempts
+//    case timeout
+//    case invalidRequest
+//    case unknown(String)
+//    
+//    var errorDescription: String? {
+//        switch self {
+//        case .notPressed:
+//            return "Нажмите кнопку Link на Hue Bridge"
+//        case .tooManyAttempts:
+//            return "Слишком много попыток. Подождите минуту и попробуйте снова"
+//        case .timeout:
+//            return "Время ожидания истекло. Попробуйте снова"
+//        case .invalidRequest:
+//            return "Неверный запрос. Проверьте подключение к мосту"
+//        case .unknown(let message):
+//            return "Ошибка: \(message)"
+//        }
+//    }
+//}

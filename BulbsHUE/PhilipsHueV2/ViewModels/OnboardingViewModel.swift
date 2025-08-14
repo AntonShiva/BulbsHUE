@@ -413,6 +413,12 @@ class OnboardingViewModel: ObservableObject {
     func showLocalNetworkInfo() {
         showLocalNetworkAlert = true
     }
+
+    /// Универсальный показ ошибки (для совместимости с расширениями)
+    func showGenericErrorAlert(_ message: String? = nil) {
+        connectionError = message ?? "Произошла ошибка. Попробуйте ещё раз."
+        showLinkButtonAlert = false
+    }
 }
 
 
@@ -515,6 +521,192 @@ enum OnboardingStep {
     case bridgeFound
     case linkButton
     case connected
+}
+
+// Файл: BulbsHUE/PhilipsHueV2/ViewModels/OnboardingViewModel+Fixed.swift
+// ИСПРАВЛЕНИЕ: Правильная обработка Link Button в OnboardingViewModel
+
+
+extension OnboardingViewModel {
+    
+    /// ИСПРАВЛЕННЫЙ метод запуска процесса подключения
+    func startBridgeConnectionFixed() {
+        guard let bridge = selectedBridge else {
+            print("❌ Не выбран мост для подключения")
+            connectionError = "Не выбран мост для подключения"
+            return
+        }
+        
+        // Защита от повторных вызовов
+        guard !isConnecting else {
+            print("⚠️ Подключение уже в процессе")
+            return
+        }
+        
+        print("🔗 Начинаем ИСПРАВЛЕННОЕ подключение к мосту: \(bridge.id)")
+        
+        // Устанавливаем состояние
+        isConnecting = true
+        connectionAttempts = 0
+        linkButtonPressed = false
+        connectionError = nil
+        linkButtonCountdown = 60
+        
+        // Сначала подключаемся к мосту (проверяем доступность)
+        appViewModel.connectToBridge(bridge)
+        
+        // Запускаем процесс с правильным обработчиком
+        appViewModel.createUserWithLinkButtonHandling(
+            appName: "BulbsHUE",
+            onProgress: { [weak self] state in
+                self?.handleLinkButtonState(state)
+            },
+            completion: { [weak self] result in
+                self?.handleConnectionResult(result)
+            }
+        )
+    }
+    
+    /// Обработчик состояний Link Button
+    private func handleLinkButtonState(_ state: LinkButtonState) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            switch state {
+            case .idle:
+                print("🔄 Link Button: Готов к подключению")
+                self.isConnecting = false
+                self.connectionAttempts = 0
+                
+            case .waiting(let attempt, let maxAttempts):
+                print("⏳ Link Button: Ожидание нажатия (попытка \(attempt)/\(maxAttempts))")
+                self.isConnecting = true
+                self.connectionAttempts = attempt
+                self.linkButtonCountdown = Swift.max(0, (maxAttempts - attempt) * 2) // 2 секунды на попытку
+                
+                // Обновляем UI с информацией о прогрессе
+                if !self.showLinkButtonAlert {
+                    self.showLinkButtonAlert = true
+                }
+                
+            case .success:
+                print("✅ Link Button: УСПЕШНОЕ ПОДКЛЮЧЕНИЕ!")
+                self.isConnecting = false
+                self.linkButtonPressed = true
+                self.showLinkButtonAlert = false
+                self.connectionError = nil
+                
+                // Переходим к экрану успеха
+                self.currentStep = .connected
+                
+                // Закрываем онбординг через секунду
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.appViewModel.showSetup = false
+                }
+                
+            case .error(let message):
+                print("❌ Link Button: Ошибка - \(message)")
+                self.isConnecting = false
+                self.connectionError = message
+                self.showLinkButtonAlert = false
+                
+            case .timeout:
+                print("⏰ Link Button: Таймаут")
+                self.isConnecting = false
+                self.connectionError = "Время ожидания истекло. Убедитесь, что вы нажали кнопку Link на мосту."
+                self.showLinkButtonAlert = false
+            }
+        }
+    }
+    
+    /// Обработчик результата подключения
+    private func handleConnectionResult(_ result: Result<String, Error>) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let username):
+                print("🎉 Успешное подключение! Username: \(username)")
+                self.linkButtonPressed = true
+                self.isConnecting = false
+                self.connectionError = nil
+                
+            case .failure(let error):
+                print("❌ Ошибка подключения: \(error)")
+                self.isConnecting = false
+                
+                if let linkError = error as? LinkButtonError {
+                    switch linkError {
+                    case .timeout:
+                        self.connectionError = "Время ожидания истекло (60 секунд). Попробуйте снова и убедитесь, что нажали кнопку Link."
+                    case .localNetworkDenied:
+                        self.connectionError = "Нет доступа к локальной сети. Разрешите доступ в настройках iOS."
+                        self.showLocalNetworkAlert = true
+                    case .bridgeUnavailable:
+                        self.connectionError = "Мост недоступен. Проверьте подключение к сети."
+                    default:
+                        self.connectionError = linkError.localizedDescription
+                    }
+                } else {
+                    self.connectionError = error.localizedDescription
+                }
+            }
+        }
+    }
+    
+    /// Отмена процесса с правильной очисткой
+    func cancelLinkButtonFixed() {
+        print("🚫 Отмена процесса Link Button")
+        
+        isConnecting = false
+        linkButtonPressed = false
+        connectionAttempts = 0
+        linkButtonCountdown = 60
+        connectionError = nil
+        showLinkButtonAlert = false
+        
+        // Здесь нужно добавить отмену таймера в AppViewModel если необходимо
+    }
+}
+
+// MARK: - UI Helpers
+
+extension OnboardingViewModel {
+    
+    /// Получить текст для отображения состояния
+    var linkButtonStatusText: String {
+        if linkButtonPressed {
+            return "✅ Подключение установлено!"
+        } else if isConnecting {
+            if connectionAttempts > 0 {
+                return "Попытка \(connectionAttempts) из 30..."
+            } else {
+                return "Ожидание нажатия кнопки Link..."
+            }
+        } else if let error = connectionError {
+            return error
+        } else {
+            return "Готов к подключению"
+        }
+    }
+    
+    /// Получить цвет для индикатора состояния
+    var linkButtonStatusColor: Color {
+        if linkButtonPressed {
+            return .green
+        } else if connectionError != nil {
+            return .red
+        } else if isConnecting {
+            return .cyan
+        } else {
+            return .gray
+        }
+    }
+    
+    /// Проверка готовности к следующему шагу
+    var canProceedFromLinkButton: Bool {
+        return linkButtonPressed && !isConnecting
+    }
 }
 
 // MARK: - Camera Permission (закомментировано - может понадобиться для QR-кода в будущем)
