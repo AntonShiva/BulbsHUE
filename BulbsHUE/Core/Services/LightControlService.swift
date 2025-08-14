@@ -69,7 +69,7 @@ class LightControlService: ObservableObject, LightControlling {
     
     func getRoomName(for light: Light) -> String {
         print("🏠 getRoomName для лампы '\(light.metadata.name)' (ID: \(light.id))")
-        print("   └── archetype: '\(light.metadata.archetype ?? "nil")'")
+        print("   └── apiArchetype: '\(light.metadata.archetype ?? "nil")'")
         
         // ✅ НОВАЯ ЛОГИКА: archetype теперь ТОЛЬКО пользовательский подтип лампы
         // Для комнат нужен отдельный механизм (например, через группы или отдельное поле)
@@ -83,13 +83,19 @@ class LightControlService: ObservableObject, LightControlling {
     
     func getBulbType(for light: Light) -> String {
         print("📝 getBulbType для лампы '\(light.metadata.name)' (ID: \(light.id))")
-        print("   └── archetype: '\(light.metadata.archetype ?? "nil")'")
+        print("   └── userSubtypeName: '\(light.metadata.userSubtypeName ?? "nil")' | apiArchetype: '\(light.metadata.archetype ?? "nil")'")
         
-        // Проверяем архетип (это пользовательский подтип из userSubtype)
-        if let archetype = light.metadata.archetype, !archetype.isEmpty {
-            // Возвращаем пользовательский подтип напрямую
-            print("   └── Возвращаем пользовательский подтип: '\(archetype)'")
-            return archetype
+        // Возвращаем пользовательский подтип если задан
+        if let userSubtype = light.metadata.userSubtypeName, !userSubtype.isEmpty {
+            print("   └── Возвращаем пользовательский подтип: '\(userSubtype)'")
+            return userSubtype
+        }
+        
+        // 🔁 Fallback: пробуем взять сохранённый подтип из БД (если ещё не подмешан в текущий light)
+        if let saved = appViewModel?.dataService?.fetchAssignedLights().first(where: { $0.id == light.id }),
+           let savedSubtype = saved.metadata.userSubtypeName, !savedSubtype.isEmpty {
+            print("   └── Fallback: подтип из БД: '\(savedSubtype)'")
+            return savedSubtype
         }
         
         // Если архетип пустой - возвращаем дефолтное значение
@@ -141,7 +147,7 @@ class LightControlService: ObservableObject, LightControlling {
     func getBulbIcon(for light: Light) -> String {
         print("🖼️ getBulbIcon для лампы '\(light.metadata.name)' (ID: \(light.id))")
         print("   └── userSubtypeIcon: '\(light.metadata.userSubtypeIcon ?? "nil")'")
-        print("   └── archetype: '\(light.metadata.archetype ?? "nil")'")
+        print("   └── userSubtypeName: '\(light.metadata.userSubtypeName ?? "nil")' | apiArchetype: '\(light.metadata.archetype ?? "nil")'")
         
         // ✅ НОВАЯ ЛОГИКА: Приоритет у пользовательской иконки подтипа
         if let userIcon = light.metadata.userSubtypeIcon, !userIcon.isEmpty {
@@ -149,11 +155,24 @@ class LightControlService: ObservableObject, LightControlling {
             return userIcon
         }
         
-        // Если пользовательской иконки нет, но есть подтип - пытаемся найти иконку по названию
-        if let archetype = light.metadata.archetype, !archetype.isEmpty {
-            let icon = getSubtypeIcon(for: archetype)
-            print("   └── Получили иконку по названию подтипа '\(archetype)': '\(icon)'")
+        // Если пользовательской иконки нет, но есть подтип - пытаемся найти иконку по названию подтипа
+        if let userSubtype = light.metadata.userSubtypeName, !userSubtype.isEmpty {
+            let icon = getSubtypeIcon(for: userSubtype)
+            print("   └── Получили иконку по названию подтипа '\(userSubtype)': '\(icon)'")
             return icon
+        }
+        
+        // 🔁 Fallback: пробуем взять сохранённые значения из БД
+        if let saved = appViewModel?.dataService?.fetchAssignedLights().first(where: { $0.id == light.id }) {
+            if let savedIcon = saved.metadata.userSubtypeIcon, !savedIcon.isEmpty {
+                print("   └── Fallback: пользовательская иконка из БД: '\(savedIcon)'")
+                return savedIcon
+            }
+            if let savedSubtype = saved.metadata.userSubtypeName, !savedSubtype.isEmpty {
+                let icon = getSubtypeIcon(for: savedSubtype)
+                print("   └── Fallback: иконка по названию подтипа из БД '\(savedSubtype)': '\(icon)'")
+                return icon
+            }
         }
         
         // Если ничего нет - используем дефолтную иконку
@@ -285,17 +304,8 @@ class LightControlService: ObservableObject, LightControlling {
         case "hue centris":
             return "o27"
             
-        // АРХЕТИПЫ PHILIPS HUE API
-        case "sultan_bulb":
-            return "o1" // Signature bulb иконка
-        case "classic_bulb":
-            return "o2" // Rounded bulb иконка
-        case "vintage_bulb", "edison_bulb":
-            return "o6" // Filament bulb иконка
-        case "globe_bulb":
-            return "o2" // Rounded bulb иконка
-        case "candle_bulb":
-            return "o5" // Candelabra bulb иконка
+        // ⚠️ Больше не мапим API-архетипы на иконки напрямую.
+        // Если пришло сюда API-значение — пусть обработается как категория в default.
             
         default:
             // Если подтип не найден - возвращаем иконку категории

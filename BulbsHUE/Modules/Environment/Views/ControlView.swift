@@ -17,8 +17,8 @@ import SwiftUI
 /// └─────────────────────────────────────────────────────────────┘
 ///                                 ▼
 /// ┌─────────────────────────────────────────────────────────────┐
-/// │ 2. Сохраняется в Light.metadata.archetype = "DESK LAMP"     │
-/// │    (DataPersistenceService → LightDataModel)                │
+/// │ 2. Сохраняется в Light.metadata.userSubtypeName = "DESK LAMP" │
+/// │    (DataPersistenceService → LightDataModel)                 │
 /// └─────────────────────────────────────────────────────────────┘
 ///                                 ▼
 /// ┌─────────────────────────────────────────────────────────────┐
@@ -44,7 +44,7 @@ struct ControlView: View {
     /// Название лампы
     let bulbName: String
     
-    /// Тип лампы
+    /// Тип лампы (пользовательский подтип)
     let bulbType: String
     
     /// Название комнаты
@@ -91,7 +91,7 @@ struct ControlView: View {
             
             // Иконка лампы (слева вверху)
             // Значение bulbIcon получается из ItemControlViewModel.getBulbIcon() 
-            // → LightControlService.getBulbIcon() → getSubtypeIcon() по названию подтипа из archetype
+            // → LightControlService.getBulbIcon() → приоритет userSubtypeIcon, иначе иконка по userSubtypeName
             Image(bulbIcon)
                 .renderingMode(.template)
                 .resizable()
@@ -121,7 +121,7 @@ struct ControlView: View {
             HStack {
             // Подтип лампы (подзаголовок)
             // Значение bulbType получается из ItemControlViewModel.getBulbType() 
-            // → LightControlService.getBulbType() → возвращает archetype (название подтипа) напрямую
+            // → LightControlService.getBulbType() → возвращает userSubtypeName (наш UI выбор)
             Text(bulbType)
                 .font(Font.custom("DMSans-Light", size: 14))
                 .kerning(2.8)

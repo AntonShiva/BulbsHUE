@@ -98,8 +98,8 @@ class EnvironmentViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] updatedLights in
                 print("🔄 EnvironmentViewModel получил обновление из БД: \(updatedLights.count) ламп")
-                print("🔄 Лампы из БД: \(updatedLights.map { "\($0.metadata.name) (archetype: \($0.metadata.archetype ?? "nil"))" })")
-                // ✅ ИСПОЛЬЗУЕМ ДАННЫЕ ИЗ БД (с правильным archetype)
+                print("🔄 Лампы из БД: \(updatedLights.map { "\($0.metadata.name) (userSubtype: \($0.metadata.userSubtypeName ?? "nil"), apiArchetype: \($0.metadata.archetype ?? "nil"))" })")
+                // ✅ ИСПОЛЬЗУЕМ ДАННЫЕ ИЗ БД (с правильным userSubtype)
                 self?.assignedLights = updatedLights
                 print("✅ EnvironmentView будет обновлен с данными из БД")
             }

@@ -306,8 +306,19 @@ class ItemControlViewModel: ObservableObject {
             let wasReachable = currentLight?.isReachable ?? true
             let isNowReachable = updatedLight.isReachable
             
-            // Обновляем текущую лампу
-            currentLight = updatedLight
+            // ✅ Сохраняем пользовательские поля (UI) при обновлениях из API
+            let preservedUserSubtype = currentLight?.metadata.userSubtypeName
+            let preservedUserIcon = currentLight?.metadata.userSubtypeIcon
+            var mergedLight = updatedLight
+            if (mergedLight.metadata.userSubtypeName ?? "").isEmpty {
+                mergedLight.metadata.userSubtypeName = preservedUserSubtype
+            }
+            if (mergedLight.metadata.userSubtypeIcon ?? "").isEmpty {
+                mergedLight.metadata.userSubtypeIcon = preservedUserIcon
+            }
+            
+            // Обновляем текущую лампу объединённой версией
+            currentLight = mergedLight
             
             // Если изменился статус связи - принудительно обновляем UI
             if wasReachable != isNowReachable {
@@ -318,8 +329,8 @@ class ItemControlViewModel: ObservableObject {
             
             // Синхронизируем состояние только если пользователь не активно взаимодействует
             if debouncedTask == nil {
-                let effectiveState = updatedLight.effectiveStateWithBrightness
-                let isReachable = updatedLight.isReachable
+                let effectiveState = mergedLight.effectiveStateWithBrightness
+                let isReachable = mergedLight.isReachable
                 
                 if !isReachable {
                     // Лампа недоступна - показываем как выключенную

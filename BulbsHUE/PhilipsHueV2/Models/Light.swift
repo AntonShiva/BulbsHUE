@@ -317,6 +317,9 @@ struct LightMetadata: Codable {
     /// Архетип лампы (тип установки или пользовательский подтип)
     var archetype: String?
     
+    /// Название пользовательского подтипа (наш UI-выбор, не из API)
+    var userSubtypeName: String?
+    
     /// Иконка пользовательского подтипа (не из API, локальное поле)
     var userSubtypeIcon: String?
     
@@ -327,9 +330,10 @@ struct LightMetadata: Codable {
     }
     
     /// Инициализатор с параметрами
-    init(name: String = "Новая лампа", archetype: String? = nil, userSubtypeIcon: String? = nil) {
+    init(name: String = "Новая лампа", archetype: String? = nil, userSubtypeName: String? = nil, userSubtypeIcon: String? = nil) {
         self.name = name
         self.archetype = archetype
+        self.userSubtypeName = userSubtypeName
         self.userSubtypeIcon = userSubtypeIcon
     }
     
@@ -341,6 +345,7 @@ struct LightMetadata: Codable {
         archetype = try container.decodeIfPresent(String.self, forKey: .archetype)
         
         // Локальное поле устанавливается по умолчанию
+        self.userSubtypeName = nil
         self.userSubtypeIcon = nil
     }
     

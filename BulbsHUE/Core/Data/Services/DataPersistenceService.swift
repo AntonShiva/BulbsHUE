@@ -75,7 +75,7 @@ final class DataPersistenceService: ObservableObject {
     func saveLightData(_ light: Light, isAssignedToEnvironment: Bool? = nil) {
         print("🔄 DataPersistenceService.saveLightData:")
         print("   └── Лампа: '\(light.metadata.name)' (ID: \(light.id))")
-        print("   └── archetype: '\(light.metadata.archetype ?? "nil")'")
+        print("   └── apiArchetype: '\(light.metadata.archetype ?? "nil")', userSubtypeName: '\(light.metadata.userSubtypeName ?? "nil")', userSubtypeIcon: '\(light.metadata.userSubtypeIcon ?? "nil")'")
         print("   └── isAssignedToEnvironment: \(String(describing: isAssignedToEnvironment))")
         
         Task { @MainActor in
@@ -86,12 +86,14 @@ final class DataPersistenceService: ObservableObject {
                 // Обновляем существующую базовыми полями
                 existingLight.updateFromLight(light)
                 // Если вызов идёт из UI (передан параметр назначения),
-                // то это сохранение выбора пользователя: принудительно фиксируем подтип и иконку
-                if isAssignedToEnvironment != nil,
-                   let selectedSubtype = light.metadata.archetype,
-                   !selectedSubtype.isEmpty {
-                    existingLight.userSubtype = selectedSubtype  // ← Сохраняем название подтипа
-                    existingLight.userSubtypeIcon = light.metadata.userSubtypeIcon ?? "o2"  // ← Сохраняем иконку
+                // то это сохранение выбора пользователя: фиксируем userSubtypeName и userSubtypeIcon
+                if isAssignedToEnvironment != nil {
+                    if let selectedSubtype = light.metadata.userSubtypeName, !selectedSubtype.isEmpty {
+                        existingLight.userSubtype = selectedSubtype
+                    }
+                    if let icon = light.metadata.userSubtypeIcon, !icon.isEmpty {
+                        existingLight.userSubtypeIcon = icon
+                    }
                 }
                 // ВАЖНО: не сбрасывать назначение при отсутствующем параметре
                 if let isAssignedToEnvironment {
@@ -100,14 +102,14 @@ final class DataPersistenceService: ObservableObject {
                 print("✅ Обновлена существующая лампа: '\(light.metadata.name)' | userSubtype='\(existingLight.userSubtype)' | icon='\(existingLight.userSubtypeIcon)' | assigned=\(existingLight.isAssignedToEnvironment)")
             } else {
                 // Создаем новую с пользовательским подтипом из UI
-                let userSubtype = light.metadata.archetype ?? "Smart Light"
+                let userSubtype = light.metadata.userSubtypeName ?? "Smart Light"
                 let userSubtypeIcon = light.metadata.userSubtypeIcon ?? "o2"
                 let lightData = LightDataModel(
                     lightId: light.id,
                     name: light.metadata.name,
                     userSubtype: userSubtype,  // ← Пользовательский выбор названия
                     userSubtypeIcon: userSubtypeIcon,  // ← Пользовательский выбор иконки
-                    apiArchetype: nil,         // ← API данные пока неизвестны
+                    apiArchetype: light.metadata.archetype,         // ← Сохраняем технический архетип, если известен
                     isOn: light.on.on,
                     brightness: light.dimming?.brightness ?? 50.0,
                     colorTemperature: light.color_temperature?.mirek,
@@ -126,7 +128,7 @@ final class DataPersistenceService: ObservableObject {
             
             // Уведомляем компоненты об обновлении данных
             // Определяем тип обновления
-            let updateType = (isAssignedToEnvironment != nil) ? "archetype" : "status"
+            let updateType = (isAssignedToEnvironment != nil) ? "userSubtype" : "status"
             NotificationCenter.default.post(
                 name: Notification.Name("LightDataUpdated"), 
                 object: nil, 
@@ -279,16 +281,17 @@ final class DataPersistenceService: ObservableObject {
             let lightDataModels = try modelContext.fetch(descriptor)
             let newLights = lightDataModels.map { $0.toLight() }
             
-            // ФИЛЬТР: Показываем только лампы с установленным архетипом (которые пользователь реально добавил)
+            // ФИЛЬТР: Показываем только лампы с установленным пользовательским подтипом
             let lightsWithType = newLights.filter { light in
-                guard let archetype = light.metadata.archetype else { return false }
-                return !archetype.isEmpty
+                guard let subtype = light.metadata.userSubtypeName else { return false }
+                return !subtype.isEmpty
             }
             
             print("🔄 DataPersistenceService.loadAssignedLights: найдено \(newLights.count) ламп, с типом: \(lightsWithType.count)")
-            print("🔄 Лампы с типом: \(lightsWithType.map { "\($0.metadata.name) (\($0.metadata.archetype ?? "нет типа"))" })")
+            print("🔄 Лампы с типом: \(lightsWithType.map { "\($0.metadata.name) (\($0.metadata.userSubtypeName ?? "нет типа"))" })")
             
-            assignedLights = lightsWithType
+            // Дополнительно: сортируем по имени для стабильности UI
+            assignedLights = lightsWithType.sorted { $0.metadata.name.localizedCaseInsensitiveCompare($1.metadata.name) == .orderedAscending }
             print("✅ @Published assignedLights обновлен с \(assignedLights.count) лампами")
         } catch {
             print("❌ Ошибка загрузки назначенных ламп: \(error)")

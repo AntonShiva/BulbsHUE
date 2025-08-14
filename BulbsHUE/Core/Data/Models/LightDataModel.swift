@@ -139,8 +139,9 @@ extension LightDataModel {
         
         let metadata = LightMetadata(
             name: name,
-            archetype: userSubtype,  // ← Используем пользовательский подтип для отображения
-            userSubtypeIcon: userSubtypeIcon  // ← Добавляем иконку
+            archetype: apiArchetype,  // ← Сохраняем технический архетип как есть
+            userSubtypeName: userSubtype, // ← Пользовательский подтип отдельно
+            userSubtypeIcon: userSubtypeIcon  // ← Иконка пользовательского подтипа
         )
         
         return Light(
@@ -169,17 +170,12 @@ extension LightDataModel {
         self.apiArchetype = light.metadata.archetype
         print("   └── Обновлён apiArchetype: '\(self.apiArchetype ?? "nil")'")
         
-        // 2. userSubtype и userSubtypeIcon обновляем ТОЛЬКО если они были дефолтными
-        if self.userSubtype == "Smart Light" && self.userSubtypeIcon == "o2", 
-           let apiArchetype = light.metadata.archetype,
-           !apiArchetype.isEmpty {
-            // Конвертируем API архетип в читаемый вид только для дефолтных ламп
-            let (newSubtype, newIcon) = convertApiArchetypeToUserData(apiArchetype)
-            self.userSubtype = newSubtype
-            self.userSubtypeIcon = newIcon
-            print("   └── Обновлены userSubtype='\(self.userSubtype)' и icon='\(self.userSubtypeIcon)' из API (так как были дефолтные)")
-        } else {
-            print("   └── userSubtype и icon НЕ изменены: '\(self.userSubtype)' + '\(self.userSubtypeIcon)' (пользовательский выбор)")
+        // 2. userSubtype и userSubtypeIcon берём из локальных полей Light, если они присутствуют
+        if let localUserSubtype = light.metadata.userSubtypeName, !localUserSubtype.isEmpty {
+            self.userSubtype = localUserSubtype
+        }
+        if let localUserIcon = light.metadata.userSubtypeIcon, !localUserIcon.isEmpty {
+            self.userSubtypeIcon = localUserIcon
         }
         
         self.isOn = light.on.on
