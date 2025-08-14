@@ -157,7 +157,7 @@ struct AddNewBulb: View {
                     .opacity(0.4)
             }
             .adaptiveOffset(y: 191)
-                CostumButton(text: "search in network", width: 377, height: 291) {
+                CostumButton(text: "search in network", width: 377, height: 291, image: "BGCustomButton") {
                                 // ИСПРАВЛЕНИЕ: Сначала проверяем подключение
                                 if appViewModel.connectionStatus == .connected {
                                     nav.startSearch()

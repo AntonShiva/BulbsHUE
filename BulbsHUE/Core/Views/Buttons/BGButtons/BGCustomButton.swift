@@ -8,12 +8,14 @@
 import SwiftUI
 
 struct BGCustomButton: View {
+    var bg: String
     var body: some View {
             Image("BGCustomButton")
                 .resizable()
+                
         }
     }
 
 #Preview {
-    BGCustomButton()
+    BGCustomButton(bg: "BGCustomButton")
 }

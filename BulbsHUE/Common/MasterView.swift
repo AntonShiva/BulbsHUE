@@ -25,17 +25,7 @@ struct MasterView: View {
                     .onChange(of: navigationManager.currentRoute) {
                         navigationManager.togleTabBarVisible()
                     }
-                                .onAppear {
-                                      //  проверка шрифтов
-                                      for family in UIFont.familyNames {
-                                          print("== \(family)")
-                                          for name in UIFont.fontNames(forFamilyName: family) {
-                                              print("   - \(name)")
-                                          }
-                                      }
-                                  }
-
-                
+            
                 if navigationManager.isTabBarVisible {
                     TabBarView()
                        

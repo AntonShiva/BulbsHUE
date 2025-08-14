@@ -117,7 +117,7 @@ struct SelectCategoriesSheet: View {
                     Spacer()
                     
                     if typeManager.hasSelection {
-                        CostumButton(text: "save lamp", width: 250, height: 190) {
+                        CostumButton(text: "save lamp", width: 250, height: 190, image: "BGCustomButton") {
                             saveLampWithCategory()
                         }
                         .padding(.bottom, 20)

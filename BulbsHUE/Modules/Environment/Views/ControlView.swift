@@ -99,9 +99,7 @@ struct ControlView: View {
                 .foregroundStyle(baseColor.preferredForeground)
                 .adaptiveFrame(width: 32, height: 32)
                 .adaptiveOffset(x: -100, y: -42)
-                .onAppear {
-                    print("🖼️ ControlView.bulbIcon: '\(bulbIcon)' для лампы '\(bulbName)'")
-                }
+            
             
             // Название лампы (основной текст)
             HStack {
@@ -129,9 +127,7 @@ struct ControlView: View {
                 .textCase(.uppercase)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .onAppear {
-                    print("📝 ControlView.bulbType: '\(bulbType)' для лампы '\(bulbName)'")
-                }
+            
                 
                 Spacer()
             }

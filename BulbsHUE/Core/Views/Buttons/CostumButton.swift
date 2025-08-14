@@ -11,14 +11,15 @@ struct CostumButton: View {
     var text: String
     var width: CGFloat
     var height: CGFloat
+    var image: String
     var action: () -> Void
-    
+   
       var body: some View {
           Button {
               action()
           } label: {
               ZStack() {
-                  BGCustomButton()
+                  BGCustomButton(bg: image)
                       .adaptiveFrame(width: width, height: height)
                   
                   Text(text)
@@ -44,7 +45,7 @@ struct CostumButton: View {
 }
 #Preview {
     
-    CostumButton(text: "add bulb", width: 427, height: 295) {
+    CostumButton(text: "add bulb", width: 427, height: 295, image: "BGCustomButton") {
         
     }
 }
