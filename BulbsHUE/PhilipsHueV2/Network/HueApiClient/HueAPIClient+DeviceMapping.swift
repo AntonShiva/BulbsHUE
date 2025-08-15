@@ -21,6 +21,7 @@ extension HueAPIClient {
         let shortMac: String?       // Последние 3 байта MAC (для внутреннего использования)
         let lightId: String?        // ID лампы в системе
         let name: String            // Название лампы
+        let v1LightId: String?      // ID лампы в v1 ("/lights/<id>" -> <id>)
     }
     
     // MARK: - Получение маппинга устройств
@@ -122,7 +123,8 @@ extension HueAPIClient {
                 macAddress: zigbee?.mac_address ?? zigbee?.mac,
                 shortMac: shortMac,
                 lightId: extractLightServiceId(from: device.services),
-                name: device.metadata?.name ?? "Unknown"
+                name: device.metadata?.name ?? "Unknown",
+                v1LightId: v1LightId
             )
             
             mappings.append(mapping)

@@ -1010,16 +1010,12 @@ struct LightStatistics {
 
 extension LightsViewModel {
     
-    /// Ищет новые лампы в сети через Hue Bridge  
-    /// ИСПРАВЛЕНИЕ: Используем тот же подход что и loadLights() - без искусственных задержек
-    /// Согласно API v2, мост автоматически обнаруживает новые лампы Zigbee при включении питания
-    /// - Parameter completion: Callback с найденными лампами
+    /// Правильный общий поиск новых ламп через Hue Bridge (v1 scan + сопоставление в v2)
+    /// - Parameter completion: найденные новые лампы
     func searchForNewLights(completion: @escaping ([Light]) -> Void) {
-        print("🔍 Поиск новых ламп...")
-        
+        print("🔍 Поиск новых ламп (инициируем v1 scan)...")
         let currentLightIds = Set(lights.map { $0.id })
         
-        // ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД ИЗ РАСШИРЕНИЯ
         apiClient.addLightModern(serialNumber: nil)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -1030,15 +1026,9 @@ extension LightsViewModel {
                     }
                 },
                 receiveValue: { [weak self] allLights in
-                    guard let self = self else {
-                        completion([])
-                        return
-                    }
-                    
-                    let newLights = allLights.filter { light in
-                        !currentLightIds.contains(light.id)
-                    }
-                    
+                    guard let self = self else { completion([]); return }
+                    // Выделяем действительно новые по сравнению с текущим списком
+                    let newLights = allLights.filter { !currentLightIds.contains($0.id) || $0.isNewLight }
                     print("✅ Найдено новых ламп: \(newLights.count)")
                     self.lights = allLights
                     completion(newLights)

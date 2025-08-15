@@ -14,9 +14,28 @@ extension HueAPIClient {
     
     /// Современный метод добавления ламп (гибрид v1/v2)
     func addLightModern(serialNumber: String? = nil) -> AnyPublisher<[Light], Error> {
-        // Для обычного поиска используем чистый API v2
+        // Для ОБЩЕГО поиска (без серийника) корректно инициируем v1 scan и сверяем результат
         if serialNumber == nil {
-            return discoverLightsV2()
+            return startGeneralSearchV1()
+                .flatMap { _ in
+                    self.checkForNewLights()
+                }
+                .flatMap { [weak self] newLights -> AnyPublisher<[Light], Error> in
+                    guard let self = self else {
+                        return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+                    }
+                    // Если v1 сообщил новые ID, дополнительно загрузим полный список v2 и соотнесем
+                    return self.getAllLightsV2HTTPS()
+                        .map { allLights in
+                            if newLights.isEmpty { return allLights }
+                            // Если есть конкретные найденные, возвращаем их, иначе весь список
+                            return allLights.filter { candidate in
+                                newLights.contains(where: { $0.id == candidate.id })
+                            }
+                        }
+                        .eraseToAnyPublisher()
+                }
+                .eraseToAnyPublisher()
         }
         
         // Для серийного номера - минимальное использование v1
@@ -41,12 +60,7 @@ extension HueAPIClient {
                 print("📡 Получение результатов через API v2...")
                 return self.getAllLightsV2HTTPS()
             }
-            .map { lights in
-                // Шаг 4: Фильтруем новые лампы
-                return lights.filter { light in
-                    light.isNewLight || light.metadata.name.contains("Hue")
-                }
-            }
+            .map { lights in lights }
             .eraseToAnyPublisher()
     }
     
@@ -125,28 +139,29 @@ extension HueAPIClient {
             .eraseToAnyPublisher()
     }
     
-    /// Автоматическое обнаружение через API v2
-    internal func discoverLightsV2() -> AnyPublisher<[Light], Error> {
-        print("🔍 Автоматическое обнаружение ламп через API v2")
+    /// Запускает общий поиск ламп на мосте через CLIP v1 (POST /lights)
+    internal func startGeneralSearchV1() -> AnyPublisher<Bool, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated).eraseToAnyPublisher()
+        }
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights") else {
+            return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10.0
+        // Пустое тело инициирует общий Zigbee-скан
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [:])
         
-        // Сохраняем текущий список для сравнения
-        var currentLightIds = Set<String>()
-        
-        return getAllLightsV2HTTPS()
-            .handleEvents(receiveOutput: { lights in
-                currentLightIds = Set(lights.map { $0.id })
-            })
-            .delay(for: .seconds(3), scheduler: RunLoop.main)
-            .flatMap { _ in
-                // Повторный запрос для обнаружения новых
-                self.getAllLightsV2HTTPS()
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { _, response in
+                guard let http = response as? HTTPURLResponse else { return true }
+                guard http.statusCode == 200 else { throw HueAPIError.httpError(statusCode: http.statusCode) }
+                return true
             }
-            .map { updatedLights in
-                // Находим новые лампы
-                return updatedLights.filter { light in
-                    !currentLightIds.contains(light.id) || light.isNewLight
-                }
-            }
+            .delay(for: .seconds(40), scheduler: RunLoop.main) // ожидание завершения поиска
+            .mapError { HueAPIError.networkError($0) }
             .eraseToAnyPublisher()
     }
     
@@ -290,23 +305,34 @@ extension HueAPIClient {
                     return []
                 }
             }
-            .flatMap { lightIds -> AnyPublisher<[Light], Error> in
+            .flatMap { [weak self] lightIds -> AnyPublisher<[Light], Error> in
+                guard let self = self else { return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher() }
                 if lightIds.isEmpty {
-                    print("❌ Новые лампы не найдены")
-                    return Just([])
-                        .setFailureType(to: Error.self)
-                        .eraseToAnyPublisher()
+                    print("ℹ️ /lights/new не вернул новых ID")
+                    return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
                 }
-                
-                // Получаем данные о новых лампах через API v2
-                return self.getAllLightsV2HTTPS()
-                    .map { allLights in
-                        // Фильтруем только новые лампы
-                        return allLights.filter { light in
-                            lightIds.contains { id in
-                                light.id.contains(id) || light.metadata.name.contains("Hue light \(id)")
+                // Строим маппинг устройств и бьем по строгому соответствию id_v1/uniqueid, без фильтров по имени
+                return self.getDeviceMappings()
+                    .flatMap { mappings -> AnyPublisher<[Light], Error> in
+                        return self.getAllLightsV2HTTPS()
+                            .map { allV2 in
+                                let v1IdSet = Set(lightIds)
+                                // Соответствие: если mapping.v1LightId ∈ v1IdSet → берём соответствующий v2 lightId
+                                let matchedV2Ids = mappings.compactMap { m -> String? in
+                                    if let v1 = m.v1LightId, v1IdSet.contains(v1) {
+                                        return m.lightId
+                                    }
+                                    return nil
+                                }
+                                if matchedV2Ids.isEmpty {
+                                    // Фоллбек: если не нашли по mapping, попробуем по хвосту идентификатора
+                                    return allV2.filter { v2 in
+                                        v1IdSet.contains(where: { v2.id.contains($0) })
+                                    }
+                                }
+                                return allV2.filter { matchedV2Ids.contains($0.id) }
                             }
-                        }
+                            .eraseToAnyPublisher()
                     }
                     .eraseToAnyPublisher()
             }

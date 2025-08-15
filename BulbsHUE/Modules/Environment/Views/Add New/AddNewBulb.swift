@@ -158,17 +158,17 @@ struct AddNewBulb: View {
             }
             .adaptiveOffset(y: 191)
                 CostumButton(text: "search in network", width: 377, height: 291, image: "BGCustomButton") {
-                                // ИСПРАВЛЕНИЕ: Сначала проверяем подключение
                     if appViewModel.connectionStatus == .connected {
-                                    nav.startSearch()
-                                    // Только теперь загружаем лампы
-                                    appViewModel.lightsViewModel.loadLights()
-                                } else {
-                                    print("⚠️ Нет подключения к мосту - сначала настройте подключение")
-                                    // Показываем экран настройки
-                                    appViewModel.showSetup = true
-                                }
-                            }
+                        nav.startSearch()
+                        // Запускаем правильный поиск: v1 scan + ожидание + сопоставление v2
+                        appViewModel.lightsViewModel.searchForNewLights { _ in
+                            // Результаты появятся в списке; UI обновится автоматически
+                        }
+                    } else {
+                        print("⚠️ Нет подключения к мосту - сначала настройте подключение")
+                        appViewModel.showSetup = true
+                    }
+                }
            
             .adaptiveOffset(y: 290)
             
