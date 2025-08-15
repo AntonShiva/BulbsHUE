@@ -18,22 +18,31 @@ extension HueAPIClient {
         if serialNumber == nil {
             return startGeneralSearchV1()
                 .flatMap { _ in
+                    // Робастный опрос /lights/new с ожиданием завершения сканирования
                     self.checkForNewLights()
                 }
                 .flatMap { [weak self] newLights -> AnyPublisher<[Light], Error> in
                     guard let self = self else {
                         return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
                     }
-                    // Если v1 сообщил новые ID, дополнительно загрузим полный список v2 и соотнесем
-                    return self.getAllLightsV2HTTPS()
-                        .map { allLights in
-                            if newLights.isEmpty { return allLights }
-                            // Если есть конкретные найденные, возвращаем их, иначе весь список
-                            return allLights.filter { candidate in
-                                newLights.contains(where: { $0.id == candidate.id })
-                            }
-                        }
-                        .eraseToAnyPublisher()
+                    // Если v1 сообщил новые ID, может потребоваться время, чтобы они появились в v2.
+                    // Делаем ожидание с повторными попытками до 60с.
+                    return self.awaitV2Enumeration(for: newLights)
+                }
+                .flatMap { [weak self] lights -> AnyPublisher<[Light], Error> in
+                    guard let self = self else {
+                        return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+                    }
+                    // Fallback: если ничего не нашли, пробуем Touchlink scan и повторяем цикл
+                    if lights.isEmpty {
+                        return self.triggerTouchlinkScan()
+                            .delay(for: .seconds(8), scheduler: RunLoop.main)
+                            .flatMap { _ in self.checkForNewLights() }
+                            .flatMap { newV2Lights in self.awaitV2Enumeration(for: newV2Lights) }
+                            .catch { _ in Just<[Light]>([]).setFailureType(to: Error.self).eraseToAnyPublisher() }
+                            .eraseToAnyPublisher()
+                    }
+                    return Just(lights).setFailureType(to: Error.self).eraseToAnyPublisher()
                 }
                 .eraseToAnyPublisher()
         }
@@ -147,20 +156,53 @@ extension HueAPIClient {
         guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights") else {
             return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10.0
-        // Пустое тело инициирует общий Zigbee-скан
-        request.httpBody = try? JSONSerialization.data(withJSONObject: [:])
         
-        return URLSession.shared.dataTaskPublisher(for: request)
-            .tryMap { _, response in
+        func parseV1Errors(_ data: Data, _ response: URLResponse) throws {
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return }
+            if let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                for item in arr {
+                    if let err = item["error"] as? [String: Any] {
+                        let type = err["type"] as? Int ?? -1
+                        let desc = err["description"] as? String ?? "v1 error"
+                        print("❌ v1 scan error: type=\(type) desc=\(desc)")
+                        if type == 1 { throw HueAPIError.notAuthenticated }
+                        throw HueAPIError.unknown(desc)
+                    }
+                }
+            }
+        }
+        
+        // Попытка 1: POST {} (часто требуется)
+        var reqJSON = URLRequest(url: url)
+        reqJSON.httpMethod = "POST"
+        reqJSON.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        reqJSON.timeoutInterval = 10.0
+        reqJSON.httpBody = try? JSONSerialization.data(withJSONObject: [:])
+        let attemptJSON = URLSession.shared.dataTaskPublisher(for: reqJSON)
+            .tryMap { data, response in
                 guard let http = response as? HTTPURLResponse else { return true }
                 guard http.statusCode == 200 else { throw HueAPIError.httpError(statusCode: http.statusCode) }
+                try parseV1Errors(data, response)
                 return true
             }
-            .delay(for: .seconds(40), scheduler: RunLoop.main) // ожидание завершения поиска
+            .eraseToAnyPublisher()
+        
+        // Попытка 2: POST без тела (некоторые прошивки тоже принимают)
+        var reqEmpty = URLRequest(url: url)
+        reqEmpty.httpMethod = "POST"
+        reqEmpty.timeoutInterval = 10.0
+        let attemptEmpty = URLSession.shared.dataTaskPublisher(for: reqEmpty)
+            .tryMap { data, response in
+                guard let http = response as? HTTPURLResponse else { return true }
+                guard http.statusCode == 200 else { throw HueAPIError.httpError(statusCode: http.statusCode) }
+                try parseV1Errors(data, response)
+                return true
+            }
+            .eraseToAnyPublisher()
+        
+        return attemptJSON
+            .catch { _ in attemptEmpty }
+            .delay(for: .seconds(40), scheduler: RunLoop.main)
             .mapError { HueAPIError.networkError($0) }
             .eraseToAnyPublisher()
     }
@@ -274,69 +316,176 @@ extension HueAPIClient {
                 .eraseToAnyPublisher()
         }
         
-        print("🔍 Проверяем новые лампы...")
+        print("🔍 Проверяем новые лампы (poll /lights/new до завершения)...")
         
-        // Получаем результаты поиска через /lights/new
-        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights/new") else {
-            return Fail(error: HueAPIError.invalidURL)
+        func fetchNewOnce() -> AnyPublisher<(ids: [String], lastscan: String), Error> {
+            guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights/new") else {
+                return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
+            }
+            return URLSession.shared.dataTaskPublisher(for: url)
+                .map(\.data)
+                .tryMap { data in
+                    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          let lastscan = json["lastscan"] as? String else {
+                        return ([], "none")
+                    }
+                    var newLightIds: [String] = []
+                    for (key, value) in json where key != "lastscan" {
+                        if let _ = value as? [String: Any] { newLightIds.append(key) }
+                    }
+                    return (newLightIds, lastscan)
+                }
+                .mapError { HueAPIError.networkError($0) }
                 .eraseToAnyPublisher()
         }
         
-        return URLSession.shared.dataTaskPublisher(for: url)
-            .map(\.data)
-            .tryMap { data in
-                // Парсим ответ
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let lastscan = json["lastscan"] as? String {
-                    
-                    print("📅 Последнее сканирование: \(lastscan)")
-                    
-                    // Извлекаем ID новых ламп
-                    var newLightIds: [String] = []
-                    for (key, value) in json {
-                        if key != "lastscan", let _ = value as? [String: Any] {
-                            newLightIds.append(key)
-                            print("   ✨ Найдена новая лампа: ID \(key)")
-                        }
-                    }
-                    
-                    return newLightIds
-                } else {
-                    return []
-                }
-            }
-            .flatMap { [weak self] lightIds -> AnyPublisher<[Light], Error> in
-                guard let self = self else { return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher() }
-                if lightIds.isEmpty {
-                    print("ℹ️ /lights/new не вернул новых ID")
-                    return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
-                }
-                // Строим маппинг устройств и бьем по строгому соответствию id_v1/uniqueid, без фильтров по имени
-                return self.getDeviceMappings()
-                    .flatMap { mappings -> AnyPublisher<[Light], Error> in
-                        return self.getAllLightsV2HTTPS()
-                            .map { allV2 in
-                                let v1IdSet = Set(lightIds)
-                                // Соответствие: если mapping.v1LightId ∈ v1IdSet → берём соответствующий v2 lightId
-                                let matchedV2Ids = mappings.compactMap { m -> String? in
-                                    if let v1 = m.v1LightId, v1IdSet.contains(v1) {
-                                        return m.lightId
-                                    }
-                                    return nil
-                                }
-                                if matchedV2Ids.isEmpty {
-                                    // Фоллбек: если не нашли по mapping, попробуем по хвосту идентификатора
-                                    return allV2.filter { v2 in
-                                        v1IdSet.contains(where: { v2.id.contains($0) })
-                                    }
-                                }
-                                return allV2.filter { matchedV2Ids.contains($0.id) }
-                            }
+        func pollNewIds(elapsed: TimeInterval, timeout: TimeInterval, interval: TimeInterval) -> AnyPublisher<[String], Error> {
+            return fetchNewOnce()
+                .flatMap { result -> AnyPublisher<[String], Error> in
+                    let (ids, lastscan) = result
+                    print("📅 lastscan=\(lastscan), найдено новых: \(ids.count), elapsed=\(Int(elapsed))s")
+                    if (lastscan == "active" || lastscan == "none") && elapsed < timeout {
+                        return Just(())
+                            .delay(for: .seconds(interval), scheduler: RunLoop.main)
+                            .flatMap { _ in pollNewIds(elapsed: elapsed + interval, timeout: timeout, interval: interval) }
                             .eraseToAnyPublisher()
+                    } else {
+                        return Just(ids).setFailureType(to: Error.self).eraseToAnyPublisher()
                     }
-                    .eraseToAnyPublisher()
+                }
+                .eraseToAnyPublisher()
+        }
+        
+        func mapToV2Lights(v1Ids: [String]) -> AnyPublisher<[Light], Error> {
+            if v1Ids.isEmpty {
+                return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+            }
+            // Загружаем всё: маппинги, v1 lights и v2 lights
+            return Publishers.Zip3(
+                getDeviceMappings(),
+                getLightsV1(),
+                getAllLightsV2HTTPS()
+            )
+            .map { mappings, v1Lights, allV2 in
+                let v1IdSet = Set(v1Ids)
+                var result: [Light] = []
+                let matchedByMapping = mappings.compactMap { m -> String? in
+                    if let v1 = m.v1LightId, v1IdSet.contains(v1) { return m.lightId }
+                    return nil
+                }
+                if !matchedByMapping.isEmpty {
+                    result.append(contentsOf: allV2.filter { matchedByMapping.contains($0.id) })
+                }
+                // Fallback 1: сопоставление по uniqueid (v1) ↔ извлеченному компоненту из v2
+                let v1UniqueById: [String: String] = v1Ids.reduce(into: [:]) { dict, id in
+                    if let u = v1Lights[id]?.uniqueid { dict[id] = u.uppercased() }
+                }
+                for v2 in allV2 where !result.contains(where: { $0.id == v2.id }) {
+                    if let uniq = self.findUniqueIdFromV2Light(v2),
+                       v1UniqueById.values.contains(where: { $0.contains(uniq) }) {
+                        result.append(v2)
+                    }
+                }
+                // Fallback 2: сопоставление по имени (точное равенство)
+                let v1NamesById: [String: String] = v1Ids.reduce(into: [:]) { dict, id in
+                    if let name = v1Lights[id]?.name { dict[id] = name }
+                }
+                for v2 in allV2 where !result.contains(where: { $0.id == v2.id }) {
+                    if v1NamesById.values.contains(v2.metadata.name) {
+                        result.append(v2)
+                    }
+                }
+                return result
             }
             .eraseToAnyPublisher()
+        }
+        
+        // 1) Ждём завершения сканирования (lastscan != active), до 90с, polls/2с
+        return pollNewIds(elapsed: 0, timeout: 90, interval: 2)
+            // 2) Ждём появления устройств в v2, до 60с с попытками
+            .flatMap { ids in self.awaitV2EnumerationForV1Ids(ids) }
+            .eraseToAnyPublisher()
+    }
+
+    /// Триггерит Touchlink scan (v1 PUT /config {"touchlink": true}) для принудительного поиска устройств
+    private func triggerTouchlinkScan() -> AnyPublisher<Bool, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated).eraseToAnyPublisher()
+        }
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/config") else {
+            return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["touchlink": true])
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .map { _ in true }
+            .mapError { HueAPIError.networkError($0) }
+            .eraseToAnyPublisher()
+    }
+
+    /// Дожидается появления новых ламп в API v2 (повторные попытки до 60с)
+    private func awaitV2Enumeration(for v2CandidateLights: [Light], timeout: TimeInterval = 60, interval: TimeInterval = 2) -> AnyPublisher<[Light], Error> {
+        if v2CandidateLights.isEmpty {
+            return getAllLightsV2HTTPS()
+                .eraseToAnyPublisher()
+        }
+        func attempt(elapsed: TimeInterval) -> AnyPublisher<[Light], Error> {
+            return getAllLightsV2HTTPS()
+                .map { all in
+                    let ids = Set(v2CandidateLights.map { $0.id })
+                    let present = all.filter { ids.contains($0.id) }
+                    return present
+                }
+                .flatMap { present -> AnyPublisher<[Light], Error> in
+                    if !present.isEmpty || elapsed >= timeout {
+                        return Just(present).setFailureType(to: Error.self).eraseToAnyPublisher()
+                    }
+                    return Just(())
+                        .delay(for: .seconds(interval), scheduler: RunLoop.main)
+                        .flatMap { _ in attempt(elapsed: elapsed + interval) }
+                        .eraseToAnyPublisher()
+                }
+                .eraseToAnyPublisher()
+        }
+        return attempt(elapsed: 0)
+    }
+
+    /// Ждёт появления соответствующих v2-ламп для заданных v1 ID (до 60с)
+    private func awaitV2EnumerationForV1Ids(_ v1Ids: [String], timeout: TimeInterval = 60, interval: TimeInterval = 2) -> AnyPublisher<[Light], Error> {
+        if v1Ids.isEmpty {
+            return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+        }
+        func attempt(elapsed: TimeInterval) -> AnyPublisher<[Light], Error> {
+            return getDeviceMappings()
+                .flatMap { mappings -> AnyPublisher<[Light], Error> in
+                    self.getAllLightsV2HTTPS()
+                        .map { allV2 in
+                            let v1IdSet = Set(v1Ids)
+                            let matchedV2Ids = mappings.compactMap { m -> String? in
+                                if let v1 = m.v1LightId, v1IdSet.contains(v1) { return m.lightId }
+                                return nil
+                            }
+                            if matchedV2Ids.isEmpty {
+                                return allV2.filter { v2 in v1IdSet.contains(where: { v2.id.contains($0) }) }
+                            }
+                            return allV2.filter { matchedV2Ids.contains($0.id) }
+                        }
+                        .eraseToAnyPublisher()
+                }
+                .flatMap { matched -> AnyPublisher<[Light], Error> in
+                    if !matched.isEmpty || elapsed >= timeout {
+                        return Just(matched).setFailureType(to: Error.self).eraseToAnyPublisher()
+                    }
+                    return Just(())
+                        .delay(for: .seconds(interval), scheduler: RunLoop.main)
+                        .flatMap { _ in attempt(elapsed: elapsed + interval) }
+                        .eraseToAnyPublisher()
+                }
+                .eraseToAnyPublisher()
+        }
+        return attempt(elapsed: 0)
     }
     
     /// Валидация серийного номера

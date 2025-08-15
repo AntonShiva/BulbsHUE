@@ -21,5 +21,12 @@
         <string>_bonjour._tcp</string>
         <string>_lnp._tcp.</string>
     </array>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Приложение обнаруживает и управляет лампами Philips Hue в локальной сети. Разрешение необходимо для сканирования и подключения к мосту и лампам.</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoadsInLocalNetwork</key>
+        <true/>
+    </dict>
 </dict>
 </plist>

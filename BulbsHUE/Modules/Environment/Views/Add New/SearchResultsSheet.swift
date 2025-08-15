@@ -174,6 +174,11 @@ struct SearchResultsSheet: View {
     private func getLightsToShow() -> [Light] {
         switch nav.searchType {
         case .network:
+            // Показываем явные результаты сетевого поиска, если есть
+            if !lightsViewModel.networkFoundLights.isEmpty {
+                return lightsViewModel.networkFoundLights
+            }
+            // Фоллбек: показываем лампы, которые выглядят как новые
             return lightsViewModel.lights.filter { $0.isNewLight }
         case .serialNumber:
             // Показываем результаты поиска по серийному номеру

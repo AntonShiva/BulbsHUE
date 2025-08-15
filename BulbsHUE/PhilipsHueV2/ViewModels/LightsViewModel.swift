@@ -47,6 +47,9 @@ class LightsViewModel: ObservableObject {
     /// Лампы найденные по серийному номеру (отдельно от основного списка)
     @Published var serialNumberFoundLights: [Light] = []
     
+    /// Лампы найденные через сетевой поиск (v1 scan)
+    @Published var networkFoundLights: [Light] = []
+    
     // MARK: - Private Properties
     
     /// Клиент для работы с API
@@ -1015,22 +1018,27 @@ extension LightsViewModel {
     func searchForNewLights(completion: @escaping ([Light]) -> Void) {
         print("🔍 Поиск новых ламп (инициируем v1 scan)...")
         let currentLightIds = Set(lights.map { $0.id })
+        isLoading = true
+        networkFoundLights = []
         
         apiClient.addLightModern(serialNumber: nil)
             .receive(on: DispatchQueue.main)
             .sink(
-                receiveCompletion: { result in
+                receiveCompletion: { [weak self] result in
+                    self?.isLoading = false
                     if case .failure(let error) = result {
                         print("❌ Ошибка поиска: \(error)")
+                        self?.error = error
                         completion([])
                     }
                 },
                 receiveValue: { [weak self] allLights in
                     guard let self = self else { completion([]); return }
-                    // Выделяем действительно новые по сравнению с текущим списком
-                    let newLights = allLights.filter { !currentLightIds.contains($0.id) || $0.isNewLight }
+                    // Новые лампы относительно текущего списка
+                    let newLights = allLights.filter { !currentLightIds.contains($0.id) }
                     print("✅ Найдено новых ламп: \(newLights.count)")
                     self.lights = allLights
+                    self.networkFoundLights = newLights
                     completion(newLights)
                 }
             )
