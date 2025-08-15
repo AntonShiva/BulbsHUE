@@ -325,9 +325,11 @@ struct BridgeStatusView: View {
         switch viewModel.connectionStatus {
         case .connected:
             return .green
-        case .searching, .discovered, .needsAuthentication:
+        case .searching, .discovered, .needsAuthentication, .connecting:
             return .orange
         case .disconnected:
+            return .red
+        case .error:
             return .red
         }
     }
@@ -340,10 +342,14 @@ struct BridgeStatusView: View {
             return "Поиск..."
         case .discovered:
             return "Найден"
+        case .connecting:
+            return "Подключение..."
         case .needsAuthentication:
             return "Требуется авторизация"
         case .disconnected:
             return "Отключено"
+        case .error(let message):
+            return "Ошибка: \(message)"
         }
     }
     

@@ -23,7 +23,7 @@ struct HueScene: Codable, Identifiable {
     var group: ResourceIdentifier?
     
     /// Действия сцены
-    var actions: [SceneAction] = []
+    var actions: [HueSceneAction] = []
     
     /// Палитра цветов для сцены
     var palette: ScenePalette?
@@ -46,7 +46,7 @@ struct SceneMetadata: Codable {
 }
 
 /// Действие в сцене
-struct SceneAction: Codable {
+struct HueSceneAction: Codable {
     /// Цель действия (лампа или группа)
     var target: ResourceIdentifier?
     

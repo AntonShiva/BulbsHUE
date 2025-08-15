@@ -29,6 +29,12 @@ struct EnvironmentView: View {
                 }
             }
             .adaptiveOffset(y: -330)
+            .onTapGesture(count: 3) {
+                // Секретный triple-tap для доступа к Development меню
+                #if DEBUG
+                nav.go(.development)
+                #endif
+            }
             
             SelectorTabEnviromentView()
                 .adaptiveOffset(y: -264)

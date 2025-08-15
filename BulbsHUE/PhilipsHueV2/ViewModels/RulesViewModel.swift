@@ -114,7 +114,7 @@ class RulesViewModel: ObservableObject {
             )
         ]
         
-        var actions: [RuleAction] = []
+        var actions: [HueRuleAction] = []
         
         // Оптимизация: используем группу если все лампы в одной комнате
         if lights.count > 3 {
@@ -128,7 +128,7 @@ class RulesViewModel: ObservableObject {
                 body["bri"] = Int(brightness * 254 / 100)
             }
             
-            actions.append(RuleAction(
+            actions.append(HueRuleAction(
                 address: "/lights/\(lightId)/state",
                 method: "PUT",
                 body: body
@@ -162,7 +162,7 @@ class RulesViewModel: ObservableObject {
         ]
         
         let actions = [
-            RuleAction(
+            HueRuleAction(
                 address: "/groups/0/action",
                 method: "PUT",
                 body: ["scene": sceneId]
@@ -182,7 +182,7 @@ class RulesViewModel: ObservableObject {
     ///   - time: Время срабатывания
     ///   - actions: Действия при срабатывании
     ///   - weekdays: Дни недели (опционально)
-    func createTimerRule(name: String, time: String, actions: [RuleAction], weekdays: [Int]? = nil) {
+    func createTimerRule(name: String, time: String, actions: [HueRuleAction], weekdays: [Int]? = nil) {
         var conditions = [
             RuleCondition(
                 address: "/config/localtime",
@@ -218,7 +218,7 @@ class RulesViewModel: ObservableObject {
     ///   - threshold: Пороговое значение в люксах
     ///   - below: true если правило срабатывает при уровне ниже порога
     ///   - actions: Действия при срабатывании
-    func createLightLevelRule(sensorId: String, threshold: Int, below: Bool, actions: [RuleAction]) {
+    func createLightLevelRule(sensorId: String, threshold: Int, below: Bool, actions: [HueRuleAction]) {
         let conditions = [
             RuleCondition(
                 address: "/sensors/\(sensorId)/state/lightlevel",
@@ -283,7 +283,7 @@ class RulesViewModel: ObservableObject {
     ///   - conditions: Условия правила
     ///   - actions: Действия правила
     /// - Returns: true если правило валидно
-    private func validateRule(conditions: [RuleCondition], actions: [RuleAction]) -> Bool {
+    private func validateRule(conditions: [RuleCondition], actions: [HueRuleAction]) -> Bool {
         // Проверка на циклы: правило не должно изменять тот же сенсор, который его запускает
         for condition in conditions {
             guard let conditionAddress = condition.address else { continue }
@@ -335,7 +335,7 @@ class RulesViewModel: ObservableObject {
     }
     
     /// Создает правило с валидацией
-    private func createValidatedRule(name: String, conditions: [RuleCondition], actions: [RuleAction]) {
+    private func createValidatedRule(name: String, conditions: [RuleCondition], actions: [HueRuleAction]) {
         guard validateRule(conditions: conditions, actions: actions) else {
             return
         }

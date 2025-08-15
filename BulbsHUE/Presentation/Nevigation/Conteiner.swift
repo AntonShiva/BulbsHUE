@@ -39,6 +39,10 @@ struct MainContainer: View {
                     // Fallback если лампа не выбрана
                     EnvironmentView()
                 }
+            case .development:
+                DevelopmentMenuView()
+            case .migrationDashboard:
+                MigrationDashboardView()
             }
         }
         .transition(.opacity)

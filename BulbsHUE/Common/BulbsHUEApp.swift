@@ -21,12 +21,24 @@ struct BulbsHUEApp: App {
     /// Основной ViewModel приложения
     @StateObject private var appViewModel: AppViewModel
     
+    /// Redux Store для новой архитектуры
+    @StateObject private var store = AppStore()
+    
+    /// Адаптер для безопасной миграции
+    @StateObject private var migrationAdapter: MigrationAdapter
+    
     // MARK: - Initialization
     
     init() {
         let dataService = DataPersistenceService()
         self._dataPersistenceService = StateObject(wrappedValue: dataService)
-        self._appViewModel = StateObject(wrappedValue: AppViewModel(dataPersistenceService: dataService))
+        
+        let appVM = AppViewModel(dataPersistenceService: dataService)
+        self._appViewModel = StateObject(wrappedValue: appVM)
+        
+        let appStore = AppStore()
+        self._store = StateObject(wrappedValue: appStore)
+        self._migrationAdapter = StateObject(wrappedValue: MigrationAdapter(store: appStore, appViewModel: appVM))
     }
     
     // MARK: - Scene
@@ -37,9 +49,18 @@ struct BulbsHUEApp: App {
                 .environmentObject(appViewModel)
                 .environmentObject(NavigationManager.shared)
                 .environmentObject(dataPersistenceService)
+                .environmentObject(store)
+                .environmentObject(migrationAdapter)
                 .modelContainer(dataPersistenceService.container)
                 .onAppear {
                     NavigationManager.shared.dataPersistenceService = dataPersistenceService
+                    
+                    // Логирование статуса миграции при запуске
+                    if MigrationFeatureFlags.debugMigration {
+                        print("🚀 BulbsHUE запущен с миграцией")
+                        print("   Redux Store инициализирован: ✅")
+                        print("   MigrationAdapter готов: ✅")
+                    }
                 }
         }
     }

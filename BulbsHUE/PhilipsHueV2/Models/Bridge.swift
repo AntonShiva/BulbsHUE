@@ -75,7 +75,7 @@ struct BridgeConfig: Codable {
 }
 
 /// Возможности моста (лимиты)
-struct BridgeCapabilities: Codable {
+struct BridgeCapabilities: Codable, Equatable {
     /// Лимиты ресурсов
     var resources: ResourceLimits?
     
@@ -87,7 +87,7 @@ struct BridgeCapabilities: Codable {
 }
 
 /// Лимиты ресурсов
-struct ResourceLimits: Codable {
+struct ResourceLimits: Codable, Equatable {
     /// Максимум ламп
     var lights: Int?
     
@@ -114,7 +114,7 @@ struct ResourceLimits: Codable {
 }
 
 /// Лимиты потоковой передачи
-struct StreamingLimits: Codable {
+struct StreamingLimits: Codable, Equatable {
     /// Максимум активных потоков
     var total: Int?
     

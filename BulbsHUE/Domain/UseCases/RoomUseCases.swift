@@ -1,0 +1,145 @@
+//
+//  RoomUseCases.swift
+//  BulbsHUE
+//
+//  Created by Anton Reasin on 15.08.2025.
+//
+
+import Foundation
+import Combine
+
+// MARK: - Create Room Use Case
+struct CreateRoomUseCase: UseCase {
+    private let roomRepository: RoomRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol) {
+        self.roomRepository = roomRepository
+    }
+    
+    struct Input {
+        let name: String
+        let type: RoomSubType
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<RoomEntity, Error> {
+        // Валидация входных данных
+        guard !input.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return Fail(error: RoomError.invalidName)
+                .eraseToAnyPublisher()
+        }
+        
+        let room = RoomEntity(
+            id: UUID().uuidString,
+            name: input.name,
+            type: input.type,
+            lightIds: [],
+            isActive: true,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        
+        return roomRepository.createRoom(room)
+            .map { _ in room }
+            .eraseToAnyPublisher()
+    }
+}
+
+// MARK: - Add Light To Room Use Case
+struct AddLightToRoomUseCase: UseCase {
+    private let roomRepository: RoomRepositoryProtocol
+    private let lightRepository: LightRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol, lightRepository: LightRepositoryProtocol) {
+        self.roomRepository = roomRepository
+        self.lightRepository = lightRepository
+    }
+    
+    struct Input {
+        let lightId: String
+        let roomId: String
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<Void, Error> {
+        // Проверяем, что лампа существует
+        return lightRepository.getLight(by: input.lightId)
+            .flatMap { light -> AnyPublisher<Void, Error> in
+                guard light != nil else {
+                    return Fail(error: RoomError.lightNotFound)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Проверяем, что комната существует
+                return self.roomRepository.getRoom(by: input.roomId)
+                    .flatMap { room -> AnyPublisher<Void, Error> in
+                        guard room != nil else {
+                            return Fail(error: RoomError.roomNotFound)
+                                .eraseToAnyPublisher()
+                        }
+                        
+                        return self.roomRepository.addLightToRoom(
+                            roomId: input.roomId,
+                            lightId: input.lightId
+                        )
+                    }
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+}
+
+// MARK: - Get Room Lights Use Case
+struct GetRoomLightsUseCase: UseCase {
+    private let roomRepository: RoomRepositoryProtocol
+    private let lightRepository: LightRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol, lightRepository: LightRepositoryProtocol) {
+        self.roomRepository = roomRepository
+        self.lightRepository = lightRepository
+    }
+    
+    struct Input {
+        let roomId: String
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<[LightEntity], Error> {
+        return roomRepository.getRoom(by: input.roomId)
+            .flatMap { room -> AnyPublisher<[LightEntity], Error> in
+                guard let room = room else {
+                    return Fail(error: RoomError.roomNotFound)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Получаем все лампы и фильтруем по ID комнаты
+                return self.lightRepository.getAllLights()
+                    .map { lights in
+                        lights.filter { room.lightIds.contains($0.id) }
+                    }
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+}
+
+// MARK: - Room Errors
+enum RoomError: Error, LocalizedError {
+    case roomNotFound
+    case lightNotFound
+    case invalidName
+    case roomAlreadyExists
+    case cannotDeleteNonEmptyRoom
+    
+    var errorDescription: String? {
+        switch self {
+        case .roomNotFound:
+            return "Room not found"
+        case .lightNotFound:
+            return "Light not found"
+        case .invalidName:
+            return "Invalid room name"
+        case .roomAlreadyExists:
+            return "Room with this name already exists"
+        case .cannotDeleteNonEmptyRoom:
+            return "Cannot delete room with lights"
+        }
+    }
+}

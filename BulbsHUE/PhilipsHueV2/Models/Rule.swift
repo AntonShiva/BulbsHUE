@@ -41,7 +41,7 @@ struct RuleConfiguration: Codable {
     var conditions: [RuleCondition]?
     
     /// Действия при срабатывании
-    var actions: [RuleAction]?
+    var actions: [HueRuleAction]?
 }
 
 /// Условие правила
@@ -57,7 +57,7 @@ struct RuleCondition: Codable {
 }
 
 /// Действие правила
-struct RuleAction: Codable {
+struct HueRuleAction: Codable {
     /// Адрес ресурса для изменения
     var address: String?
     

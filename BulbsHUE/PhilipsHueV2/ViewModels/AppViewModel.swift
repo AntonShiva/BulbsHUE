@@ -112,7 +112,7 @@ class AppViewModel: ObservableObject {
     /// Начинает комплексный поиск мостов с использованием всех доступных методов
     func searchForBridges() {
         print("🚀 Запуск поиска мостов...")
-        connectionStatus = .searching
+        connectionStatus = ConnectionStatus.searching
         discoveredBridges.removeAll() // Очищаем предыдущие результаты
         error = nil // Сбрасываем предыдущие ошибки
         
@@ -128,14 +128,14 @@ class AppViewModel: ObservableObject {
                             self.startDiscoveryProcess()
                         } else {
                             print("❌ Отсутствует разрешение локальной сети")
-                            self.connectionStatus = .disconnected
+                            self.connectionStatus = ConnectionStatus.disconnected
                             self.error = HueAPIError.localNetworkPermissionDenied
                         }
                     }
                 } catch {
                     await MainActor.run {
                         print("❌ Ошибка при запросе разрешения локальной сети: \(error)")
-                        self.connectionStatus = .disconnected
+                        self.connectionStatus = ConnectionStatus.disconnected
                         self.error = HueAPIError.localNetworkPermissionDenied
                     }
                 }
@@ -553,47 +553,6 @@ class AppViewModel: ObservableObject {
     }
     
 }
-
-/// Статус подключения к мосту
-enum ConnectionStatus {
-    case disconnected
-    case searching
-    case discovered
-    case needsAuthentication
-    case connected
-    
-    var description: String {
-        switch self {
-        case .disconnected:
-            return "Отключено"
-        case .searching:
-            return "Поиск мостов..."
-        case .discovered:
-            return "Мосты найдены"
-        case .needsAuthentication:
-            return "Требуется авторизация"
-        case .connected:
-            return "Подключено"
-        }
-    }
-}
-
-/// Метрики производительности
-struct PerformanceMetrics {
-    var eventsReceived: Int = 0
-    var rateLimitHits: Int = 0
-    var bufferOverflows: Int = 0
-    var averageLatency: Double = 0
-    
-    mutating func reset() {
-        eventsReceived = 0
-        rateLimitHits = 0
-        bufferOverflows = 0
-        averageLatency = 0
-    }
-}
-
-
 
 /// Модель для данных QR-кода Hue Bridge
 struct HueBridgeQRCode {

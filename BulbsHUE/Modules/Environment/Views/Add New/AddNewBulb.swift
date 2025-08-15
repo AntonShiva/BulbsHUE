@@ -159,7 +159,7 @@ struct AddNewBulb: View {
             .adaptiveOffset(y: 191)
                 CostumButton(text: "search in network", width: 377, height: 291, image: "BGCustomButton") {
                                 // ИСПРАВЛЕНИЕ: Сначала проверяем подключение
-                                if appViewModel.connectionStatus == .connected {
+                    if appViewModel.connectionStatus == .connected {
                                     nav.startSearch()
                                     // Только теперь загружаем лампы
                                     appViewModel.lightsViewModel.loadLights()

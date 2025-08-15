@@ -24,6 +24,10 @@ enum Router: Equatable {
     
     // Меню настроек лампы
     case menuView                 // Меню настроек конкретной лампы
+    
+    // Development
+    case development              // Development dashboard
+    case migrationDashboard       // Migration progress dashboard
 }
 
 class NavigationManager: ObservableObject {
