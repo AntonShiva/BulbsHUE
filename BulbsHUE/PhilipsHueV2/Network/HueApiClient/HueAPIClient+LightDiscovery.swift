@@ -149,6 +149,7 @@ extension HueAPIClient {
     }
     
     /// Запускает общий поиск ламп на мосте через CLIP v1 (POST /lights)
+    /// Согласно официальной документации Philips Hue API v1
     internal func startGeneralSearchV1() -> AnyPublisher<Bool, Error> {
         guard let applicationKey = applicationKey else {
             return Fail(error: HueAPIError.notAuthenticated).eraseToAnyPublisher()
@@ -157,53 +158,61 @@ extension HueAPIClient {
             return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
         }
         
-        func parseV1Errors(_ data: Data, _ response: URLResponse) throws {
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return }
-            if let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                for item in arr {
-                    if let err = item["error"] as? [String: Any] {
-                        let type = err["type"] as? Int ?? -1
-                        let desc = err["description"] as? String ?? "v1 error"
-                        print("❌ v1 scan error: type=\(type) desc=\(desc)")
-                        if type == 1 { throw HueAPIError.notAuthenticated }
-                        throw HueAPIError.unknown(desc)
+        print("🔍 Инициируем общий поиск ламп через v1 API...")
+        print("📡 URL: \(url)")
+        
+        // Согласно документации, для общего поиска нужен POST с пустым телом
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10.0
+        // Важно: для общего поиска тело должно быть пустым JSON объектом
+        request.httpBody = "{}".data(using: .utf8)
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                guard let http = response as? HTTPURLResponse else {
+                    throw HueAPIError.networkError(NSError(domain: "No HTTP response", code: -1))
+                }
+                
+                print("📡 Response status: \(http.statusCode)")
+                
+                // API v1 может вернуть ошибку в теле ответа даже при статусе 200
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    for item in json {
+                        if let error = item["error"] as? [String: Any],
+                           let type = error["type"] as? Int,
+                           let description = error["description"] as? String {
+                            print("❌ API v1 error: type=\(type), description=\(description)")
+                            
+                            switch type {
+                            case 1: throw HueAPIError.notAuthenticated
+                            case 3: throw HueAPIError.unknown("Resource not available: \(description)")
+                            case 7: throw HueAPIError.unknown("Invalid value: \(description)")
+                            default: throw HueAPIError.unknown(description)
+                            }
+                        }
                     }
                 }
+                
+                // Успешный запуск поиска
+                if http.statusCode == 200 {
+                    print("✅ Поиск успешно запущен, ожидаем 40 секунд для завершения сканирования...")
+                    return true
+                } else {
+                    throw HueAPIError.httpError(statusCode: http.statusCode)
+                }
             }
-        }
-        
-        // Попытка 1: POST {} (часто требуется)
-        var reqJSON = URLRequest(url: url)
-        reqJSON.httpMethod = "POST"
-        reqJSON.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        reqJSON.timeoutInterval = 10.0
-        reqJSON.httpBody = try? JSONSerialization.data(withJSONObject: [:])
-        let attemptJSON = URLSession.shared.dataTaskPublisher(for: reqJSON)
-            .tryMap { data, response in
-                guard let http = response as? HTTPURLResponse else { return true }
-                guard http.statusCode == 200 else { throw HueAPIError.httpError(statusCode: http.statusCode) }
-                try parseV1Errors(data, response)
-                return true
-            }
-            .eraseToAnyPublisher()
-        
-        // Попытка 2: POST без тела (некоторые прошивки тоже принимают)
-        var reqEmpty = URLRequest(url: url)
-        reqEmpty.httpMethod = "POST"
-        reqEmpty.timeoutInterval = 10.0
-        let attemptEmpty = URLSession.shared.dataTaskPublisher(for: reqEmpty)
-            .tryMap { data, response in
-                guard let http = response as? HTTPURLResponse else { return true }
-                guard http.statusCode == 200 else { throw HueAPIError.httpError(statusCode: http.statusCode) }
-                try parseV1Errors(data, response)
-                return true
-            }
-            .eraseToAnyPublisher()
-        
-        return attemptJSON
-            .catch { _ in attemptEmpty }
             .delay(for: .seconds(40), scheduler: RunLoop.main)
-            .mapError { HueAPIError.networkError($0) }
+            .handleEvents(receiveOutput: { _ in
+                print("⏱ Ожидание завершено, проверяем результаты...")
+            })
+            .mapError { error -> HueAPIError in
+                if let hueError = error as? HueAPIError {
+                    return hueError
+                }
+                return HueAPIError.networkError(error)
+            }
             .eraseToAnyPublisher()
     }
     
@@ -309,104 +318,142 @@ extension HueAPIClient {
             .eraseToAnyPublisher()
     }
     
-    /// Проверяет появление новых ламп после targeted search
+    /// Проверяет появление новых ламп после общего поиска
+    /// Правильная реализация согласно Philips Hue API v1 документации
     internal func checkForNewLights() -> AnyPublisher<[Light], Error> {
         guard let applicationKey = applicationKey else {
             return Fail(error: HueAPIError.notAuthenticated)
                 .eraseToAnyPublisher()
         }
         
-        print("🔍 Проверяем новые лампы (poll /lights/new до завершения)...")
+        print("🔍 Проверяем новые лампы через /lights/new...")
         
-        func fetchNewOnce() -> AnyPublisher<(ids: [String], lastscan: String), Error> {
-            guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights/new") else {
-                return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
-            }
-            return URLSession.shared.dataTaskPublisher(for: url)
-                .map(\.data)
-                .tryMap { data in
-                    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          let lastscan = json["lastscan"] as? String else {
-                        return ([], "none")
-                    }
-                    var newLightIds: [String] = []
-                    for (key, value) in json where key != "lastscan" {
-                        if let _ = value as? [String: Any] { newLightIds.append(key) }
-                    }
-                    return (newLightIds, lastscan)
+        // Сначала получаем текущий список всех ламп ДО проверки новых
+        return getAllLightsV2HTTPS()
+            .flatMap { [weak self] existingLights -> AnyPublisher<[Light], Error> in
+                guard let self = self else {
+                    return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
                 }
-                .mapError { HueAPIError.networkError($0) }
-                .eraseToAnyPublisher()
-        }
-        
-        func pollNewIds(elapsed: TimeInterval, timeout: TimeInterval, interval: TimeInterval) -> AnyPublisher<[String], Error> {
-            return fetchNewOnce()
-                .flatMap { result -> AnyPublisher<[String], Error> in
-                    let (ids, lastscan) = result
-                    print("📅 lastscan=\(lastscan), найдено новых: \(ids.count), elapsed=\(Int(elapsed))s")
-                    if (lastscan == "active" || lastscan == "none") && elapsed < timeout {
-                        return Just(())
-                            .delay(for: .seconds(interval), scheduler: RunLoop.main)
-                            .flatMap { _ in pollNewIds(elapsed: elapsed + interval, timeout: timeout, interval: interval) }
+                
+                let existingIds = Set(existingLights.map { $0.id })
+                print("📝 Существующие лампы до поиска: \(existingIds.count)")
+                
+                // Проверяем результаты поиска
+                return self.fetchNewLightsStatus()
+                    .flatMap { newLightIds -> AnyPublisher<[Light], Error> in
+                        print("🆕 API v1 сообщает о новых ID: \(newLightIds)")
+                        
+                        if newLightIds.isEmpty {
+                            print("⚠️ Новых ламп не найдено через v1 API")
+                            return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+                        }
+                        
+                        // Получаем обновленный список всех ламп
+                        return self.getAllLightsV2HTTPS()
+                            .map { allLights -> [Light] in
+                                // Находим действительно новые лампы
+                                let newLights = allLights.filter { light in
+                                    let isNew = !existingIds.contains(light.id)
+                                    let isRecentlyReset = light.isNewLight && !existingIds.contains(light.id)
+                                    
+                                    if isNew || isRecentlyReset {
+                                        print("✨ Найдена новая лампа: \(light.metadata.name) (ID: \(light.id))")
+                                    }
+                                    
+                                    return isNew || isRecentlyReset
+                                }
+                                
+                                print("📊 Результат: всего ламп = \(allLights.count), новых = \(newLights.count)")
+                                return newLights
+                            }
                             .eraseToAnyPublisher()
-                    } else {
-                        return Just(ids).setFailureType(to: Error.self).eraseToAnyPublisher()
                     }
-                }
-                .eraseToAnyPublisher()
-        }
-        
-        func mapToV2Lights(v1Ids: [String]) -> AnyPublisher<[Light], Error> {
-            if v1Ids.isEmpty {
-                return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+                    .eraseToAnyPublisher()
             }
-            // Загружаем всё: маппинги, v1 lights и v2 lights
-            return Publishers.Zip3(
-                getDeviceMappings(),
-                getLightsV1(),
-                getAllLightsV2HTTPS()
-            )
-            .map { mappings, v1Lights, allV2 in
-                let v1IdSet = Set(v1Ids)
-                var result: [Light] = []
-                let matchedByMapping = mappings.compactMap { m -> String? in
-                    if let v1 = m.v1LightId, v1IdSet.contains(v1) { return m.lightId }
-                    return nil
-                }
-                if !matchedByMapping.isEmpty {
-                    result.append(contentsOf: allV2.filter { matchedByMapping.contains($0.id) })
-                }
-                // Fallback 1: сопоставление по uniqueid (v1) ↔ извлеченному компоненту из v2
-                let v1UniqueById: [String: String] = v1Ids.reduce(into: [:]) { dict, id in
-                    if let u = v1Lights[id]?.uniqueid { dict[id] = u.uppercased() }
-                }
-                for v2 in allV2 where !result.contains(where: { $0.id == v2.id }) {
-                    if let uniq = self.findUniqueIdFromV2Light(v2),
-                       v1UniqueById.values.contains(where: { $0.contains(uniq) }) {
-                        result.append(v2)
-                    }
-                }
-                // Fallback 2: сопоставление по имени (точное равенство)
-                let v1NamesById: [String: String] = v1Ids.reduce(into: [:]) { dict, id in
-                    if let name = v1Lights[id]?.name { dict[id] = name }
-                }
-                for v2 in allV2 where !result.contains(where: { $0.id == v2.id }) {
-                    if v1NamesById.values.contains(v2.metadata.name) {
-                        result.append(v2)
-                    }
-                }
-                return result
-            }
-            .eraseToAnyPublisher()
-        }
-        
-        // 1) Ждём завершения сканирования (lastscan != active), до 90с, polls/2с
-        return pollNewIds(elapsed: 0, timeout: 90, interval: 2)
-            // 2) Ждём появления устройств в v2, до 60с с попытками
-            .flatMap { ids in self.awaitV2EnumerationForV1Ids(ids) }
             .eraseToAnyPublisher()
     }
-
+    
+    /// Получает статус поиска новых ламп из API v1
+    func fetchNewLightsStatus() -> AnyPublisher<[String], Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated).eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights/new") else {
+            return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: url)
+            .map(\.data)
+            .tryMap { data in
+                // Диагностический вывод
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    print("📡 Raw response from /lights/new: \(jsonString)")
+                }
+                
+                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    print("❌ Не удалось распарсить JSON ответ")
+                    return []
+                }
+                
+                let lastscan = json["lastscan"] as? String ?? "none"
+                print("📅 Статус последнего сканирования: \(lastscan)")
+                
+                var newLightIds: [String] = []
+                for (key, value) in json where key != "lastscan" {
+                    if let lightInfo = value as? [String: Any] {
+                        print("💡 Найдена новая лампа v1 ID: \(key), info: \(lightInfo)")
+                        newLightIds.append(key)
+                    }
+                }
+                
+                return newLightIds
+            }
+            .mapError { HueAPIError.networkError($0) }
+            .eraseToAnyPublisher()
+    }
+    
+    private func fetchNewOnce() -> AnyPublisher<(ids: [String], lastscan: String), Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated).eraseToAnyPublisher()
+        }
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights/new") else {
+            return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
+        }
+        return URLSession.shared.dataTaskPublisher(for: url)
+            .map(\.data)
+            .tryMap { data in
+                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let lastscan = json["lastscan"] as? String else {
+                    return ([], "none")
+                }
+                var newLightIds: [String] = []
+                for (key, value) in json where key != "lastscan" {
+                    if let _ = value as? [String: Any] { newLightIds.append(key) }
+                }
+                return (newLightIds, lastscan)
+            }
+            .mapError { HueAPIError.networkError($0) }
+            .eraseToAnyPublisher()
+    }
+    
+    private func pollNewIds(elapsed: TimeInterval, timeout: TimeInterval, interval: TimeInterval) -> AnyPublisher<[String], Error> {
+        return fetchNewOnce()
+            .flatMap { result -> AnyPublisher<[String], Error> in
+                let (ids, lastscan) = result
+                print("📅 lastscan=\(lastscan), найдено новых: \(ids.count), elapsed=\(Int(elapsed))s")
+                if (lastscan == "active" || lastscan == "none") && elapsed < timeout {
+                    return Just(())
+                        .delay(for: .seconds(interval), scheduler: RunLoop.main)
+                        .flatMap { _ in self.pollNewIds(elapsed: elapsed + interval, timeout: timeout, interval: interval) }
+                        .eraseToAnyPublisher()
+                } else {
+                    return Just(ids).setFailureType(to: Error.self).eraseToAnyPublisher()
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+    
     /// Триггерит Touchlink scan (v1 PUT /config {"touchlink": true}) для принудительного поиска устройств
     private func triggerTouchlinkScan() -> AnyPublisher<Bool, Error> {
         guard let applicationKey = applicationKey else {

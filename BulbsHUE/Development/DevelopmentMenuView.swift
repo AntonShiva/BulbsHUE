@@ -11,6 +11,10 @@ import SwiftUI
 struct DevelopmentMenuView: View {
     @EnvironmentObject private var navigationManager: NavigationManager
     @EnvironmentObject private var migrationAdapter: MigrationAdapter
+    @EnvironmentObject private var appViewModel: AppViewModel
+    
+    @State private var diagnosticResult: String = ""
+    @State private var showDiagnosticSheet = false
     
     var body: some View {
         NavigationView {
@@ -24,6 +28,9 @@ struct DevelopmentMenuView: View {
                     
                     // Test Views Section
                     testViewsSection
+                    
+                    // Diagnostics Section
+                    diagnosticsSection
                     
                     // Debug Information
                     debugInfoSection
@@ -155,6 +162,76 @@ struct DevelopmentMenuView: View {
         .cornerRadius(12)
     }
     
+    private var diagnosticsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("🔍 Диагностика")
+                .font(.headline)
+                .padding(.horizontal)
+            
+            // Кнопка диагностики поиска ламп
+            Button(action: {
+                runLightSearchDiagnostics()
+            }) {
+                HStack {
+                    Image(systemName: "magnifyingglass.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Диагностика поиска ламп")
+                            .font(.callout)
+                            .fontWeight(.medium)
+                        Text("Полная проверка системы поиска")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Кнопка быстрого теста
+            Button(action: {
+                testNetworkSearch()
+            }) {
+                HStack {
+                    Image(systemName: "speedometer")
+                        .font(.title2)
+                        .foregroundColor(.orange)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Быстрый тест поиска")
+                            .font(.callout)
+                            .fontWeight(.medium)
+                        Text("Тест network search с логами")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(.horizontal)
+        .sheet(isPresented: $showDiagnosticSheet) {
+            DiagnosticResultView(result: diagnosticResult)
+        }
+    }
+    
     private var debugInfoSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Debug Information", systemImage: "info.circle")
@@ -181,6 +258,22 @@ struct DevelopmentMenuView: View {
         .background(Color(.systemGray6))
         .cornerRadius(12)
     }
+    
+    // MARK: - Diagnostic Methods
+    
+    private func runLightSearchDiagnostics() {
+        appViewModel.lightsViewModel.runSearchDiagnostics { result in
+            self.diagnosticResult = result
+            self.showDiagnosticSheet = true
+        }
+    }
+    
+    private func testNetworkSearch() {
+        appViewModel.lightsViewModel.testNetworkSearchWithLogs { success, log in
+            self.diagnosticResult = log
+            self.showDiagnosticSheet = true
+        }
+    }
 }
 
 struct FeatureFlagStatusRow: View {
@@ -196,6 +289,42 @@ struct FeatureFlagStatusRow: View {
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(isEnabled ? .green : .red)
+        }
+    }
+}
+
+// MARK: - Diagnostic Result View
+
+struct DiagnosticResultView: View {
+    let result: String
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(result)
+                        .font(.system(.body, design: .monospaced))
+                        .padding()
+                }
+            }
+            .navigationTitle("Результаты диагностики")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Готово") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        UIPasteboard.general.string = result
+                    }) {
+                        Label("Копировать", systemImage: "doc.on.doc")
+                    }
+                }
+            }
         }
     }
 }

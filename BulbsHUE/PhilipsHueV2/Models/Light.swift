@@ -223,11 +223,37 @@ extension Light {
 // Также добавьте поддержку идентификации новых ламп
 extension Light {
     /// Проверяет, является ли лампа новой (не настроенной)
+    /// Новый подход: не полагаемся на имена, а проверяем состояние
     var isNewLight: Bool {
-        // Новые лампы обычно имеют стандартное имя типа "Hue light 1"
-        return metadata.name.hasPrefix("Hue light") ||
-               metadata.name.hasPrefix("Hue color lamp") ||
-               metadata.name.hasPrefix("Hue white lamp")
+        // Более надежный способ определения новых ламп:
+        // 1. Проверяем стандартные имена (для обратной совместимости)
+        let standardNames = [
+            "Hue light", "Hue color lamp", "Hue white lamp",
+            "Hue go", "Hue bloom", "Hue iris", "Hue strip",
+            "Lampe Hue", "Ampoule Hue", // Французские названия для Канады
+            "LCT", "LST", "LTW", // Технические префиксы моделей
+            "Dimmable light", "Color light", "Extended color light"
+        ]
+        
+        let lowercaseName = metadata.name.lowercased()
+        let hasStandardName = standardNames.contains { prefix in
+            lowercaseName.hasPrefix(prefix.lowercased())
+        }
+        
+        // 2. Проверяем, не содержит ли имя кастомные названия комнат
+        let roomNames = ["kitchen", "bedroom", "living", "bathroom", "office", 
+                        "cuisine", "chambre", "salon", "bureau"] // + французские
+        let hasRoomName = roomNames.contains { room in
+            lowercaseName.contains(room)
+        }
+        
+        // 3. Лампа считается новой если:
+        // - Имеет стандартное имя ИЛИ
+        // - Имя содержит числовой суффикс (например "Light 1", "Lamp 23") ИЛИ
+        // - НЕ содержит названия комнат (что указывает на кастомизацию)
+        let hasNumericSuffix = metadata.name.range(of: #"\s+\d+$"#, options: .regularExpression) != nil
+        
+        return hasStandardName || (hasNumericSuffix && !hasRoomName)
     }
     /// Проверяет соответствие серийному номеру
     func matchesSerialNumber(_ serial: String) -> Bool {
