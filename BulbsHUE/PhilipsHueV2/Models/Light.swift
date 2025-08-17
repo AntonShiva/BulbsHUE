@@ -223,37 +223,30 @@ extension Light {
 // Также добавьте поддержку идентификации новых ламп
 extension Light {
     /// Проверяет, является ли лампа новой (не настроенной)
-    /// Новый подход: не полагаемся на имена, а проверяем состояние
+    /// УПРОЩЕННЫЙ подход: не полагаемся на имена, используем только базовые индикаторы
     var isNewLight: Bool {
-        // Более надежный способ определения новых ламп:
-        // 1. Проверяем стандартные имена (для обратной совместимости)
-        let standardNames = [
-            "Hue light", "Hue color lamp", "Hue white lamp",
-            "Hue go", "Hue bloom", "Hue iris", "Hue strip",
-            "Lampe Hue", "Ampoule Hue", // Французские названия для Канады
-            "LCT", "LST", "LTW", // Технические префиксы моделей
-            "Dimmable light", "Color light", "Extended color light"
-        ]
+        // В новом API-flow полагаемся на сравнение списков до/после поиска
+        // Но сохраняем минимальную эвристику для обратной совместимости
         
         let lowercaseName = metadata.name.lowercased()
-        let hasStandardName = standardNames.contains { prefix in
-            lowercaseName.hasPrefix(prefix.lowercased())
-        }
         
-        // 2. Проверяем, не содержит ли имя кастомные названия комнат
-        let roomNames = ["kitchen", "bedroom", "living", "bathroom", "office", 
-                        "cuisine", "chambre", "salon", "bureau"] // + французские
-        let hasRoomName = roomNames.contains { room in
-            lowercaseName.contains(room)
-        }
+        // Простая проверка стандартных префиксов Philips Hue
+        let isStandardHueName = lowercaseName.hasPrefix("hue") || 
+                                lowercaseName.contains("dimmable") ||
+                                lowercaseName.contains("color light") ||
+                                lowercaseName.contains("extended color")
         
-        // 3. Лампа считается новой если:
-        // - Имеет стандартное имя ИЛИ
-        // - Имя содержит числовой суффикс (например "Light 1", "Lamp 23") ИЛИ
-        // - НЕ содержит названия комнат (что указывает на кастомизацию)
+        // Проверка числового суффикса (Light 1, Lamp 23)
         let hasNumericSuffix = metadata.name.range(of: #"\s+\d+$"#, options: .regularExpression) != nil
         
-        return hasStandardName || (hasNumericSuffix && !hasRoomName)
+        // НЕ содержит указания на кастомизацию (названия комнат)
+        let hasNoCustomization = !lowercaseName.contains("kitchen") &&
+                                 !lowercaseName.contains("bedroom") &&
+                                 !lowercaseName.contains("living") &&
+                                 !lowercaseName.contains("bathroom") &&
+                                 !lowercaseName.contains("office")
+        
+        return (isStandardHueName || hasNumericSuffix) && hasNoCustomization
     }
     /// Проверяет соответствие серийному номеру
     func matchesSerialNumber(_ serial: String) -> Bool {

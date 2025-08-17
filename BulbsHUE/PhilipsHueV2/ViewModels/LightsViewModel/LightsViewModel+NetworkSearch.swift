@@ -67,17 +67,26 @@ extension LightsViewModel {
                 receiveValue: { [weak self] allLights in
                     guard let self = self else { return }
                     
+                    // В новом API-flow полагаемся на сравнение ID до/после поиска
                     let newLights = allLights.filter { light in
-                        !currentLightIds.contains(light.id) || light.isNewLight
+                        !currentLightIds.contains(light.id)
                     }
                     
-                    if !newLights.isEmpty {
-                        print("✅ Найдено новых ламп: \(newLights.count)")
+                    // Дополнительно проверяем isNewLight только для edge cases
+                    let potentiallyNewLights = allLights.filter { light in
+                        !currentLightIds.contains(light.id) || 
+                        (currentLightIds.contains(light.id) && light.isNewLight)
+                    }
+                    
+                    let finalNewLights = !newLights.isEmpty ? newLights : potentiallyNewLights
+                    
+                    if !finalNewLights.isEmpty {
+                        print("✅ Найдено новых ламп: \(finalNewLights.count)")
                         
                         self.lights = allLights
-                        self.serialNumberFoundLights = newLights
+                        self.serialNumberFoundLights = finalNewLights
                         
-                        if let firstNewLight = newLights.first {
+                        if let firstNewLight = finalNewLights.first {
                             self.selectedLight = firstNewLight
                         }
                     } else {
