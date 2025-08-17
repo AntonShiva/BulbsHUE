@@ -9,30 +9,13 @@ import SwiftUI
 
 struct SelectorTabEnviromentView: View {
     @EnvironmentObject var nav: NavigationManager
-    @State private var selectedTab: EnvironmentTab = .bulbs
-    
-    enum EnvironmentTab {
-        case bulbs, rooms
-    }
-    
-    // MARK: - Computed Property для определения активной вкладки
-    private var environmentTab: EnvironmentTab? {
-        switch nav.currentRoute {
-        case .environmentBulbs:
-            return .bulbs
-        case .environment:
-            return .rooms
-        default:
-            return nil // Не обновляем вкладку для других маршрутов
-        }
-    }
     
     var body: some View {
         ZStack{
             BGSelector()
                 .adaptiveFrame(width: 330, height: 103)
             
-            if selectedTab == .bulbs {
+            if nav.еnvironmentTab == .bulbs {
                 Duga(color: .primColor)
                     .adaptiveOffset(x: -72)
             } else {
@@ -40,43 +23,24 @@ struct SelectorTabEnviromentView: View {
                     .adaptiveOffset(x: 72)
             }
             
-            // Bulbs tab - переход на экран выбора сцен
+            // Bulbs tab - переключает на вкладку bulbs
             Button {
-                selectedTab = .bulbs
-                nav.go(.environmentBulbs)
+                nav.еnvironmentTab = .bulbs
             } label: {
                 LabelText(image: "lightBulb", width: 24, height: 24, text: "Bulbs")
                     .adaptiveOffset(x: -72)
             }
             .buttonStyle(PlainButtonStyle())
             
-            // Rooms tab - остается на текущем экране
+            // Rooms tab - переключает на вкладку rooms
             Button {
-                selectedTab = .rooms
-                nav.go(.environment)
+                nav.еnvironmentTab = .rooms
             } label: {
                 LabelText(image: "bed", width: 32, height: 32, text: "Rooms")
                     .adaptiveOffset(x: 62)
             }
             .buttonStyle(PlainButtonStyle())
         }
-        .onAppear {
-            // Устанавливаем правильную вкладку в зависимости от текущего маршрута
-            updateSelectedTab()
-        }
-        .onChange(of: nav.currentRoute) { _ in
-            // Обновляем выбранную вкладку при изменении маршрута
-            updateSelectedTab()
-        }
-    }
-    
-    // MARK: - Private Methods
-    private func updateSelectedTab() {
-        // Обновляем selectedTab только если маршрут относится к Environment
-        if let tab = environmentTab {
-            selectedTab = tab
-        }
-        // Если environmentTab возвращает nil - не изменяем текущую вкладку
     }
 }
 #Preview {

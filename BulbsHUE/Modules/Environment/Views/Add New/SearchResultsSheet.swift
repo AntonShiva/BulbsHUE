@@ -33,30 +33,7 @@ struct SearchResultsSheet: View {
                 .textCase(.uppercase)
                 .adaptiveOffset(y: -130)
             
-            // Кнопка обновления статуса
-            Button(action: {
-                Task {
-                    await lightsViewModel.refreshLightsWithStatus()
-                }
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12))
-                    Text("обновить статус")
-                        .font(Font.custom("DMSans-Light", size: 12))
-                        .kerning(1.0)
-                }
-                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(red: 0.79, green: 1, blue: 1), lineWidth: 1)
-                        .opacity(0.5)
-                )
-            }
-            .adaptiveOffset(y: -100)
-            .disabled(lightsViewModel.isLoading)
+
             
             
             ScrollView {
@@ -101,49 +78,79 @@ struct SearchResultsSheet: View {
                                 )
                             }
                         }
-                        
-                        // Показываем сообщение если ничего не найдено при поиске по серийнику
-                        if nav.searchType == .serialNumber && lightsViewModel.serialNumberFoundLights.isEmpty && !lightsViewModel.isLoading {
-                            VStack(spacing: 16) {
-                                if let error = lightsViewModel.error {
-                                    // Показываем конкретную ошибку
-                                    Text("connection error")
-                                        .font(Font.custom("DMSans-Light", size: 16))
-                                        .kerning(2.4)
-                                        .foregroundColor(Color.red)
-                                        .textCase(.uppercase)
-                                    
-                                    Text(error.localizedDescription)
-                                        .font(Font.custom("DMSans-Light", size: 10))
-                                        .kerning(1.0)
-                                        .lineSpacing(2)
-                                        .multilineTextAlignment(.center)
-                                        .foregroundColor(Color.red)
-                                        .opacity(0.8)
-                                } else {
-                                    // Стандартное сообщение
-                                    Text("lamp not found")
-                                        .font(Font.custom("DMSans-Light", size: 16))
-                                        .kerning(2.4)
-                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                                        .textCase(.uppercase)
-                                    
-                                    Text("• ensure lamp is within 1m of bridge\n• check serial number (6 characters)\n• make sure lamp is powered on")
-                                        .font(Font.custom("DMSans-Light", size: 10))
-                                        .kerning(1.0)
-                                        .lineSpacing(2)
-                                        .multilineTextAlignment(.center)
-                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                                        .opacity(0.7)
-                                }
+                        // После ScrollView добавьте:
+                        if getLightsToShow().isEmpty && !lightsViewModel.isLoading {
+                            VStack {
+                                Text("DEBUG INFO")
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                Text("Lights count: \(lightsViewModel.lights.count)")
+                                Text("Network found: \(lightsViewModel.networkFoundLights.count)")
+                                Text("Search type: \(nav.searchType == .network ? "Network" : "Serial")")
+                                Text("Bridge IP: \(appViewModel.apiClient.bridgeIP)")
                             }
-                            .padding(.top, 40)
+                            .padding()
                         }
+                        
+//                        // Показываем сообщение если ничего не найдено при поиске по серийнику
+//                        if nav.searchType == .serialNumber && lightsViewModel.serialNumberFoundLights.isEmpty && !lightsViewModel.isLoading {
+//                            VStack(spacing: 16) {
+//                                if let error = lightsViewModel.error {
+//                                    // Показываем конкретную ошибку
+//                                    Text("connection error")
+//                                        .font(Font.custom("DMSans-Light", size: 16))
+//                                        .kerning(2.4)
+//                                        .foregroundColor(Color.red)
+//                                        .textCase(.uppercase)
+//                                    
+//                                    Text(error.localizedDescription)
+//                                        .font(Font.custom("DMSans-Light", size: 10))
+//                                        .kerning(1.0)
+//                                        .lineSpacing(2)
+//                                        .multilineTextAlignment(.center)
+//                                        .foregroundColor(Color.red)
+//                                        .opacity(0.8)
+//                                } else {
+//                                    // Стандартное сообщение
+//                                    Text("lamp not found")
+//                                        .font(Font.custom("DMSans-Light", size: 16))
+//                                        .kerning(2.4)
+//                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+//                                        .textCase(.uppercase)
+//                                    
+//                                    Text("• ensure lamp is within 1m of bridge\n• check serial number (6 characters)\n• make sure lamp is powered on")
+//                                        .font(Font.custom("DMSans-Light", size: 10))
+//                                        .kerning(1.0)
+//                                        .lineSpacing(2)
+//                                        .multilineTextAlignment(.center)
+//                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+//                                        .opacity(0.7)
+//                                }
+//                            }
+//                            .padding(.top, 40)
+//                        }
                     }
                 }
                 .padding()
             }
             .adaptiveOffset(y: 285)
+        }
+        // В SearchResultsSheet.swift, добавьте отладочное сообщение:
+        .onAppear {
+            print("🔄 SearchResultsSheet появился")
+            
+            // Добавьте диагностическое сообщение на экран
+            if lightsViewModel.lights.isEmpty {
+                print("⚠️ Список ламп пуст!")
+            }
+            
+            Task {
+                // Запустите диагностику
+                lightsViewModel.runSearchDiagnostics { report in
+                    print(report)
+                    // Можно вывести report на экран для пользователя в Канаде
+                }
+            }
         }
         .onAppear {
             // Обновляем данные ламп при каждом открытии экрана с принудительным обновлением статуса

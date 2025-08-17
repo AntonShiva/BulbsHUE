@@ -154,20 +154,19 @@ extension HueAPIClient {
         guard let applicationKey = applicationKey else {
             return Fail(error: HueAPIError.notAuthenticated).eraseToAnyPublisher()
         }
+        
         guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights") else {
             return Fail(error: HueAPIError.invalidURL).eraseToAnyPublisher()
         }
         
         print("🔍 Инициируем общий поиск ламп через v1 API...")
-        print("📡 URL: \(url)")
         
-        // Согласно документации, для общего поиска нужен POST с пустым телом
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10.0
-        // Важно: для общего поиска тело должно быть пустым JSON объектом
-        request.httpBody = "{}".data(using: .utf8)
+        // ✅ НЕ устанавливаем Content-Type для пустого тела
+        // request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60.0  // Увеличиваем таймаут до 60 секунд
+        // ✅ НЕ устанавливаем httpBody - оставляем nil
         
         return URLSession.shared.dataTaskPublisher(for: request)
             .tryMap { data, response in
@@ -177,42 +176,19 @@ extension HueAPIClient {
                 
                 print("📡 Response status: \(http.statusCode)")
                 
-                // API v1 может вернуть ошибку в теле ответа даже при статусе 200
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                    for item in json {
-                        if let error = item["error"] as? [String: Any],
-                           let type = error["type"] as? Int,
-                           let description = error["description"] as? String {
-                            print("❌ API v1 error: type=\(type), description=\(description)")
-                            
-                            switch type {
-                            case 1: throw HueAPIError.notAuthenticated
-                            case 3: throw HueAPIError.unknown("Resource not available: \(description)")
-                            case 7: throw HueAPIError.unknown("Invalid value: \(description)")
-                            default: throw HueAPIError.unknown(description)
-                            }
-                        }
-                    }
+                if let responseString = String(data: data, encoding: .utf8) {
+                    print("📦 Response body: \(responseString)")
                 }
                 
-                // Успешный запуск поиска
+                // Успешный запуск поиска возвращает массив с success
                 if http.statusCode == 200 {
-                    print("✅ Поиск успешно запущен, ожидаем 40 секунд для завершения сканирования...")
+                    print("✅ Поиск запущен, ожидаем 40 секунд...")
                     return true
                 } else {
                     throw HueAPIError.httpError(statusCode: http.statusCode)
                 }
             }
             .delay(for: .seconds(40), scheduler: RunLoop.main)
-            .handleEvents(receiveOutput: { _ in
-                print("⏱ Ожидание завершено, проверяем результаты...")
-            })
-            .mapError { error -> HueAPIError in
-                if let hueError = error as? HueAPIError {
-                    return hueError
-                }
-                return HueAPIError.networkError(error)
-            }
             .eraseToAnyPublisher()
     }
     
