@@ -763,6 +763,20 @@ struct SecondaryButtonStyle: ButtonStyle {
     return OnboardingView(appViewModel: appViewModel)
         .environmentObject(appViewModel)
 }
+// Стили кнопок из OnboardingView для консистентности
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Color.blue)
+            .cornerRadius(25)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+    }
+}
+
 
 // MARK: - QR Camera Permission Step (закомментировано)
 /*

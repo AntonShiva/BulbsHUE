@@ -15,6 +15,8 @@ struct MainContainer: View {
             switch nav.currentRoute {
             case .environment: 
                 EnvironmentView()
+            case .environmentBulbs:
+                EnvironmentBulbsView()
             case .schedule: 
                 ScheduleView()
             case .music: 

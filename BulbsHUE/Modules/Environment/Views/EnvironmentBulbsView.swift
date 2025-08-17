@@ -1,0 +1,707 @@
+//
+//  EnvironmentBulbsView.swift
+//  BulbsHUE
+//
+//  Created by Anton Reasin on [DATE].
+//
+
+import SwiftUI
+import Combine
+
+// MARK: - EnvironmentBulbsView
+
+/// Экран выбора окружающих сцен освещения
+/// Отображает коллекцию природных сцен для настройки освещения
+struct EnvironmentBulbsView: View {
+    @EnvironmentObject var nav: NavigationManager
+    @EnvironmentObject var appViewModel: AppViewModel
+    
+    /// ViewModel для управления состоянием экрана
+    @StateObject private var viewModel = EnvironmentBulbsViewModel()
+    
+    var body: some View {
+        ZStack {
+            // Основной градиентный фон
+            backgroundGradient
+            
+            // Shadows overlay из Figma
+            shadowsOverlay
+            
+            // Верхняя навигационная панель
+            navigationHeader
+                .adaptiveOffset(y: -370)
+            
+            // Blur панель с табами фильтров
+            filterTabs
+                .adaptiveOffset(y: -287)
+            
+            // Секционные табы
+            sectionTabs
+                .adaptiveOffset(y: -222)
+            
+            // Сетка изображений сцен
+            sceneGrid
+                .adaptiveOffset(y: 80)
+        }
+        .ignoresSafeArea(.all)
+    }
+    
+    // MARK: - Background
+    
+    /// Градиентный фон в стиле дизайна
+    private var backgroundGradient: some View {
+        ZStack {
+            // Основной темный фон
+            Color(red: 0.024, green: 0.027, blue: 0.027) // #060707
+            
+            // Размытые эллипсы для создания градиента как в дизайне
+            Group {
+                // Бирюзовый эллипс слева сверху
+                Ellipse()
+                    .fill(Color(red: 0, green: 0.8, blue: 0.82))
+                    .frame(width: 300, height: 400)
+                    .offset(x: -120, y: -300)
+                    .blur(radius: 150)
+                
+                // Синий эллипс справа сверху  
+                Ellipse()
+                    .fill(Color(red: 0.2, green: 0.3, blue: 0.8))
+                    .frame(width: 280, height: 350)
+                    .offset(x: 150, y: -250)
+                    .blur(radius: 180)
+                
+                // Фиолетовый эллипс снизу
+                Ellipse()
+                    .fill(Color(red: 0.4, green: 0.2, blue: 0.9))
+                    .frame(width: 350, height: 200)
+                    .offset(x: 50, y: 400)
+                    .blur(radius: 200)
+            }
+        }
+        .ignoresSafeArea(.all)
+    }
+    
+    /// Тени из дизайна Figma для создания атмосферы
+    private var shadowsOverlay: some View {
+        // Используем существующий компонент с shadows или создаем аналогичный эффект
+        Rectangle()
+            .fill(
+                RadialGradient(
+                    colors: [Color.clear, Color.black.opacity(0.3)],
+                    center: .center,
+                    startRadius: 100,
+                    endRadius: 400
+                )
+            )
+            .ignoresSafeArea(.all)
+    }
+    
+    // MARK: - Navigation Header
+    
+    /// Верхняя навигационная панель с кнопками и заголовком
+    private var navigationHeader: some View {
+        VStack(spacing: 12) {
+            // Основная панель с кнопками
+            HStack {
+                // Левая кнопка - Назад
+                Button {
+                    nav.back()
+                } label: {
+                    ZStack {
+                        BGCircle()
+                            .adaptiveFrame(width: 48, height: 48)
+                        
+                        // Стрелка назад
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primColor)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Spacer()
+                
+                // Центральная кнопка - FAV
+                Button {
+                    viewModel.toggleFavoriteFilter()
+                } label: {
+                    ZStack {
+                        BGCircle()
+                            .adaptiveFrame(width: 48, height: 48)
+                        
+                        // Heart icon
+                        Image(systemName: viewModel.isFavoriteFilterActive ? "heart.fill" : "heart")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primColor)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Spacer()
+                
+                // Правая кнопка - Brightness/On
+                Button {
+                    viewModel.toggleMainLight()
+                } label: {
+                    ZStack {
+                        BGCircle()
+                            .adaptiveFrame(width: 48, height: 48)
+                        
+                        // Bulb icon
+                        Image(systemName: viewModel.isMainLightOn ? "lightbulb.fill" : "lightbulb")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primColor)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                Spacer()
+                
+                // Дальняя правая кнопка - Sun/Settings
+                Button {
+                    viewModel.toggleSunMode()
+                } label: {
+                    ZStack {
+                        BGCircle()
+                            .adaptiveFrame(width: 48, height: 48)
+                        
+                        // Sun icon
+                        Image(systemName: viewModel.isSunModeActive ? "sun.max.fill" : "sun.max")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primColor)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.horizontal, 24)
+            
+            // Заголовок BULB и статусы
+            HStack {
+                VStack(spacing: 4) {
+                    Text("FAV")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(.primColor)
+                        .textCase(.uppercase)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 4) {
+                    Text("BULB")
+                        .font(Font.custom("DMSans-Light", size: 16))
+                        .kerning(4)
+                        .foregroundColor(.primColor)
+                        .textCase(.uppercase)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 4) {
+                    Text("ON")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(.primColor)
+                        .textCase(.uppercase)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 4) {
+                    Text("50%")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(.primColor)
+                        .textCase(.uppercase)
+                }
+            }
+            .padding(.horizontal, 24)
+        }
+    }
+    
+    // MARK: - Filter Tabs
+    
+    /// Blur панель с табами фильтров (Color Picker, Pastel, Bright)
+    private var filterTabs: some View {
+        ZStack {
+            // Background blur panel
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color.black.opacity(0.2))
+                .frame(height: 48)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(Color.primColor.opacity(0.2), lineWidth: 2)
+                )
+                .padding(.horizontal, 8)
+            
+            // Активный индикатор под выбранным табом
+            HStack {
+                if viewModel.selectedFilterTab == .colorPicker {
+                    Rectangle()
+                        .fill(.primColor)
+                        .frame(height: 2)
+                        .frame(width: 88)
+                    Spacer()
+                } else if viewModel.selectedFilterTab == .pastel {
+                    Spacer()
+                    Rectangle()
+                        .fill(.primColor)
+                        .frame(height: 2)
+                        .frame(width: 88)
+                    Spacer()
+                } else {
+                    Spacer()
+                    Rectangle()
+                        .fill(.primColor)
+                        .frame(height: 2)
+                        .frame(width: 88)
+                }
+            }
+            .padding(.horizontal, 36)
+            .offset(y: 23)
+            
+            // Filter tabs
+            HStack(spacing: 44) {
+                // Color Picker tab
+                Button {
+                    viewModel.selectFilterTab(.colorPicker)
+                } label: {
+                    Text("COLOR PICKER")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(viewModel.selectedFilterTab == .colorPicker ? .primColor : .primColor.opacity(0.4))
+                        .textCase(.uppercase)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Pastel tab
+                Button {
+                    viewModel.selectFilterTab(.pastel)
+                } label: {
+                    Text("PASTEL")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(viewModel.selectedFilterTab == .pastel ? .primColor : .primColor.opacity(0.4))
+                        .textCase(.uppercase)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Bright tab
+                Button {
+                    viewModel.selectFilterTab(.bright)
+                } label: {
+                    Text("BRIGHT")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(viewModel.selectedFilterTab == .bright ? .primColor : .primColor.opacity(0.4))
+                        .textCase(.uppercase)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+    
+    // MARK: - Section Tabs
+    
+    /// Секционные табы (Section 1, 2, 3)
+    private var sectionTabs: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 0) {
+                // Section 1
+                Button {
+                    viewModel.selectSection(.section1)
+                } label: {
+                    Text("SECTION 1")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(viewModel.selectedSection == .section1 ? .primColor : .primColor.opacity(0.6))
+                        .textCase(.uppercase)
+                        .frame(width: 120)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Section 2
+                Button {
+                    viewModel.selectSection(.section2)
+                } label: {
+                    Text("SECTION 2")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(viewModel.selectedSection == .section2 ? .primColor : .primColor.opacity(0.6))
+                        .textCase(.uppercase)
+                        .frame(width: 120)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Section 3
+                Button {
+                    viewModel.selectSection(.section3)
+                } label: {
+                    Text("SECTION 3")
+                        .font(Font.custom("DMSans-Regular", size: 12))
+                        .kerning(2.04)
+                        .foregroundColor(viewModel.selectedSection == .section3 ? .primColor : .primColor.opacity(0.6))
+                        .textCase(.uppercase)
+                        .frame(width: 120)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            
+            // Нижний индикатор и разделитель
+            VStack(spacing: 0) {
+                // Активный индикатор под выбранным табом
+                HStack(spacing: 0) {
+                    if viewModel.selectedSection == .section1 {
+                        Rectangle()
+                            .fill(.primColor)
+                            .frame(width: 120, height: 1)
+                        Rectangle()
+                            .fill(.primColor.opacity(0.3))
+                            .frame(width: 255, height: 1)
+                    } else if viewModel.selectedSection == .section2 {
+                        Rectangle()
+                            .fill(.primColor.opacity(0.3))
+                            .frame(width: 120, height: 1)
+                        Rectangle()
+                            .fill(.primColor)
+                            .frame(width: 120, height: 1)
+                        Rectangle()
+                            .fill(.primColor.opacity(0.3))
+                            .frame(width: 135, height: 1)
+                    } else {
+                        Rectangle()
+                            .fill(.primColor.opacity(0.3))
+                            .frame(width: 240, height: 1)
+                        Rectangle()
+                            .fill(.primColor)
+                            .frame(width: 135, height: 1)
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Scene Grid
+    
+    /// Сетка с круглыми изображениями природных сцен
+    private var sceneGrid: some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible()),
+            GridItem(.flexible())
+        ], spacing: 40) {
+            ForEach(viewModel.currentScenes) { scene in
+                SceneCard(scene: scene) {
+                    viewModel.selectScene(scene)
+                }
+            }
+        }
+        .padding(.horizontal, 23)
+    }
+}
+
+// MARK: - Scene Card
+
+/// Карточка отдельной сцены с круглым изображением
+private struct SceneCard: View {
+    let scene: EnvironmentScene
+    let onTap: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            // Круглое изображение сцены
+            Button(action: onTap) {
+                ZStack {
+                    // Создаем красивый градиентный фон для SVG иконок
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.6, green: 0.8, blue: 0.9).opacity(0.3),
+                                    Color(red: 0.3, green: 0.5, blue: 0.7).opacity(0.6),
+                                    Color(red: 0.2, green: 0.3, blue: 0.5).opacity(0.8)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 156, height: 156)
+                    
+                    // SVG иконка в центре
+                    Image(scene.imageURL)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 80, height: 80)
+                        .foregroundColor(.primColor.opacity(0.9))
+                    
+                    // Overlay для эффекта нажатия
+                    if scene.isSelected {
+                        Circle()
+                            .stroke(.primColor, lineWidth: 3)
+                            .frame(width: 156, height: 156)
+                    }
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // Название сцены
+            Text(scene.name.uppercased())
+                .font(Font.custom("DMSans-ExtraLight", size: 12))
+                .kerning(2.04)
+                .foregroundColor(.primColor)
+                .textCase(.uppercase)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+    }
+}
+
+// MARK: - ViewModel
+
+/// ViewModel для управления состоянием экрана EnvironmentBulbs
+@MainActor
+class EnvironmentBulbsViewModel: ObservableObject {
+    
+    // MARK: - Published Properties
+    
+    @Published var selectedFilterTab: FilterTab = .pastel
+    @Published var selectedSection: Section = .section1
+    @Published var isFavoriteFilterActive = false
+    @Published var isMainLightOn = true
+    @Published var isSunModeActive = false
+    @Published var scenes: [EnvironmentScene] = []
+    
+    // MARK: - Computed Properties
+    
+    /// Сцены для текущего выбранного фильтра и секции
+    var currentScenes: [EnvironmentScene] {
+        return scenes.filter { scene in
+            scene.section == selectedSection &&
+            scene.filterType == selectedFilterTab &&
+            (!isFavoriteFilterActive || scene.isFavorite)
+        }
+    }
+    
+    // MARK: - Initialization
+    
+    init() {
+        loadMockScenes()
+    }
+    
+    // MARK: - Public Methods
+    
+    func selectFilterTab(_ tab: FilterTab) {
+        selectedFilterTab = tab
+    }
+    
+    func selectSection(_ section: Section) {
+        selectedSection = section
+    }
+    
+    func toggleFavoriteFilter() {
+        isFavoriteFilterActive.toggle()
+    }
+    
+    func toggleMainLight() {
+        isMainLightOn.toggle()
+    }
+    
+    func toggleSunMode() {
+        isSunModeActive.toggle()
+    }
+    
+    func selectScene(_ scene: EnvironmentScene) {
+        // Снять выделение с всех сцен
+        for index in scenes.indices {
+            scenes[index].isSelected = false
+        }
+        
+        // Выбрать нужную сцену
+        if let index = scenes.firstIndex(where: { $0.id == scene.id }) {
+            scenes[index].isSelected = true
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    /// Загрузить mock данные сцен с использованием локальных иконок
+    private func loadMockScenes() {
+        scenes = [
+            // Section 1 - Pastel (используем локальные SVG иконки)
+            EnvironmentScene(
+                id: "scene1",
+                name: "Living Room",
+                imageURL: "Liv1", // Используем локальные ассеты
+                section: .section1,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene2", 
+                name: "Bedroom",
+                imageURL: "Liv2",
+                section: .section1,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene3",
+                name: "Kitchen",
+                imageURL: "Liv3", 
+                section: .section1,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene4",
+                name: "Bathroom",
+                imageURL: "Liv4",
+                section: .section1,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene5",
+                name: "Office",
+                imageURL: "Liv5",
+                section: .section1,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene6",
+                name: "Dining Room",
+                imageURL: "pr1",
+                section: .section1,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene7",
+                name: "Study",
+                imageURL: "pr2",
+                section: .section1,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene8",
+                name: "Hall",
+                imageURL: "pr3",
+                section: .section1,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            
+            // Section 1 - Color Picker
+            EnvironmentScene(
+                id: "scene9",
+                name: "Bright Red",
+                imageURL: "re1",
+                section: .section1,
+                filterType: .colorPicker,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene10",
+                name: "Ocean Blue", 
+                imageURL: "re2",
+                section: .section1,
+                filterType: .colorPicker,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene11",
+                name: "Forest Green",
+                imageURL: "re3",
+                section: .section1,
+                filterType: .colorPicker,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene12",
+                name: "Sunset Orange",
+                imageURL: "re4",
+                section: .section1,
+                filterType: .colorPicker,
+                isFavorite: false
+            ),
+            
+            // Section 1 - Bright
+            EnvironmentScene(
+                id: "scene13",
+                name: "Pure White",
+                imageURL: "tr1",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene14",
+                name: "Cool Blue",
+                imageURL: "tr2",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene15",
+                name: "Warm Yellow",
+                imageURL: "tr3",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene16",
+                name: "Daylight",
+                imageURL: "tr4",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: false
+            )
+        ]
+    }
+}
+
+// MARK: - Data Models
+
+/// Модель сцены окружения
+struct EnvironmentScene: Identifiable {
+    let id: String
+    let name: String
+    let imageURL: String
+    let section: Section
+    let filterType: FilterTab
+    let isFavorite: Bool
+    var isSelected: Bool = false
+}
+
+/// Типы фильтров
+enum FilterTab: CaseIterable {
+    case colorPicker
+    case pastel  
+    case bright
+}
+
+/// Секции
+enum Section: CaseIterable {
+    case section1
+    case section2
+    case section3
+}
+
+// MARK: - Preview
+
+#Preview("Environment Bulbs View") {
+    EnvironmentBulbsView()
+        .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
+}
+
+#Preview("Environment Bulbs with Figma") {
+    EnvironmentBulbsView()
+        .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
+        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=120-2042&m=dev")!)
+        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
+}

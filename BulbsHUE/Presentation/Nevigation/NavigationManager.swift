@@ -14,6 +14,7 @@ import Combine
 enum Router: Equatable {
     // Основные экраны (для TabBar)
     case environment
+    case environmentBulbs         // Экран выбора сцен окружения
     case schedule
     case music
     
@@ -31,7 +32,7 @@ enum Router: Equatable {
 }
 
 class NavigationManager: ObservableObject {
-    @Published var currentRoute: Router = .environment
+    @Published var currentRoute: Router = .environmentBulbs
     
     // Переменная для отслеживания состояний в AddNewBulb
     @Published var isSearching: Bool = false
@@ -55,7 +56,7 @@ class NavigationManager: ObservableObject {
     
     /// Проверка, находимся ли мы на главном экране вкладки
    func togleTabBarVisible() {
-      isTabBarVisible = currentRoute == .environment || currentRoute == .schedule || currentRoute == .music
+      isTabBarVisible = currentRoute == .environment || currentRoute == .environmentBulbs || currentRoute == .schedule || currentRoute == .music
        }
     
     static let shared = NavigationManager()
@@ -76,6 +77,32 @@ class NavigationManager: ObservableObject {
                 showSelectCategories = false
                 selectedLight = nil
             }
+            
+            // Обновляем видимость TabBar
+            togleTabBarVisible()
+        }
+    }
+    
+    /// Возврат на предыдущий экран
+    func back() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            // Логика возврата в зависимости от текущего маршрута
+            switch currentRoute {
+            case .environmentBulbs:
+                currentRoute = .environmentBulbs  // Остаемся на том же экране
+            case .addNewBulb, .searchResults, .selectCategories:
+                currentRoute = .environmentBulbs  // Возврат к дефолтному экрану
+            case .menuView:
+                currentRoute = .environmentBulbs  // Возврат к дефолтному экрану
+            case .development, .migrationDashboard:
+                currentRoute = .environmentBulbs  // Возврат к дефолтному экрану
+            default:
+                currentRoute = .environmentBulbs  // Возврат к дефолтному экрану
+            }
+            
+            // Сбрасываем состояния
+            resetAddBulbState()
+            selectedLightForMenu = nil
             
             // Обновляем видимость TabBar
             togleTabBarVisible()
@@ -138,7 +165,7 @@ class NavigationManager: ObservableObject {
     func hideMenuView() {
         withAnimation(.easeInOut(duration: 0.15)) {
             selectedLightForMenu = nil
-            currentRoute = .environment
+            currentRoute = .environmentBulbs  // Возврат к дефолтному экрану
             togleTabBarVisible() // Обновляем видимость TabBar
             print("📱 Скрываем MenuView")
         }
