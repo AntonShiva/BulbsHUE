@@ -29,6 +29,8 @@ enum Router: Equatable {
     // Development
     case development              // Development dashboard
     case migrationDashboard       // Migration progress dashboard
+    
+    case addRoom
 }
 
 enum EnvironmentTab {

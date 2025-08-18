@@ -16,6 +16,9 @@ struct EnvironmentView: View {
     @State private var environmentViewModel: EnvironmentViewModel?
     
     var body: some View {
+        if nav.currentRoute == .addRoom {
+            AddNewRoom()
+        } else {
         ZStack {
             BG()
             
@@ -31,9 +34,9 @@ struct EnvironmentView: View {
             .adaptiveOffset(y: -330)
             .onTapGesture(count: 3) {
                 // Секретный triple-tap для доступа к Development меню
-                #if DEBUG
+#if DEBUG
                 nav.go(.development)
-                #endif
+#endif
             }
             
             SelectorTabEnviromentView()
@@ -56,32 +59,33 @@ struct EnvironmentView: View {
                         .adaptiveOffset(y: 30)
                     } else if  nav.еnvironmentTab == .rooms{
                         EmptyRoovmsLightsView{
-                            
+                            nav.currentRoute = .addRoom
+                            nav.isTabBarVisible = false
                         }
                     }
                 }
-             }
+            }
         }
         .onAppear {
-                    // ИСПРАВЛЕНИЕ: Проверяем наличие подключения перед загрузкой
-                    if appViewModel.connectionStatus == .connected {
-                        // Создаем ViewModel с обоими сервисами
-                        if environmentViewModel == nil {
-                            environmentViewModel = EnvironmentViewModel(
-                                appViewModel: appViewModel,
-                                dataPersistenceService: dataPersistenceService
-                            )
-                        }
-                        
-                        // Обновляем данные ламп при каждом появлении экрана
-                        print("🔄 EnvironmentView: Обновляем данные ламп")
-                        appViewModel.lightsViewModel.loadLights()
-                        environmentViewModel?.refreshLights()
-                    } else {
-                        print("⚠️ EnvironmentView: Нет подключения - пропускаем загрузку")
-                    }
+            // ИСПРАВЛЕНИЕ: Проверяем наличие подключения перед загрузкой
+            if appViewModel.connectionStatus == .connected {
+                // Создаем ViewModel с обоими сервисами
+                if environmentViewModel == nil {
+                    environmentViewModel = EnvironmentViewModel(
+                        appViewModel: appViewModel,
+                        dataPersistenceService: dataPersistenceService
+                    )
                 }
-
+                
+                // Обновляем данные ламп при каждом появлении экрана
+                print("🔄 EnvironmentView: Обновляем данные ламп")
+                appViewModel.lightsViewModel.loadLights()
+                environmentViewModel?.refreshLights()
+            } else {
+                print("⚠️ EnvironmentView: Нет подключения - пропускаем загрузку")
+            }
+        }
+        
         .refreshable {
             // Поддержка pull-to-refresh
             environmentViewModel?.refreshLights()
@@ -98,6 +102,7 @@ struct EnvironmentView: View {
                 appViewModel.lightsViewModel.loadLights()
             }
         }
+    }
     }
 }
 
@@ -141,7 +146,7 @@ private struct EmptyRoovmsLightsView: View {
                 
                 
                 AddRoomButton(text: "create room", width: 390, height: 305, image: "BGAddRoom", offsetX: 21, offsetY: -1.5) {
-                    
+                    onAddBulb()
                     }
                 
                 .adaptiveOffset(y: 196)

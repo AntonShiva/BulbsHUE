@@ -43,6 +43,8 @@ struct MainContainer: View {
                 DevelopmentMenuView()
             case .migrationDashboard:
                 MigrationDashboardView()
+            case .addRoom:
+                AddNewRoom()
             }
         }
         .transition(.opacity)
