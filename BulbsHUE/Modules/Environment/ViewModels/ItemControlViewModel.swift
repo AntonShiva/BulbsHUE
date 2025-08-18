@@ -87,6 +87,10 @@ class ItemControlViewModel: ObservableObject {
             return
         }
         
+        // Логирование для отладки
+        print("🔄 ItemControlViewModel.setCurrentLight для лампы '\(light.metadata.name)' (ID: \(light.id))")
+        print("   └── API состояние: on=\(light.on.on), brightness=\(light.dimming?.brightness ?? 0), reachable=\(light.isReachable)")
+        
         currentLight = light
         
         // Получаем реальное состояние лампы с учетом доступности
@@ -96,26 +100,33 @@ class ItemControlViewModel: ObservableObject {
         // СИНХРОНИЗАЦИЯ ЛОГИКА с учетом реальной доступности:
         if !isReachable {
             // Лампа недоступна (выключена из сети) - показываем как выключенную
+            print("   └── Лампа недоступна, устанавливаем состояние: выключена")
             isOn = false
             brightness = 0.0
-            print("⚠️ Лампа \(light.metadata.name) недоступна (выключена из сети)")
         } else if !effectiveState.isOn {
             // Лампа доступна, но выключена программно
+            print("   └── Лампа доступна но выключена программно, brightness=\(effectiveState.brightness)")
             isOn = false
             brightness = 0.0
             // Запоминаем последнюю яркость если она была больше 0
             if effectiveState.brightness > 0 {
                 rememberedBrightness = effectiveState.brightness
+                print("   └── Запомнили яркость: \(rememberedBrightness)")
             }
         } else {
             // Лампа включена и доступна
+            print("   └── Лампа включена и доступна")
             isOn = true
             // Если API показывает яркость 0 при включенной лампе - показываем минимум 1%
             let currentBrightness = effectiveState.brightness > 0 ? effectiveState.brightness : 1.0
             brightness = currentBrightness
             // Обновляем запомненную яркость
             rememberedBrightness = currentBrightness
+            print("   └── Установили состояние: включена, brightness=\(brightness)")
         }
+        
+        // Принудительно уведомляем об изменении для обновления UI
+        objectWillChange.send()
     }
     
     /// Переключить состояние включения/выключения лампы
@@ -306,6 +317,9 @@ class ItemControlViewModel: ObservableObject {
             let wasReachable = currentLight?.isReachable ?? true
             let isNowReachable = updatedLight.isReachable
             
+            print("🔄 ItemControlViewModel.syncWithUpdatedLights для лампы '\(updatedLight.metadata.name)'")
+            print("   └── Новое состояние от API: on=\(updatedLight.on.on), brightness=\(updatedLight.dimming?.brightness ?? 0), reachable=\(isNowReachable)")
+            
             // ✅ Сохраняем пользовательские поля (UI) при обновлениях из API
             let preservedUserSubtype = currentLight?.metadata.userSubtypeName
             let preservedUserIcon = currentLight?.metadata.userSubtypeIcon
@@ -327,30 +341,37 @@ class ItemControlViewModel: ObservableObject {
                 objectWillChange.send()
             }
             
-            // Синхронизируем состояние только если пользователь не активно взаимодействует
-            if debouncedTask == nil {
-                let effectiveState = mergedLight.effectiveStateWithBrightness
-                let isReachable = mergedLight.isReachable
-                
-                if !isReachable {
-                    // Лампа недоступна - показываем как выключенную
-                    isOn = false
-                    brightness = 0.0
-                } else if !effectiveState.isOn {
-                    // Лампа выключена - показываем 0, но запоминаем яркость если она есть
-                    isOn = false
-                    brightness = 0.0
-                    if effectiveState.brightness > 0 {
-                        rememberedBrightness = effectiveState.brightness
-                    }
-                } else {
-                    // Лампа включена - показываем актуальную яркость и запоминаем её
-                    isOn = true
-                    let currentBrightness = effectiveState.brightness > 0 ? effectiveState.brightness : 1.0
-                    brightness = currentBrightness
-                    rememberedBrightness = currentBrightness
+            // ИСПРАВЛЕНИЕ: Синхронизируем состояние ВСЕГДА при обновлении от API (не только когда пользователь не взаимодействует)
+            // Это важно для корректного отображения состояния при переключении вкладок
+            let effectiveState = mergedLight.effectiveStateWithBrightness
+            let isReachable = mergedLight.isReachable
+            
+            if !isReachable {
+                // Лампа недоступна - показываем как выключенную
+                print("   └── Синхронизация: лампа недоступна → выключена")
+                isOn = false
+                brightness = 0.0
+            } else if !effectiveState.isOn {
+                // Лампа выключена - показываем 0, но запоминаем яркость если она есть
+                print("   └── Синхронизация: лампа выключена, brightness API=\(effectiveState.brightness)")
+                isOn = false
+                brightness = 0.0
+                if effectiveState.brightness > 0 {
+                    rememberedBrightness = effectiveState.brightness
+                    print("   └── Запомнили яркость: \(rememberedBrightness)")
                 }
+            } else {
+                // Лампа включена - показываем актуальную яркость и запоминаем её
+                print("   └── Синхронизация: лампа включена")
+                isOn = true
+                let currentBrightness = effectiveState.brightness > 0 ? effectiveState.brightness : 1.0
+                brightness = currentBrightness
+                rememberedBrightness = currentBrightness
+                print("   └── Установили brightness=\(brightness), запомнили=\(rememberedBrightness)")
             }
+            
+            // Принудительно уведомляем об изменении для обновления UI
+            objectWillChange.send()
         }
     }
     

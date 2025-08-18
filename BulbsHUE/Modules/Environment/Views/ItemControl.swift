@@ -100,19 +100,36 @@ struct ItemControl: View {
         .onAppear {
             // Конфигурируем изолированную ViewModel с сервисом из appViewModel
             let lightService = LightControlService(appViewModel: appViewModel)
-            // Объединяем входящую лампу с пользовательскими полями из БД перед конфигурацией
-            var initialLight = light
-            if let dataService = appViewModel.dataService {
-                let saved = dataService.fetchAssignedLights().first { $0.id == light.id }
-                if let saved {
-                    initialLight.metadata.userSubtypeName = saved.metadata.userSubtypeName
-                    initialLight.metadata.userSubtypeIcon = saved.metadata.userSubtypeIcon
-                }
-            }
-            itemControlViewModel.configure(with: lightService, light: initialLight)
             
-            // ИСПРАВЛЕНИЕ: Получаем актуальные данные из DataPersistenceService, 
-            // а не используем устаревший объект Light из API
+            // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Получаем АКТУАЛЬНОЕ состояние лампы от API перед конфигурацией
+            if let currentAPILight = appViewModel.lightsViewModel.lights.first(where: { $0.id == light.id }) {
+                print("✅ ItemControl.onAppear: Используем актуальное состояние лампы от API (on=\(currentAPILight.on.on), brightness=\(currentAPILight.dimming?.brightness ?? 0))")
+                
+                // Объединяем АКТУАЛЬНЫЕ данные от API с пользовательскими полями из БД
+                var hybridLight = currentAPILight
+                if let dataService = appViewModel.dataService {
+                    let saved = dataService.fetchAssignedLights().first { $0.id == light.id }
+                    if let saved {
+                        hybridLight.metadata.userSubtypeName = saved.metadata.userSubtypeName
+                        hybridLight.metadata.userSubtypeIcon = saved.metadata.userSubtypeIcon
+                    }
+                }
+                itemControlViewModel.configure(with: lightService, light: hybridLight)
+            } else {
+                print("⚠️ ItemControl.onAppear: Актуальное состояние лампы не найдено в API, используем переданные данные")
+                // Fallback к изначальной логике
+                var initialLight = light
+                if let dataService = appViewModel.dataService {
+                    let saved = dataService.fetchAssignedLights().first { $0.id == light.id }
+                    if let saved {
+                        initialLight.metadata.userSubtypeName = saved.metadata.userSubtypeName
+                        initialLight.metadata.userSubtypeIcon = saved.metadata.userSubtypeIcon
+                    }
+                }
+                itemControlViewModel.configure(with: lightService, light: initialLight)
+            }
+            
+            // Дополнительная синхронизация с БД для пользовательских полей
             loadActualLightData()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("LightDataUpdated"))) { notification in

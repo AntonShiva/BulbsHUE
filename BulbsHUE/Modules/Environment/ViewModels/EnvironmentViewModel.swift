@@ -53,6 +53,7 @@ class EnvironmentViewModel: ObservableObject {
     
     /// Принудительно обновить список ламп
     func refreshLights() {
+        print("🔄 EnvironmentViewModel.refreshLights вызван")
         isLoading = true
         error = nil
         
@@ -60,6 +61,21 @@ class EnvironmentViewModel: ObservableObject {
         appViewModel?.lightsViewModel.loadLights()
         
         // DataPersistenceService автоматически обновит UI через Publisher
+        print("📡 Отправлен запрос обновления ламп в API")
+    }
+    
+    /// Принудительно синхронизировать состояние ламп (для переключения вкладок)
+    func forceStateSync() {
+        print("🔄 EnvironmentViewModel.forceStateSync - принудительная синхронизация состояния")
+        
+        // Уведомляем об изменении для принудительного обновления UI
+        objectWillChange.send()
+        
+        // Если есть данные в API - используем их для синхронизации
+        if let apiLights = appViewModel?.lightsViewModel.lights, !apiLights.isEmpty {
+            print("📊 Найдено \(apiLights.count) ламп в API для синхронизации")
+            handleAPILightsUpdate(apiLights)
+        }
     }
     
     /// Назначить лампу в Environment (сделать видимой)

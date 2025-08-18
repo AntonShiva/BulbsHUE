@@ -45,14 +45,18 @@ struct EnvironmentView: View {
                     EmptyLightsView {
                         nav.go(.addNewBulb)
                     }
-                } else {
-                    AssignedLightsListView(
-                        lights: viewModel.assignedLights,
-                        onRemoveLight: { lightId in
-                            viewModel.removeLightFromEnvironment(lightId)
-                        }
-                    )
-                    .adaptiveOffset(y: 30)
+                } else  {
+                    if  nav.еnvironmentTab == .bulbs{
+                        AssignedLightsListView(
+                            lights: viewModel.assignedLights,
+                            onRemoveLight: { lightId in
+                                viewModel.removeLightFromEnvironment(lightId)
+                            }
+                        )
+                        .adaptiveOffset(y: 30)
+                    } else if  nav.еnvironmentTab == .rooms{
+                        RoomList()
+                    }
                 }
              }
         }
@@ -79,6 +83,18 @@ struct EnvironmentView: View {
         .refreshable {
             // Поддержка pull-to-refresh
             environmentViewModel?.refreshLights()
+        }
+        .onChange(of: nav.еnvironmentTab) { newTab in
+            // ИСПРАВЛЕНИЕ: При переключении вкладок принудительно обновляем состояние ламп
+            print("🔄 EnvironmentView: Переключение на вкладку \(newTab), обновляем состояние ламп")
+            
+            // Принудительная синхронизация состояния без запроса к API
+            environmentViewModel?.forceStateSync()
+            
+            // Дополнительно обновляем данные из API для получения актуального состояния (если подключены)
+            if appViewModel.connectionStatus == .connected {
+                appViewModel.lightsViewModel.loadLights()
+            }
         }
     }
 }
@@ -117,6 +133,7 @@ private struct AssignedLightsListView: View {
             VStack(spacing: 24) {
                 ForEach(lights) { light in
                     ItemControl(light: light)
+                        .id("item_\(light.id)_\(light.on.on)_\(Int(light.dimming?.brightness ?? 0))") // Уникальный ID с состоянием для принудительного обновления
                         .padding(.horizontal, 10) // Дополнительные отступы для каждого элемента
                         .contextMenu {
                             Button("Убрать из Environment", role: .destructive) {
