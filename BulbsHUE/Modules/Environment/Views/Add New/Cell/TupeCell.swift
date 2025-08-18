@@ -7,8 +7,8 @@
 
 import SwiftUI
 
-// MARK: - Расширяемая ячейка типа лампы
-struct TupeCell: View {
+// MARK: - Расширяемая ячейка типа лампы (Deprecated - используйте LampTupeCell)
+struct DeprecatedTupeCell: View {
     let bulbType: BulbType
     @ObservedObject var typeManager: BulbTypeManager
     var cellHeight: CGFloat = 64 // Настраиваемая высота
