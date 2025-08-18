@@ -178,24 +178,44 @@ struct SearchResultsSheet: View {
         
     }
     // MARK: - Helper Functions
-    private func getLightsToShow() -> [Light] {
-        switch nav.searchType {
-        case .network:
-            // Показываем явные результаты сетевого поиска, если есть
-            if !lightsViewModel.networkFoundLights.isEmpty {
-                return lightsViewModel.networkFoundLights
+        private func getLightsToShow() -> [Light] {
+            switch nav.searchType {
+            case .network:
+                // Показываем явные результаты сетевого поиска, если есть
+                if !lightsViewModel.networkFoundLights.isEmpty {
+                    return lightsViewModel.networkFoundLights
+                }
+                
+                // Если networkFoundLights пустой, показываем ВСЕ лампы из системы
+                // чтобы пользователь мог их настроить
+                if !lightsViewModel.lights.isEmpty {
+                    print("📋 Показываем все доступные лампы: \(lightsViewModel.lights.count)")
+                    return lightsViewModel.lights.filter { light in
+                        // Показываем лампы которые еще не настроены пользователем
+                        let needsConfiguration = light.metadata.userSubtypeName == nil ||
+                                               light.metadata.userSubtypeName?.isEmpty == true
+                        
+                        if needsConfiguration {
+                            print("   ✨ Лампа '\(light.metadata.name)' требует настройки")
+                        }
+                        
+                        // Показываем все лампы, даже настроенные (для перенастройки)
+                        return true
+                    }
+                }
+                
+                // Фоллбек: показываем лампы, которые выглядят как новые
+                return lightsViewModel.lights.filter { $0.isNewLight }
+                
+            case .serialNumber:
+                // Показываем результаты поиска по серийному номеру
+                if !lightsViewModel.serialNumberFoundLights.isEmpty {
+                    return lightsViewModel.serialNumberFoundLights
+                }
+                // Если поиск еще идет, показываем пустой массив
+                return lightsViewModel.isLoading ? [] : lightsViewModel.serialNumberFoundLights
             }
-            // Фоллбек: показываем лампы, которые выглядят как новые
-            return lightsViewModel.lights.filter { $0.isNewLight }
-        case .serialNumber:
-            // Показываем результаты поиска по серийному номеру
-            if !lightsViewModel.serialNumberFoundLights.isEmpty {
-                return lightsViewModel.serialNumberFoundLights
-            }
-            // Если поиск еще идет, показываем пустой массив
-            return lightsViewModel.isLoading ? [] : lightsViewModel.serialNumberFoundLights
         }
-    }
     
     
 }

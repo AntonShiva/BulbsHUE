@@ -295,59 +295,84 @@ extension HueAPIClient {
     }
     
     /// Проверяет появление новых ламп после общего поиска
-    /// Правильная реализация согласно Philips Hue API v1 документации
-    internal func checkForNewLights() -> AnyPublisher<[Light], Error> {
-        guard let applicationKey = applicationKey else {
-            return Fail(error: HueAPIError.notAuthenticated)
-                .eraseToAnyPublisher()
-        }
-        
-        print("🔍 Проверяем новые лампы через /lights/new...")
-        
-        // Сначала получаем текущий список всех ламп ДО проверки новых
-        return getAllLightsV2HTTPS()
-            .flatMap { [weak self] existingLights -> AnyPublisher<[Light], Error> in
-                guard let self = self else {
-                    return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
-                }
-                
-                let existingIds = Set(existingLights.map { $0.id })
-                print("📝 Существующие лампы до поиска: \(existingIds.count)")
-                
-                // Проверяем результаты поиска
-                return self.fetchNewLightsStatus()
-                    .flatMap { newLightIds -> AnyPublisher<[Light], Error> in
-                        print("🆕 API v1 сообщает о новых ID: \(newLightIds)")
+        /// Правильная реализация согласно Philips Hue API v1 документации
+        internal func checkForNewLights() -> AnyPublisher<[Light], Error> {
+            guard let applicationKey = applicationKey else {
+                return Fail(error: HueAPIError.notAuthenticated)
+                    .eraseToAnyPublisher()
+            }
+            
+            print("🔍 Проверяем новые лампы через /lights/new...")
+            
+            // Проверяем результаты поиска через v1 API
+            return fetchNewLightsStatus()
+                .flatMap { [weak self] newLightIds -> AnyPublisher<[Light], Error> in
+                    guard let self = self else {
+                        return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+                    }
+                    
+                    print("🆕 API v1 сообщает о новых ID: \(newLightIds)")
+                    
+                    // Если v1 говорит что новых нет, но мы знаем что лампы подключены,
+                    // возвращаем ВСЕ лампы чтобы пользователь мог их настроить
+                    if newLightIds.isEmpty {
+                        print("⚠️ v1 API не видит новых ламп, проверяем все существующие...")
                         
-                        if newLightIds.isEmpty {
-                            print("⚠️ Новых ламп не найдено через v1 API")
-                            return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
-                        }
-                        
-                        // Получаем обновленный список всех ламп
+                        // Получаем все лампы и показываем их как доступные для настройки
                         return self.getAllLightsV2HTTPS()
                             .map { allLights -> [Light] in
-                                // Находим действительно новые лампы
-                                let newLights = allLights.filter { light in
-                                    let isNew = !existingIds.contains(light.id)
-                                    let isRecentlyReset = light.isNewLight && !existingIds.contains(light.id)
+                                print("📊 Показываем все лампы для настройки: \(allLights.count)")
+                                
+                                // Возвращаем все лампы, которые еще не настроены в приложении
+                                let unconfiguredLights = allLights.filter { light in
+                                    // Проверяем, есть ли у лампы пользовательская категория
+                                    let hasUserConfig = light.metadata.userSubtypeName != nil &&
+                                                      !light.metadata.userSubtypeName!.isEmpty
                                     
-                                    if isNew || isRecentlyReset {
-                                        print("✨ Найдена новая лампа: \(light.metadata.name) (ID: \(light.id))")
+                                    if !hasUserConfig {
+                                        print("📍 Лампа '\(light.metadata.name)' доступна для настройки")
                                     }
                                     
-                                    return isNew || isRecentlyReset
+                                    return !hasUserConfig
                                 }
                                 
-                                print("📊 Результат: всего ламп = \(allLights.count), новых = \(newLights.count)")
-                                return newLights
+                                // Если все лампы уже настроены, показываем все для возможности перенастройки
+                                if unconfiguredLights.isEmpty && !allLights.isEmpty {
+                                    print("ℹ️ Все лампы настроены, показываем все для возможности изменения")
+                                    return allLights
+                                }
+                                
+                                return unconfiguredLights
                             }
                             .eraseToAnyPublisher()
                     }
-                    .eraseToAnyPublisher()
-            }
-            .eraseToAnyPublisher()
-    }
+                    
+                    // Если v1 нашел новые лампы, возвращаем их
+                    return self.getAllLightsV2HTTPS()
+                        .map { allLights -> [Light] in
+                            // Находим лампы по v1 ID
+                            let newLights = allLights.filter { light in
+                                // Проверяем соответствие v1 ID
+                                for v1Id in newLightIds {
+                                    if light.id.contains(v1Id) || light.metadata.name.contains("lamp \(v1Id)") {
+                                        print("✨ Найдена новая лампа: \(light.metadata.name) (ID: \(light.id))")
+                                        return true
+                                    }
+                                }
+                                return false
+                            }
+                            
+                            // Если не нашли по ID, возвращаем все ненастроенные
+                            if newLights.isEmpty {
+                                return allLights.filter { $0.metadata.userSubtypeName == nil }
+                            }
+                            
+                            return newLights
+                        }
+                        .eraseToAnyPublisher()
+                }
+                .eraseToAnyPublisher()
+        }
     
     /// Получает статус поиска новых ламп из API v1
     func fetchNewLightsStatus() -> AnyPublisher<[String], Error> {
