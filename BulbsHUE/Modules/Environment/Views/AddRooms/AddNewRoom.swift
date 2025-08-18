@@ -23,22 +23,7 @@ struct AddNewRoom: View {
             .adaptiveOffset(y: -323)
             
             VStack(spacing: 0) {
-                // Заголовок
-                VStack(spacing: 20) {
-                    Text("NEW ROOM")
-                        .font(Font.custom("DMSans-Bold", size: 20))
-                        .kerning(3.6)
-                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                        .textCase(.uppercase)
-                    
-                    Text("please select room type")
-                        .font(Font.custom("DM Sans", size: 12).weight(.light))
-                        .kerning(2.4)
-                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                        .textCase(.uppercase)
-                }
-                .frame(height: 100)
-                .adaptiveOffset(y: -100)
+        
                 
                 // Скроллируемая область с категориями комнат
                 ScrollView(.vertical, showsIndicators: false) {
@@ -50,25 +35,26 @@ struct AddNewRoom: View {
                             )
                         }
                     }
-                    .padding(.top, 20)
-                    .padding(.bottom, 100) // Добавляем место для кнопки
                 }
-                
+                .adaptiveOffset(y: 150)
                 
                 // Кнопка продолжения
                 VStack {
                     Spacer()
+                   
                     
                     if categoryManager.hasSelection {
+                        CustomStepIndicator(currentStep: 0)
+                            .adaptiveOffset(y: 93)
                         CustomButtonAdaptiveRoom(text: "continue", width: 390, height: 266, image: "BGRename", offsetX: 2.3, offsetY: 18.8) {
                             saveRoomWithType()
                         }
-                        .padding(.bottom, 20)
+                       
                     }
                 }
-                .frame(height: 100)
+                .adaptiveFrame(height: 245)
             }
-            .adaptiveFrame(width: 375, height: 785)
+            
         }
     }
     

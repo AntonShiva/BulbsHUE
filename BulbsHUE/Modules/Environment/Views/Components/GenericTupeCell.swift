@@ -34,7 +34,7 @@ where DataType.SubtypeType == ManagerType.SubtypeType {
             // Расширяемый фон
             Rectangle()
                 .foregroundColor(.clear)
-                .frame(width: 332, height: totalHeight)
+                .adaptiveFrame(width: 332, height: totalHeight)
                 .background(Color(red: 0.79, green: 1, blue: 1))
                 .cornerRadius(15)
                 .opacity(0.1)
@@ -49,8 +49,8 @@ where DataType.SubtypeType == ManagerType.SubtypeType {
                             Image(typeData.iconName)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: typeData.iconWidth, height: typeData.iconHeight)
-                                .frame(width: 66) // Фиксированная область для иконки
+                                .adaptiveFrame(width: typeData.iconWidth, height: typeData.iconHeight)
+                                .adaptiveFrame(width: 66) // Фиксированная область для иконки
                             
                             // Название типа - берется из typeData
                             Text(typeData.name)
@@ -71,9 +71,9 @@ where DataType.SubtypeType == ManagerType.SubtypeType {
                             .rotationEffect(.degrees(isExpanded && !typeData.subtypes.isEmpty ? 90 : 0))
                             .adaptiveFrame(width: 50)
                         }
-                        .padding(.trailing, 10)
+                        .adaptivePadding(.trailing, 10)
                     }
-                    .frame(width: 332, height: cellHeight)
+                    .adaptiveFrame(width: 332, height: cellHeight)
                 }
                 
                 // Развернутый список подтипов с реальными данными
@@ -90,8 +90,8 @@ where DataType.SubtypeType == ManagerType.SubtypeType {
                             )
                         }
                     }
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
+                    .adaptivePadding(.top, 8)
+                    .adaptivePadding(.bottom, 8)
                     .opacity(isExpanded ? 1 : 0)
                 }
             }
