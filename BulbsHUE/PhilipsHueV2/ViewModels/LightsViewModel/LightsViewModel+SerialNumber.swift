@@ -27,6 +27,9 @@ extension LightsViewModel {
         error = nil
         clearSerialNumberFoundLights()
         
+        // Сохраняем текущие лампы для сравнения
+        let existingLights = Set(lights.map { $0.id })
+        
         apiClient.addLightBySerialNumber(serialNumber)
             .receive(on: DispatchQueue.main)
             .sink(
@@ -38,29 +41,46 @@ extension LightsViewModel {
                         self?.handleSerialNumberError(error, serialNumber: serialNumber)
                     }
                 },
-                receiveValue: { [weak self] foundLights in
+                receiveValue: { [weak self] allLights in
                     guard let self = self else { return }
                     
-                    if !foundLights.isEmpty {
-                        print("✅ Найдено ламп: \(foundLights.count)")
+                    // Обновляем весь список ламп
+                    self.lights = allLights
+                    
+                    // Находим новую лампу (которой не было раньше)
+                    let newLights = allLights.filter { !existingLights.contains($0.id) }
+                    
+                    if !newLights.isEmpty {
+                        print("✅ Новая лампа добавлена: \(newLights.first?.metadata.name ?? "")")
+                        self.serialNumberFoundLights = newLights
                         
-                        self.serialNumberFoundLights = foundLights
-                        
-                        for light in foundLights {
-                            if !self.lights.contains(where: { $0.id == light.id }) {
-                                self.lights.append(light)
-                                print("   + Добавлена лампа: \(light.metadata.name)")
-                            }
+                        // Показываем выбор категории для новой лампы
+                        if let firstLight = newLights.first {
+                            NavigationManager.shared.showCategoriesSelection(for: firstLight)
                         }
                     } else {
-                        print("❌ Лампы с серийным номером \(serialNumber) не найдены")
-                        self.showNotFoundError(for: serialNumber)
+                        // Возможно лампа уже была добавлена ранее
+                        // Ищем по последним 6 символам ID
+                        let matchingLight = allLights.first { light in
+                            let lightIdSuffix = String(light.id.suffix(6))
+                                .uppercased()
+                                .replacingOccurrences(of: "-", with: "")
+                            return lightIdSuffix == serialNumber.uppercased()
+                        }
+                        
+                        if let found = matchingLight {
+                            print("ℹ️ Лампа уже добавлена: \(found.metadata.name)")
+                            self.serialNumberFoundLights = [found]
+                            NavigationManager.shared.showCategoriesSelection(for: found)
+                        } else {
+                            print("❌ Не удалось найти лампу после добавления")
+                            self.showNotFoundError(for: serialNumber)
+                        }
                     }
                 }
             )
             .store(in: &cancellables)
     }
-    
     /// Добавляет найденную лампу в список
     func addFoundLight(_ light: Light) {
         print("💡 Добавляем найденную лампу: \(light.metadata.name)")

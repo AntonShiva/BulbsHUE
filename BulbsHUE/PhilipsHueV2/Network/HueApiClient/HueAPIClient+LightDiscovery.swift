@@ -73,6 +73,8 @@ extension HueAPIClient {
             .eraseToAnyPublisher()
     }
     
+   
+
     /// Добавляет лампу по серийному номеру через правильный API flow
     func addLightBySerialNumber(_ serialNumber: String) -> AnyPublisher<[Light], Error> {
         let cleanSerial = serialNumber.uppercased()
@@ -81,70 +83,135 @@ extension HueAPIClient {
         
         print("🔍 Добавление лампы по серийному номеру: \(cleanSerial)")
         
-        // Сохраняем текущие ID ламп для сравнения
-        var existingLightIds = Set<String>()
+        // Шаг 1: Инициируем Touchlink для конкретной лампы
+        return performTouchlinkForSerial(cleanSerial)
+            .flatMap { [weak self] success -> AnyPublisher<[Light], Error> in
+                guard let self = self, success else {
+                    return Fail(error: HueAPIError.unknown("Touchlink failed"))
+                        .eraseToAnyPublisher()
+                }
+                
+                print("✅ Touchlink успешен, лампа мигнула")
+                
+                                // Шаг 2: Ждем пока лампа добавится (10-15 секунд)
+                // Затем инициируем поиск через v1 API
+                return Just(())
+                    .delay(for: .seconds(10), scheduler: RunLoop.main)
+                    .flatMap { _ in
+                        // Шаг 3: Инициируем поиск через v1 API с серийным номером
+                        self.initiateTargetedSearch(serialNumber: cleanSerial)
+                    }
+                    .flatMap { success -> AnyPublisher<[Light], Error> in
+                        // Шаг 4: Ждем завершения поиска и получаем лампы
+                        guard success else {
+                            return Fail(error: HueAPIError.unknown("Search initiation failed"))
+                                .eraseToAnyPublisher()
+                        }
+                        
+                        return Just(())
+                            .delay(for: .seconds(40), scheduler: RunLoop.main)
+                            .flatMap { _ in
+                                // Получаем все лампы после поиска
+                                self.getAllLightsV2HTTPS()
+                            }
+                            .eraseToAnyPublisher()
+                    }
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    /// Выполняет Touchlink для конкретного серийного номера
+    private func performTouchlinkForSerial(_ serialNumber: String) -> AnyPublisher<Bool, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
         
-        return getAllLightsV2HTTPS()
-            .handleEvents(receiveOutput: { lights in
-                // Сохраняем ID существующих ламп
-                existingLightIds = Set(lights.map { $0.id })
-                print("📝 Текущие лампы: \(existingLightIds.count)")
-            })
-            .flatMap { [weak self] _ -> AnyPublisher<[Light], Error> in
-                guard let self = self else {
-                    return Fail(error: HueAPIError.unknown("Client deallocated"))
-                        .eraseToAnyPublisher()
-                }
-                
-                // Выполняем targeted search
-                return self.performTargetedSearch(serialNumber: cleanSerial)
-            }
-            .flatMap { [weak self] _ -> AnyPublisher<[Light], Error> in
-                guard let self = self else {
-                    return Fail(error: HueAPIError.unknown("Client deallocated"))
-                        .eraseToAnyPublisher()
-                }
-                
-                // После поиска получаем обновленный список
-                return self.getAllLightsV2HTTPS()
-            }
-            .map { allLights -> [Light] in
-                // ВАЖНО: Фильтруем только НОВЫЕ лампы или те, что мигнули
-                let newLights = allLights.filter { light in
-                    // Новая лампа (не была в списке до поиска)
-                    let isNew = !existingLightIds.contains(light.id)
+        // Touchlink v1 endpoint для targeted reset
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/config") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Touchlink с указанием серийного номера
+        let body: [String: Any] = [
+            "touchlink": true,
+            "touchlinkdeviceid": serialNumber // Указываем конкретную лампу
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return Fail(error: HueAPIError.encodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("📡 Touchlink response: \(httpResponse.statusCode)")
                     
-                    // Или лампа, которая мигнула (была сброшена)
-                    // Проверяем по имени и состоянию
-                    let isReset = light.metadata.name.contains("Hue") &&
-                                 light.metadata.name.contains("lamp") &&
-                                 !light.metadata.name.contains("configured")
-                    
-                    return isNew || isReset
-                }
-                
-                print("🔍 Фильтрация результатов:")
-                print("   Всего ламп: \(allLights.count)")
-                print("   Новых/сброшенных: \(newLights.count)")
-                
-                // Если новых нет, но серийный номер валиден,
-                // пытаемся найти по последним символам ID
-                if newLights.isEmpty {
-                    let matchingLight = allLights.first { light in
-                        let lightIdSuffix = String(light.id.suffix(6))
-                            .uppercased()
-                            .replacingOccurrences(of: "-", with: "")
-                        return lightIdSuffix == cleanSerial
+                    if let responseString = String(data: data, encoding: .utf8) {
+                        print("📦 Response: \(responseString)")
                     }
                     
-                    if let found = matchingLight {
-                        print("✅ Найдена лампа по ID suffix: \(found.metadata.name)")
-                        return [found]
+                    // Проверяем успешность Touchlink
+                    if httpResponse.statusCode == 200 {
+                        // Парсим ответ для проверки успеха
+                        if let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+                           let success = json.first?["success"] as? [String: Any] {
+                            print("✅ Touchlink успешен: \(success)")
+                            return true
+                        }
                     }
                 }
-                
-                return newLights
+                return false
             }
+            .mapError { HueAPIError.networkError($0) }
+            .eraseToAnyPublisher()
+    }
+
+    /// Инициирует целевой поиск для конкретного серийного номера
+    private func initiateTargetedSearch(serialNumber: String) -> AnyPublisher<Bool, Error> {
+        guard let applicationKey = applicationKey else {
+            return Fail(error: HueAPIError.notAuthenticated)
+                .eraseToAnyPublisher()
+        }
+        
+        guard let url = URL(string: "http://\(bridgeIP)/api/\(applicationKey)/lights") else {
+            return Fail(error: HueAPIError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10.0
+        
+        // Формат для targeted search после Touchlink
+        let body = ["deviceid": [serialNumber.uppercased()]]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            return Fail(error: HueAPIError.encodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        return URLSession.shared.dataTaskPublisher(for: request)
+            .tryMap { data, response in
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("📡 Search initiation response: \(httpResponse.statusCode)")
+                    return httpResponse.statusCode == 200
+                }
+                return false
+            }
+            .mapError { HueAPIError.networkError($0) }
             .eraseToAnyPublisher()
     }
     
