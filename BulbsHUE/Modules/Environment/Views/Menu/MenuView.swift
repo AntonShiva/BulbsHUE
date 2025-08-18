@@ -230,7 +230,7 @@ struct MenuView: View {
                 }
                       .adaptiveOffset(y: 34)
                     
-                    CustomButtonAdaptive(text: "rename", width: 390, height: 266, image: "BGRename") {
+                    CustomButtonAdaptive(text: "rename", width: 390, height: 266, image: "BGRename", offsetX: 0, offsetY: 17)  {
                         // TODO: Реализовать сохранение нового имени лампы
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showRenameView = false

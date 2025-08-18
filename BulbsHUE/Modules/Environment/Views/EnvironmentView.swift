@@ -42,12 +42,12 @@ struct EnvironmentView: View {
             // Используем данные из EnvironmentViewModel с персистентным хранением
             if let viewModel = environmentViewModel {
                 if !viewModel.hasAssignedLights {
-                    EmptyLightsView {
+                    EmptyBulbsLightsView {
                         nav.go(.addNewBulb)
                     }
                 } else  {
                     if  nav.еnvironmentTab == .bulbs{
-                        AssignedLightsListView(
+                        AssignedBulbsLightsListView(
                             lights: viewModel.assignedLights,
                             onRemoveLight: { lightId in
                                 viewModel.removeLightFromEnvironment(lightId)
@@ -55,7 +55,9 @@ struct EnvironmentView: View {
                         )
                         .adaptiveOffset(y: 30)
                     } else if  nav.еnvironmentTab == .rooms{
-                        RoomList()
+                        EmptyRoovmsLightsView{
+                            
+                        }
                     }
                 }
              }
@@ -102,7 +104,7 @@ struct EnvironmentView: View {
 // MARK: - Subviews
 
 /// Компонент для отображения пустого состояния
-private struct EmptyLightsView: View {
+private struct EmptyBulbsLightsView: View {
     let onAddBulb: () -> Void
     
     var body: some View {
@@ -123,8 +125,34 @@ private struct EmptyLightsView: View {
     }
 }
 
+private struct EmptyRoovmsLightsView: View {
+    let onAddBulb: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+           
+                Text("You don’t have \nany rooms yet")
+                    .font(Font.custom("DMSans-Regular", size: 16))
+                    .kerning(3.2)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(Color(red: 0.75, green: 0.85, blue: 1))
+                    
+                    .opacity(0.3)
+                
+                
+                AddRoomButton(text: "create room", width: 390, height: 305, image: "BGAddRoom", offsetX: 21, offsetY: -1.5) {
+                    
+                    }
+                
+                .adaptiveOffset(y: 196)
+            
+         }
+        .textCase(.uppercase)
+    }
+}
+
 /// Компонент для отображения списка назначенных ламп
-private struct AssignedLightsListView: View {
+private struct AssignedBulbsLightsListView: View {
     let lights: [Light]
     let onRemoveLight: ((String) -> Void)?
     

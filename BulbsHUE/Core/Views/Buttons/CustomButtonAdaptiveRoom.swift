@@ -1,13 +1,13 @@
 //
-//  CustomButtonAdaptive.swift
+//  CustomButtonAdaptiveRoom.swift
 //  BulbsHUE
 //
-//  Created by Anton Reasin on 8/14/25.
+//  Created by Anton Reasin on 8/18/25.
 //
 
 import SwiftUI
 
-struct CustomButtonAdaptive: View {
+struct CustomButtonAdaptiveRoom: View {
     let text: String
     let width: CGFloat
     let height: CGFloat
@@ -31,11 +31,10 @@ struct CustomButtonAdaptive: View {
                     .frame(width: width, height: height)
                 
                 Text(text)
-                    .font(
-                      Font.custom("DMSans-Light", size: 16.5))
-                    .kerning(2.4)
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                    .font( Font.custom("DMSans-Bold", size: 16.5))
+                  .kerning(3.2)
+                  .multilineTextAlignment(.center)
+                  .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                   .textCase(.uppercase)
                   .adaptiveOffset(x: offsetX, y: offsetY)
                   .blur(radius: 0.5)
@@ -46,7 +45,9 @@ struct CustomButtonAdaptive: View {
     }
 }
 #Preview {
-    CustomButtonAdaptive(text: "rename", width: 390, height: 266, image: "BGRename", offsetX: 0, offsetY: 17) {
+    CustomButtonAdaptiveRoom(text: "rename", width: 390, height: 266, image: "BGRename", offsetX: 0, offsetY: 17) {
     
     }
 }
+
+
