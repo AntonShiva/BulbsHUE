@@ -56,6 +56,9 @@ class NavigationManager: ObservableObject {
     // Тип поиска ламп
     @Published var searchType: SearchType = .network
     
+    // Введенный серийный номер
+    @Published var enteredSerialNumber: String? = nil
+    
     enum SearchType {
         case network        // Автоматический поиск в сети
         case serialNumber   // Поиск по серийному номеру
@@ -138,7 +141,6 @@ class NavigationManager: ObservableObject {
         withAnimation(.easeInOut(duration: 0.15)) {
             selectedLight = light
             showSelectCategories = true
-            print("📂 Показываем выбор категории для лампы: \(light.metadata.name)")
         }
     }
     
@@ -154,6 +156,7 @@ class NavigationManager: ObservableObject {
             showSelectCategories = false
             selectedLight = nil
             searchType = .network
+            enteredSerialNumber = nil
         }
     }
     
@@ -163,7 +166,6 @@ class NavigationManager: ObservableObject {
             selectedLightForMenu = light
             currentRoute = .menuView
             togleTabBarVisible() // Обновляем видимость TabBar
-            print("📱 Показываем MenuView для лампы: \(light.metadata.name)")
         }
     }
     
@@ -172,7 +174,6 @@ class NavigationManager: ObservableObject {
             selectedLightForMenu = nil
             currentRoute = .environment
             togleTabBarVisible() // Обновляем видимость TabBar
-            print("📱 Скрываем MenuView")
         }
     }
 }

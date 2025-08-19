@@ -99,6 +99,9 @@ struct AddNewBulb: View {
                                     // Можно показать алерт пользователю
                                 }
                                 
+                                // Сохраняем серийный номер в NavigationManager
+                                nav.enteredSerialNumber = trimmedSerial
+                                
                                 // Запускаем поиск
                                 appViewModel.lightsViewModel.addLightBySerialNumber(trimmedSerial)
                                 
@@ -165,7 +168,7 @@ struct AddNewBulb: View {
                             // Результаты появятся в списке; UI обновится автоматически
                         }
                     } else {
-                        print("⚠️ Нет подключения к мосту - сначала настройте подключение")
+                        // Нет подключения к мосту - сначала настройте подключение
                         appViewModel.showSetup = true
                     }
                 }

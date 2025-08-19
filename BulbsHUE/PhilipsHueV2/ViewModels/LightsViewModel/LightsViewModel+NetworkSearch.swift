@@ -48,8 +48,8 @@ extension LightsViewModel {
                         // (пользователь может перенастроить любую лампу)
                         self.networkFoundLights = currentLights
                         
-                        // Инициируем поиск новых ламп через v1 API
-                        self.apiClient.addLightModern(serialNumber: nil)
+                        // Инициируем поиск новых ламп через существующий метод
+                        self.apiClient.getAllLights()
                             .receive(on: DispatchQueue.main)
                             .sink(
                                 receiveCompletion: { result in

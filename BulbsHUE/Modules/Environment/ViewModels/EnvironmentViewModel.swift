@@ -53,7 +53,6 @@ class EnvironmentViewModel: ObservableObject {
     
     /// Принудительно обновить список ламп
     func refreshLights() {
-        print("🔄 EnvironmentViewModel.refreshLights вызван")
         isLoading = true
         error = nil
         
@@ -61,19 +60,15 @@ class EnvironmentViewModel: ObservableObject {
         appViewModel?.lightsViewModel.loadLights()
         
         // DataPersistenceService автоматически обновит UI через Publisher
-        print("📡 Отправлен запрос обновления ламп в API")
     }
     
     /// Принудительно синхронизировать состояние ламп (для переключения вкладок)
     func forceStateSync() {
-        print("🔄 EnvironmentViewModel.forceStateSync - принудительная синхронизация состояния")
-        
         // Уведомляем об изменении для принудительного обновления UI
         objectWillChange.send()
         
         // Если есть данные в API - используем их для синхронизации
         if let apiLights = appViewModel?.lightsViewModel.lights, !apiLights.isEmpty {
-            print("📊 Найдено \(apiLights.count) ламп в API для синхронизации")
             handleAPILightsUpdate(apiLights)
         }
     }
@@ -113,11 +108,8 @@ class EnvironmentViewModel: ObservableObject {
         dataPersistenceService.$assignedLights
             .receive(on: DispatchQueue.main)
             .sink { [weak self] updatedLights in
-                print("🔄 EnvironmentViewModel получил обновление из БД: \(updatedLights.count) ламп")
-                print("🔄 Лампы из БД: \(updatedLights.map { "\($0.metadata.name) (userSubtype: \($0.metadata.userSubtypeName ?? "nil"), apiArchetype: \($0.metadata.archetype ?? "nil"))" })")
                 // ✅ ИСПОЛЬЗУЕМ ДАННЫЕ ИЗ БД (с правильным userSubtype)
                 self?.assignedLights = updatedLights
-                print("✅ EnvironmentView будет обновлен с данными из БД")
             }
             .store(in: &cancellables)
         

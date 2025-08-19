@@ -81,19 +81,9 @@ final class AppStore: ObservableObject {
     
     private func logStateChange(from oldState: AppState, to newState: AppState, action: AppAction) {
         if oldState != newState {
-            print("🔄 Redux: \(action)")
-            
-            // Логируем только измененные части состояния
-            if oldState.lights != newState.lights {
-                print("   💡 Lights: \(newState.lights.assignedLights.count) assigned, \(newState.lights.allLights.count) total")
-            }
-            
+            // Логируем только изменения связанные с мостами
             if oldState.bridge != newState.bridge {
                 print("   🌉 Bridge: \(newState.bridge.connectionStatus)")
-            }
-            
-            if oldState.scenes != newState.scenes {
-                print("   � Scenes: \(newState.scenes.scenes.count) loaded")
             }
         }
     }

@@ -157,18 +157,12 @@ extension LightDataModel {
     /// Обновить данные из Light модели
     /// - Parameter light: Light модель из API
     func updateFromLight(_ light: Light) {
-        print("🔄 LightDataModel.updateFromLight:")
-        print("   └── Текущий userSubtype в БД: '\(self.userSubtype)'")
-        print("   └── Текущая userSubtypeIcon в БД: '\(self.userSubtypeIcon)'")
-        print("   └── Новый apiArchetype из API: '\(light.metadata.archetype ?? "nil")'")
-        
         self.name = light.metadata.name
         
         // ✅ НОВАЯ ЛОГИКА: Полностью разделяем пользовательский выбор и API данные
         
         // 1. Всегда обновляем API архетип (техническая информация)
         self.apiArchetype = light.metadata.archetype
-        print("   └── Обновлён apiArchetype: '\(self.apiArchetype ?? "nil")'")
         
         // 2. userSubtype и userSubtypeIcon берём из локальных полей Light, если они присутствуют
         if let localUserSubtype = light.metadata.userSubtypeName, !localUserSubtype.isEmpty {

@@ -103,7 +103,7 @@ struct ItemControl: View {
             
             // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Получаем АКТУАЛЬНОЕ состояние лампы от API перед конфигурацией
             if let currentAPILight = appViewModel.lightsViewModel.lights.first(where: { $0.id == light.id }) {
-                print("✅ ItemControl.onAppear: Используем актуальное состояние лампы от API (on=\(currentAPILight.on.on), brightness=\(currentAPILight.dimming?.brightness ?? 0))")
+                // Используем актуальное состояние лампы от API
                 
                 // Объединяем АКТУАЛЬНЫЕ данные от API с пользовательскими полями из БД
                 var hybridLight = currentAPILight
@@ -116,7 +116,7 @@ struct ItemControl: View {
                 }
                 itemControlViewModel.configure(with: lightService, light: hybridLight)
             } else {
-                print("⚠️ ItemControl.onAppear: Актуальное состояние лампы не найдено в API, используем переданные данные")
+                // Актуальное состояние лампы не найдено в API, используем переданные данные
                 // Fallback к изначальной логике
                 var initialLight = light
                 if let dataService = appViewModel.dataService {
@@ -137,13 +137,12 @@ struct ItemControl: View {
             if let userInfo = notification.userInfo,
                let updateType = userInfo["updateType"] as? String,
                updateType == "userSubtype" {
-                print("🔄 ItemControl: Получено обновление userSubtype из БД")
+                // Получено обновление userSubtype из БД
                 loadActualLightData()
             }
         }
         .onChange(of: light) { newLight in
             // ✅ Просто обновляем ViewModel БЕЗ сохранения в БД
-            print("🔄 ItemControl.onChange: Обновление состояния от API (on=\(newLight.on.on), brightness=\(newLight.dimming?.brightness ?? 0))")
             
             // Если есть сохранённые userSubtype и иконка в БД - используем их, иначе берём из API
             if let dataService = appViewModel.dataService {
@@ -154,7 +153,6 @@ struct ItemControl: View {
                     // Переносим пользовательские поля независимо от API-архетипа
                     hybridLight.metadata.userSubtypeName = savedLight.metadata.userSubtypeName
                     hybridLight.metadata.userSubtypeIcon = savedLight.metadata.userSubtypeIcon
-                    print("🔀 Обновлён гибридный объект: состояние из API + userSubtypeName '\(savedLight.metadata.userSubtypeName ?? "nil")' + иконка '\(savedLight.metadata.userSubtypeIcon ?? "nil")' из БД")
                     itemControlViewModel.setCurrentLight(hybridLight)
                     return
                 }
@@ -170,32 +168,26 @@ struct ItemControl: View {
     
     /// Загрузить актуальные данные лампы из DataPersistenceService
     private func loadActualLightData() {
-        print("🔄 ItemControl.loadActualLightData для лампы: \(light.metadata.name) (ID: \(light.id))")
         
         // Получаем актуальные данные из DataPersistenceService через AppViewModel
         if let dataPersistenceService = appViewModel.dataService {
             let savedLights = dataPersistenceService.fetchAssignedLights()
             if let savedLight = savedLights.first(where: { $0.id == light.id }) {
-                print("✅ Найдена лампа в БД с userSubtypeName: '\(savedLight.metadata.userSubtypeName ?? "nil")' и иконкой: '\(savedLight.metadata.userSubtypeIcon ?? "nil")'")
                 
                 // СОЗДАЁМ ГИБРИДНЫЙ ОБЪЕКТ: пользовательские данные из БД + актуальное состояние из API
                 var hybridLight = light // Начинаем с актуальных данных из API
                 hybridLight.metadata.userSubtypeName = savedLight.metadata.userSubtypeName
                 hybridLight.metadata.userSubtypeIcon = savedLight.metadata.userSubtypeIcon
                 
-                print("🔀 Создан гибридный объект Light:")
-                print("   └── userSubtypeName из БД: '\(hybridLight.metadata.userSubtypeName ?? "nil")'")
-                print("   └── userIcon из БД: '\(hybridLight.metadata.userSubtypeIcon ?? "nil")'")
-                print("   └── состояние из API: on=\(hybridLight.on.on), brightness=\(hybridLight.dimming?.brightness ?? 0)")
                 
                 // Обновляем ViewModel с гибридными данными
                 itemControlViewModel.setCurrentLight(hybridLight)
             } else {
-                print("⚠️ Лампа не найдена в БД, используем данные из API")
+                // Лампа не найдена в БД, используем данные из API
                 itemControlViewModel.setCurrentLight(light)
             }
         } else {
-            print("⚠️ DataPersistenceService недоступен, используем данные из API")
+            // DataPersistenceService недоступен, используем данные из API
             itemControlViewModel.setCurrentLight(light)
         }
     }

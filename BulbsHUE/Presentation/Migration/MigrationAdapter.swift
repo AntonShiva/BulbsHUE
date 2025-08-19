@@ -66,7 +66,6 @@ class MigrationAdapter: ObservableObject {
         if MigrationFeatureFlags.debugMigration {
             print("🔄 MigrationAdapter инициализирован")
             print("   Bridge Architecture: \(MigrationFeatureFlags.useNewBridgeArchitecture ? "✅ NEW" : "❌ OLD")")
-            print("   Redux Lights: \(MigrationFeatureFlags.useReduxForLights ? "✅ ENABLED" : "❌ DISABLED")")
         }
         
         // Загружаем сохраненный мост при инициализации
@@ -222,10 +221,6 @@ class MigrationAdapter: ObservableObject {
     
     /// Обновить лампу (dual write во время миграции)
     func updateLight(_ light: Light) {
-        if MigrationFeatureFlags.debugMigration {
-            print("💡 Обновление лампы: \(light.metadata.name)")
-        }
-        
         // Всегда пишем в старую систему для совместимости
         // TODO: Найти правильный метод для обновления лампы в старой системе
         // appViewModel.lightsViewModel.updateLight(light)

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct SearchResultsSheet: View {
     @EnvironmentObject var nav: NavigationManager
@@ -14,6 +15,7 @@ struct SearchResultsSheet: View {
     var lightsViewModel: LightsViewModel {
         appViewModel.lightsViewModel
     }
+    
     var body: some View {
         ZStack {
             UnevenRoundedRectangle(
@@ -32,192 +34,117 @@ struct SearchResultsSheet: View {
                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                 .textCase(.uppercase)
                 .adaptiveOffset(y: -130)
-            
 
-            
-            
             ScrollView {
-                LazyVStack(spacing: 12) {
-                    // Показываем индикатор загрузки при поиске по серийному номеру
-                    if nav.searchType == .serialNumber && lightsViewModel.isLoading {
-                        VStack(spacing: 16) {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.79, green: 1, blue: 1)))
-                                .scaleEffect(1.2)
-                            
-                            Text("adding lamp...")
-                                .font(Font.custom("DMSans-Light", size: 16))
-                                .kerning(2.4)
-                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                                .textCase(.uppercase)
-                            
-                            Text("lamp should flash to confirm reset")
-                                .font(Font.custom("DMSans-Light", size: 10))
-                                .kerning(1.0)
-                                .lineSpacing(2)
+                LazyVStack {
+                                   if nav.searchType == .serialNumber && !lightsViewModel.lights.isEmpty {
+                        // ИНСТРУКЦИЯ для пользователя
+                        VStack {
+                            Text("Find your lamp by tapping each one.\nThe right lamp will respond.")
+                                .font(Font.custom("DMSans-Light", size: 11))
                                 .multilineTextAlignment(.center)
-                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                                .opacity(0.7)
-                        }
-                        .padding(.top, 40)
-                    } else {
-                        // Показываем разные списки в зависимости от типа поиска
-                        ForEach(getLightsToShow()) { light in
-                            VStack(alignment: .leading, spacing: 8) {
-                                
-                                //                                BulbCell(text: light.metadata.name, image: "lightBulb", width: 32, height: 32) {
-                                //                                    nav.showCategoriesSelection(for: light)
-                                //                                }
-                                LightResultCell(
-                                    light: light,
-                                    onTap: {
-                                        // Только при нажатии показываем категории
-                                        nav.selectedLight = light
-                                        nav.showCategoriesSelection(for: light)
-                                    }
-                                )
-                            }
-                        }
-                        // После ScrollView добавьте:
-                        if getLightsToShow().isEmpty && !lightsViewModel.isLoading {
-                            VStack {
-                                Text("DEBUG INFO")
-                                    .font(.caption)
-                                    .foregroundColor(.red)
-                                Text("Lights count: \(lightsViewModel.lights.count)")
-                                Text("Network found: \(lightsViewModel.networkFoundLights.count)")
-                                Text("Search type: \(nav.searchType == .network ? "Network" : "Serial")")
-                                Text("Bridge IP: \(appViewModel.apiClient.bridgeIP)")
-                            }
-                            .padding()
+                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.8))
                         }
                         
-//                        // Показываем сообщение если ничего не найдено при поиске по серийнику
-//                        if nav.searchType == .serialNumber && lightsViewModel.serialNumberFoundLights.isEmpty && !lightsViewModel.isLoading {
-//                            VStack(spacing: 16) {
-//                                if let error = lightsViewModel.error {
-//                                    // Показываем конкретную ошибку
-//                                    Text("connection error")
-//                                        .font(Font.custom("DMSans-Light", size: 16))
-//                                        .kerning(2.4)
-//                                        .foregroundColor(Color.red)
-//                                        .textCase(.uppercase)
-//                                    
-//                                    Text(error.localizedDescription)
-//                                        .font(Font.custom("DMSans-Light", size: 10))
-//                                        .kerning(1.0)
-//                                        .lineSpacing(2)
-//                                        .multilineTextAlignment(.center)
-//                                        .foregroundColor(Color.red)
-//                                        .opacity(0.8)
-//                                } else {
-//                                    // Стандартное сообщение
-//                                    Text("lamp not found")
-//                                        .font(Font.custom("DMSans-Light", size: 16))
-//                                        .kerning(2.4)
-//                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-//                                        .textCase(.uppercase)
-//                                    
-//                                    Text("• ensure lamp is within 1m of bridge\n• check serial number (6 characters)\n• make sure lamp is powered on")
-//                                        .font(Font.custom("DMSans-Light", size: 10))
-//                                        .kerning(1.0)
-//                                        .lineSpacing(2)
-//                                        .multilineTextAlignment(.center)
-//                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-//                                        .opacity(0.7)
-//                                }
-//                            }
-//                            .padding(.top, 40)
-//                        }
+                        .padding(.bottom, 5)
+                        
+                        // Показываем все лампы для выбора
+                        ForEach(getLightsToShow()) { light in
+                            LightResultCell(
+                                light: light,
+                                onTap: {
+                                    // При нажатии лампа мигает для идентификации
+                                    _ = appViewModel.apiClient.identifyLight(id: light.id)
+                                        .sink(
+                                            receiveCompletion: { _ in },
+                                            receiveValue: { success in
+                                                if success {
+                                                    print("💡 Лампа \(light.metadata.name) мигнула")
+                                                }
+                                            }
+                                        )
+                                    
+                                    // Сохраняем выбор и переходим к категориям
+                                    if let serialNumber = nav.enteredSerialNumber {
+                                        appViewModel.apiClient.confirmLightSelection(light, forSerialNumber: serialNumber)
+                                    }
+                                    
+                                    nav.selectedLight = light
+                                    nav.showCategoriesSelection(for: light)
+                                }
+                            )
+                        }
+                        
+                    } else if nav.searchType == .serialNumber && !lightsViewModel.isLoading {
+                        // Показываем сообщение об ошибке если лампа не найдена
+                        VStack(spacing: 16) {
+                            if let error = lightsViewModel.error {
+                                Text("lamp not found")
+                                    .font(Font.custom("DMSans-Light", size: 16))
+                                    .kerning(2.4)
+                                    .foregroundColor(Color.red)
+                                    .textCase(.uppercase)
+                                
+                                Text(error.localizedDescription)
+                                    .font(Font.custom("DMSans-Light", size: 10))
+                                    .kerning(1.0)
+                                    .lineSpacing(2)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(Color.red)
+                                    .opacity(0.8)
+                            }
+                        }
+                        .padding(.top, 40)
+                        
+                    } else {
+                        // Показываем результаты сетевого поиска
+                        ForEach(getLightsToShow()) { light in
+                            LightResultCell(
+                                light: light,
+                                onTap: {
+                                    nav.selectedLight = light
+                                    nav.showCategoriesSelection(for: light)
+                                }
+                            )
+                        }
                     }
                 }
                 .padding()
             }
             .adaptiveOffset(y: 285)
         }
-        // В SearchResultsSheet.swift, добавьте отладочное сообщение:
-        .onAppear {
-            print("🔄 SearchResultsSheet появился")
-            
-            // Добавьте диагностическое сообщение на экран
-            if lightsViewModel.lights.isEmpty {
-                print("⚠️ Список ламп пуст!")
-            }
-            
-            Task {
-                // Запустите диагностику
-                lightsViewModel.runSearchDiagnostics { report in
-                    print(report)
-                    // Можно вывести report на экран для пользователя в Канаде
-                }
-            }
-        }
-        .onAppear {
-            // Обновляем данные ламп при каждом открытии экрана с принудительным обновлением статуса
-            // ✅ НОВОЕ ПОВЕДЕНИЕ: HueAPIClient.updateLightCommunicationStatus теперь обновляет 
-            // статус связи в памяти через LightsViewModel для мгновенного отклика UI
-            print("🔄 SearchResultsSheet: Обновляем данные ламп с актуальным статусом")
-            Task {
-                await lightsViewModel.refreshLightsWithStatus()
-            }
-            
-            // Запускаем мониторинг изменений состояния ламп в реальном времени
-            print("📡 SearchResultsSheet: Запускаем мониторинг статуса ламп")
-            lightsViewModel.startLightStatusMonitoring()
-        }
-        .onDisappear {
-            // Останавливаем мониторинг при закрытии экрана для экономии ресурсов
-            print("⏹️ SearchResultsSheet: Останавливаем мониторинг статуса ламп")
-            lightsViewModel.stopLightStatusMonitoring()
-        }
+      
         .refreshable {
-            // Поддержка pull-to-refresh с принудительным обновлением статуса
-            print("🔄 SearchResultsSheet: Pull-to-refresh с обновлением статуса")
+            // Поддержка pull-to-refresh
+            print("🔄 SearchResultsSheet: Pull-to-refresh")
             await lightsViewModel.refreshLightsWithStatus()
         }
-        
     }
+    
     // MARK: - Helper Functions
-        private func getLightsToShow() -> [Light] {
-            switch nav.searchType {
-            case .network:
-                // Показываем явные результаты сетевого поиска, если есть
-                if !lightsViewModel.networkFoundLights.isEmpty {
-                    return lightsViewModel.networkFoundLights
-                }
-                
-                // Если networkFoundLights пустой, показываем ВСЕ лампы из системы
-                // чтобы пользователь мог их настроить
-                if !lightsViewModel.lights.isEmpty {
-                    print("📋 Показываем все доступные лампы: \(lightsViewModel.lights.count)")
-                    return lightsViewModel.lights.filter { light in
-                        // Показываем лампы которые еще не настроены пользователем
-                        let needsConfiguration = light.metadata.userSubtypeName == nil ||
-                                               light.metadata.userSubtypeName?.isEmpty == true
-                        
-                        if needsConfiguration {
-                            print("   ✨ Лампа '\(light.metadata.name)' требует настройки")
-                        }
-                        
-                        // Показываем все лампы, даже настроенные (для перенастройки)
-                        return true
-                    }
-                }
-                
-                // Фоллбек: показываем лампы, которые выглядят как новые
-                return lightsViewModel.lights.filter { $0.isNewLight }
-                
-            case .serialNumber:
-                // Показываем результаты поиска по серийному номеру
-                if !lightsViewModel.serialNumberFoundLights.isEmpty {
-                    return lightsViewModel.serialNumberFoundLights
-                }
-                // Если поиск еще идет, показываем пустой массив
-                return lightsViewModel.isLoading ? [] : lightsViewModel.serialNumberFoundLights
+    private func getLightsToShow() -> [Light] {
+        switch nav.searchType {
+        case .network:
+            // Показываем результаты сетевого поиска
+            if !lightsViewModel.networkFoundLights.isEmpty {
+                return lightsViewModel.networkFoundLights
             }
+            
+            // Показываем все доступные лампы
+            if !lightsViewModel.lights.isEmpty {
+                print("📋 Показываем все доступные лампы: \(lightsViewModel.lights.count)")
+                return lightsViewModel.lights
+            }
+            
+            // Фоллбек: показываем лампы, которые выглядят как новые
+            return lightsViewModel.lights.filter { $0.isNewLight }
+            
+        case .serialNumber:
+            // Для serial search всегда показываем ВСЕ доступные лампы
+            print("📋 Serial search: показываем все лампы для выбора: \(lightsViewModel.lights.count)")
+            return lightsViewModel.lights
         }
-    
-    
+    }
 }
 
 #Preview {
@@ -228,22 +155,6 @@ struct SearchResultsSheet: View {
         .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
 
-//            // Здесь должен быть список найденных устройств
-//            VStack(spacing: 8) {
-//                // Пример найденных устройств - в реальности здесь будет ForEach с данными
-//                BulbCell(text: "Philips Hue Color", image: "lightBulb", width: 32, height: 32) {
-//                    nav.showCategoriesSelection()
-//                }
-//
-//                BulbCell(text: "IKEA TRÅDFRI", image: "lightBulb", width: 32, height: 32) {
-//                    nav.showCategoriesSelection()
-//                }
-//
-//                BulbCell(text: "Xiaomi Yeelight", image: "lightBulb", width: 32, height: 32) {
-//                    nav.showCategoriesSelection()
-//                }
-//            }
-// Новый компонент для отображения лампы с индикацией статуса
 struct LightResultCell: View {
     let light: Light
     let onTap: () -> Void
@@ -255,7 +166,7 @@ struct LightResultCell: View {
     }
     
     var body: some View {
-        // ✅ ИСПОЛЬЗОВАНИЕ СТАТУСА СВЯЗИ: effectiveState и isReachable учитывают 
+        // ✅ ИСПОЛЬЗОВАНИЕ СТАТУСА СВЯЗИ: effectiveState и isReachable учитывают
         // CommunicationStatus который обновляется в реальном времени через HueAPIClient
         let effectiveState = light.effectiveState
         let isReachable = light.isReachable

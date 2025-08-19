@@ -54,13 +54,6 @@ struct BulbsHUEApp: App {
                 .modelContainer(dataPersistenceService.container)
                 .onAppear {
                     NavigationManager.shared.dataPersistenceService = dataPersistenceService
-                    
-                    // Логирование статуса миграции при запуске
-                    if MigrationFeatureFlags.debugMigration {
-                        print("🚀 BulbsHUE запущен с миграцией")
-                        print("   Redux Store инициализирован: ✅")
-                        print("   MigrationAdapter готов: ✅")
-                    }
                 }
         }
     }

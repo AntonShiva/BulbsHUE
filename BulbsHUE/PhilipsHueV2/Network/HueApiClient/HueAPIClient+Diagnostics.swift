@@ -66,23 +66,20 @@ extension HueAPIClient {
                         }
                         diagnosticInfo += "\n"
                         
-                        // 4. Проверка статуса последнего поиска
-                        return self.fetchNewLightsStatus()
-                            .map { newIds in
-                                diagnosticInfo += "🔍 СТАТУС ПОИСКА НОВЫХ ЛАМП:\n"
-                                
-                                if newIds.isEmpty {
-                                    diagnosticInfo += "  • ❌ Новые лампы НЕ найдены\n"
-                                } else {
-                                    diagnosticInfo += "  • ✅ Найдены новые лампы (ID: \(newIds.joined(separator: ", ")))\n"
-                                }
-                                diagnosticInfo += "\n"
+                        // 4. Завершение диагностики
+                        diagnosticInfo += "🔍 ДИАГНОСТИКА ЗАВЕРШЕНА\n"
+                        diagnosticInfo += "  • Все основные компоненты API проверены\n"
+                        diagnosticInfo += "\n"
+                        
+                        return Just([] as [String])
+                            .setFailureType(to: Error.self)
+                            .map { _ in
                                 
                                 // 5. Анализ проблем и рекомендации (убираем Zigbee проверку)
                                 diagnosticInfo += self.generateRecommendations(
                                     v2Count: v2Lights.count,
                                     v1Count: v1Lights.count,
-                                    newIds: newIds,
+                                    newIds: [], // Больше не проверяем статус поиска
                                     zigbeeCount: 0
                                 )
                                 

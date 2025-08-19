@@ -64,7 +64,7 @@ class GroupsViewModel: ObservableObject {
     func toggleGroup(_ group: HueGroup) {
         // Группа 0 не может быть удалена или изменена
         if group.id == "0" {
-            print("Группа 0 - специальная группа всех ламп")
+            // Группа 0 - специальная группа всех ламп
         }
         
         let newState = GroupState(
@@ -93,7 +93,7 @@ class GroupsViewModel: ObservableObject {
     func activateScene(_ scene: HueScene, for group: HueGroup? = nil) {
         // Для групповой активации сцены используем специальный метод
         if let group = group {
-            print("Активация сцены \(scene.metadata.name) для группы \(group.metadata?.name ?? "")")
+            // Активация сцены для группы
         }
         
         // Здесь должен быть вызов API для активации сцены через группу

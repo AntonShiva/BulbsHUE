@@ -56,8 +56,6 @@ final class DataPersistenceService: ObservableObject {
                 configurations: [modelConfiguration]
             )
             
-            print("✅ DataPersistenceService инициализирован успешно")
-            
             // Загружаем начальные данные
             loadAssignedLights()
         } catch {
@@ -73,11 +71,6 @@ final class DataPersistenceService: ObservableObject {
     ///   - isAssignedToEnvironment: (опц.) Явно установить флаг назначения в Environment
     ///       Если nil — сохраняем текущее значение без изменений (ВАЖНО: не затираем true на false)
     func saveLightData(_ light: Light, isAssignedToEnvironment: Bool? = nil) {
-        print("🔄 DataPersistenceService.saveLightData:")
-        print("   └── Лампа: '\(light.metadata.name)' (ID: \(light.id))")
-        print("   └── apiArchetype: '\(light.metadata.archetype ?? "nil")', userSubtypeName: '\(light.metadata.userSubtypeName ?? "nil")', userSubtypeIcon: '\(light.metadata.userSubtypeIcon ?? "nil")'")
-        print("   └── isAssignedToEnvironment: \(String(describing: isAssignedToEnvironment))")
-        
         Task { @MainActor in
             isUpdating = true
             
@@ -99,7 +92,6 @@ final class DataPersistenceService: ObservableObject {
                 if let isAssignedToEnvironment {
                     existingLight.isAssignedToEnvironment = isAssignedToEnvironment
                 }
-                print("✅ Обновлена существующая лампа: '\(light.metadata.name)' | userSubtype='\(existingLight.userSubtype)' | icon='\(existingLight.userSubtypeIcon)' | assigned=\(existingLight.isAssignedToEnvironment)")
             } else {
                 // Создаем новую с пользовательским подтипом из UI
                 let userSubtype = light.metadata.userSubtypeName ?? "Smart Light"
@@ -118,7 +110,6 @@ final class DataPersistenceService: ObservableObject {
                     isAssignedToEnvironment: isAssignedToEnvironment ?? false
                 )
                 modelContext.insert(lightData)
-                print("✅ Создана новая лампа: \(light.metadata.name) | userSubtype='\(lightData.userSubtype)' | icon='\(lightData.userSubtypeIcon)' | assigned=\(lightData.isAssignedToEnvironment)")
             }
             
             saveContext()
@@ -136,7 +127,6 @@ final class DataPersistenceService: ObservableObject {
             )
             
             isUpdating = false
-            print("🔄 DataPersistenceService.saveLightData завершен")
         }
     }
     
@@ -152,7 +142,6 @@ final class DataPersistenceService: ObservableObject {
             let lights = try modelContext.fetch(descriptor)
             return lights.first
         } catch {
-            print("❌ Ошибка получения лампы \(lightId): \(error)")
             return nil
         }
     }
@@ -169,7 +158,6 @@ final class DataPersistenceService: ObservableObject {
             let lightDataModels = try modelContext.fetch(descriptor)
             return lightDataModels.map { $0.toLight() }
         } catch {
-            print("❌ Ошибка получения назначенных ламп: \(error)")
             return []
         }
     }
@@ -185,7 +173,6 @@ final class DataPersistenceService: ObservableObject {
             let lightDataModels = try modelContext.fetch(descriptor)
             return lightDataModels.map { $0.toLight() }
         } catch {
-            print("❌ Ошибка получения всех ламп: \(error)")
             return []
         }
     }
@@ -287,14 +274,9 @@ final class DataPersistenceService: ObservableObject {
                 return !subtype.isEmpty
             }
             
-            print("🔄 DataPersistenceService.loadAssignedLights: найдено \(newLights.count) ламп, с типом: \(lightsWithType.count)")
-            print("🔄 Лампы с типом: \(lightsWithType.map { "\($0.metadata.name) (\($0.metadata.userSubtypeName ?? "нет типа"))" })")
-            
             // Дополнительно: сортируем по имени для стабильности UI
             assignedLights = lightsWithType.sorted { $0.metadata.name.localizedCaseInsensitiveCompare($1.metadata.name) == .orderedAscending }
-            print("✅ @Published assignedLights обновлен с \(assignedLights.count) лампами")
         } catch {
-            print("❌ Ошибка загрузки назначенных ламп: \(error)")
             assignedLights = []
         }
     }
@@ -306,7 +288,7 @@ final class DataPersistenceService: ObservableObject {
         do {
             try modelContext.save()
         } catch {
-            print("❌ Ошибка сохранения контекста: \(error)")
+            // Ошибка сохранения контекста
         }
     }
     

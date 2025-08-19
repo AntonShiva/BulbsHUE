@@ -99,9 +99,6 @@ final class DIContainer {
 // MARK: - Logging Middleware
 struct LoggingMiddleware: Middleware {
     func process(action: AppAction, state: AppState, store: AppStore) -> AppAction {
-        #if DEBUG
-        print("🎬 Redux Action: \(action)")
-        #endif
         return action
     }
 }

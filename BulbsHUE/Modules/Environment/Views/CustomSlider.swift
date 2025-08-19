@@ -187,7 +187,6 @@ private struct PreviewHost: View {
 //                                             try await hue.setBrightnessV2(lightRid: lightRid, percent: v)
 //                                             lastSentPercent = v
 //                                         } catch {
-//                                             print("send error:", error)
 //                                         }
 //                                     }
 //                                 },
@@ -199,7 +198,6 @@ private struct PreviewHost: View {
 //                                         do {
 //                                             try await hue.setBrightnessV2(lightRid: lightRid, percent: v)
 //                                         } catch {
-//                                             print("commit error:", error)
 //                                         }
 //                                         await MainActor.run { lastSentPercent = v }
 //                                     }
