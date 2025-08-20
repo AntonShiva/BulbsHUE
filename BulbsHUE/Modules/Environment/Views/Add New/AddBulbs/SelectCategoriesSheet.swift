@@ -102,7 +102,9 @@ struct SelectCategoriesSheet: View {
                         ForEach(typeManager.bulbTypes, id: \.id) { bulbType in
                             TupeCell(
                                 bulbType: bulbType,
-                                typeManager: typeManager
+                                typeManager: typeManager,
+                                iconWidth: 32,
+                                iconHeight: 32 
                             )
                         }
                     }

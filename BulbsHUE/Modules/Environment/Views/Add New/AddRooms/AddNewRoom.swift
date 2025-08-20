@@ -29,9 +29,11 @@ struct AddNewRoom: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 8) {
                         ForEach(categoryManager.roomCategories, id: \.id) { roomCategory in
-                            RoomTupeCell(
+                            TupeCell(
                                 roomCategory: roomCategory,
-                                categoryManager: categoryManager
+                                categoryManager: categoryManager,
+                                iconWidth: 32, // Увеличенная ширина для комнат
+                                iconHeight: 32 // Увеличенная высота для комнат
                             )
                         }
                     }

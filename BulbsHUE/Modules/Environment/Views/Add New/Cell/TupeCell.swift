@@ -7,21 +7,34 @@
 
 import SwiftUI
 
-// MARK: - Расширяемая ячейка типа лампы (Deprecated - используйте LampTupeCell)
-struct DeprecatedTupeCell: View {
-    let bulbType: BulbType
-    @ObservedObject var typeManager: BulbTypeManager
+// MARK: - Универсальная расширяемая ячейка типа
+struct TupeCell<DataType: TypeCellData, ManagerType: TypeManager, SubtypeCellView: View>: View 
+where DataType.SubtypeType == ManagerType.SubtypeType {
+    let typeData: DataType
+    @ObservedObject var typeManager: ManagerType
+    let subtypeCellBuilder: (DataType.SubtypeType, Bool, @escaping () -> Void) -> SubtypeCellView
     var cellHeight: CGFloat = 64 // Настраиваемая высота
+    var iconWidth: CGFloat? = nil // Переопределение ширины иконки
+    var iconHeight: CGFloat? = nil // Переопределение высоты иконки
     
     @State private var isExpanded: Bool = false
     
+    // Вычисленные размеры иконки - используем переопределенные или из typeData
+    private var actualIconWidth: CGFloat {
+        iconWidth ?? typeData.iconWidth
+    }
+    
+    private var actualIconHeight: CGFloat {
+        iconHeight ?? typeData.iconHeight
+    }
+    
     // Вычисляет общую высоту ячейки в зависимости от развернутого состояния
     private var totalHeight: CGFloat {
-        if isExpanded && !bulbType.subtypes.isEmpty {
+        if isExpanded && !typeData.subtypes.isEmpty {
             let subtypeHeight: CGFloat = 40 // Высота каждого подтипа
             let spacing: CGFloat = 8 // Отступ между подтипами
             let padding: CGFloat = 16 // Отступы сверху и снизу
-            return cellHeight + (CGFloat(bulbType.subtypes.count) * subtypeHeight) + (CGFloat(bulbType.subtypes.count - 1) * spacing) + padding
+            return cellHeight + (CGFloat(typeData.subtypes.count) * subtypeHeight) + (CGFloat(typeData.subtypes.count - 1) * spacing) + padding
         } else {
             return cellHeight
         }
@@ -32,11 +45,10 @@ struct DeprecatedTupeCell: View {
             // Расширяемый фон
             Rectangle()
                 .foregroundColor(.clear)
-                .frame(width: 332, height: totalHeight)
+                .adaptiveFrame(width: 332, height: totalHeight)
                 .background(Color(red: 0.79, green: 1, blue: 1))
                 .cornerRadius(15)
                 .opacity(0.1)
-//                .animation(.easeInOut(duration: 0.2), value: isExpanded)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             
             VStack(spacing: 0) {
@@ -44,15 +56,15 @@ struct DeprecatedTupeCell: View {
                 ZStack {
                     HStack {
                         HStack(spacing: 0) {
-                            // Иконка типа лампы - автоматически берется из bulbType
-                            Image(bulbType.iconName)
+                            // Иконка типа - используем настраиваемые или стандартные размеры
+                            Image(typeData.iconName)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: bulbType.iconWidth, height: bulbType.iconHeight)
-                                .frame(width: 66) // Фиксированная область для иконки
+                                .adaptiveFrame(width: actualIconWidth, height: actualIconHeight)
+                                .adaptiveFrame(width: 66) // Фиксированная область для иконки
                             
-                            // Название типа лампы - берется из bulbType
-                            Text(bulbType.name)
+                            // Название типа - берется из typeData
+                            Text(typeData.name)
                                 .font(Font.custom("DMSans-Regular", size: 14))
                                 .kerning(3)
                                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
@@ -61,43 +73,42 @@ struct DeprecatedTupeCell: View {
                             
                             // Кнопка с поворотом - поворачивается только если есть подтипы
                             ChevronButton{
-                                if !bulbType.subtypes.isEmpty {
+                                if !typeData.subtypes.isEmpty {
                                     withAnimation(.easeInOut(duration: 0.15)) {
                                         isExpanded.toggle()
                                     }
                                 }
                             }
-                            .rotationEffect(.degrees(isExpanded && !bulbType.subtypes.isEmpty ? 90 : 0))
+                            .rotationEffect(.degrees(isExpanded && !typeData.subtypes.isEmpty ? 90 : 0))
                             .adaptiveFrame(width: 50)
                         }
-                        .padding(.trailing, 10)
+                        .adaptivePadding(.trailing, 10)
                     }
-                    .frame(width: 332, height: cellHeight)
+                    .adaptiveFrame(width: 332, height: cellHeight)
                 }
                 
                 // Развернутый список подтипов с реальными данными
-                if isExpanded && !bulbType.subtypes.isEmpty {
+                if isExpanded && !typeData.subtypes.isEmpty {
                     VStack(spacing: 8) {
-                        ForEach(bulbType.subtypes, id: \.id) { subtype in
-                            LampSubtypeCell(
-                                subtype: subtype,
-                                isSelected: typeManager.isSubtypeSelected(subtype),
-                                onSelect: {
+                        ForEach(Array(typeData.subtypes.enumerated()), id: \.element.id) { index, subtype in
+                            subtypeCellBuilder(
+                                subtype,
+                                typeManager.isSubtypeSelected(subtype),
+                                {
                                     // Выбираем только один подтип (отменяя предыдущий)
                                     typeManager.selectSubtype(subtype)
                                 }
                             )
                         }
                     }
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
+                    .adaptivePadding(.top, 8)
+                    .adaptivePadding(.bottom, 8)
                     .opacity(isExpanded ? 1 : 0)
                 }
             }
         }
     }
 }
-
 
 // MARK: - Простая ячейка без расширения (для SearchResultsSheet)
 struct BulbCell: View {
@@ -141,7 +152,7 @@ struct BulbCell: View {
                     }
                     .adaptiveFrame(width: 50) // Фиксированная ширина для кнопки
                 }
-                .padding(.trailing, 10)
+                .adaptivePadding(.trailing, 10)
             }
             .adaptiveFrame(width: 332, height: 64)
         }
@@ -157,6 +168,7 @@ struct BulbCell: View {
             let typeManager = BulbTypeManager()
             let tableType = typeManager.bulbTypes.first { $0.name == "TABLE" }!
             
+            // Пример использования для ламп
             TupeCell(
                 bulbType: tableType,
                 typeManager: typeManager
@@ -165,4 +177,41 @@ struct BulbCell: View {
     }
     .environmentObject(NavigationManager.shared)
     .environmentObject(AppViewModel())
+}
+
+// MARK: - Удобные расширения для создания типизированных ячеек
+extension TupeCell where DataType == BulbType, ManagerType == BulbTypeManager, SubtypeCellView == LampSubtypeCell {
+    /// Создает ячейку для типов ламп
+    init(bulbType: BulbType, typeManager: BulbTypeManager, cellHeight: CGFloat = 64, iconWidth: CGFloat? = nil, iconHeight: CGFloat? = nil) {
+        self.typeData = bulbType
+        self.typeManager = typeManager
+        self.cellHeight = cellHeight
+        self.iconWidth = iconWidth
+        self.iconHeight = iconHeight
+        self.subtypeCellBuilder = { subtype, isSelected, onSelect in
+            LampSubtypeCell(
+                subtype: subtype,
+                isSelected: isSelected,
+                onSelect: onSelect
+            )
+        }
+    }
+}
+
+extension TupeCell where DataType == RoomCategory, ManagerType == RoomCategoryManager, SubtypeCellView == RoomSubtypeCell {
+    /// Создает ячейку для категорий комнат
+    init(roomCategory: RoomCategory, categoryManager: RoomCategoryManager, cellHeight: CGFloat = 64, iconWidth: CGFloat? = nil, iconHeight: CGFloat? = nil) {
+        self.typeData = roomCategory
+        self.typeManager = categoryManager
+        self.cellHeight = cellHeight
+        self.iconWidth = iconWidth
+        self.iconHeight = iconHeight
+        self.subtypeCellBuilder = { subtype, isSelected, onSelect in
+            RoomSubtypeCell(
+                subtype: subtype,
+                isSelected: isSelected,
+                onSelect: onSelect
+            )
+        }
+    }
 }
