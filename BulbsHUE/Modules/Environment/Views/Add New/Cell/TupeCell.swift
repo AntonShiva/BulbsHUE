@@ -32,7 +32,7 @@ where DataType.SubtypeType == ManagerType.SubtypeType {
     private var totalHeight: CGFloat {
         if isExpanded && !typeData.subtypes.isEmpty {
             let subtypeHeight: CGFloat = 30 // Точная высота каждого подтипа
-            let spacing: CGFloat = 14
+            let spacing: CGFloat = 15
             let topPadding: CGFloat = 24 // Отступ сверху
             let bottomPadding: CGFloat = 4 // Минимальный отступ снизу
             return cellHeight + (CGFloat(typeData.subtypes.count) * subtypeHeight) + (CGFloat(typeData.subtypes.count - 1) * spacing) + topPadding + bottomPadding
@@ -191,7 +191,7 @@ extension TupeCell where DataType == BulbType, ManagerType == BulbTypeManager, S
         self.iconHeight = iconHeight
         self.subtypeCellBuilder = { subtype, isSelected, onSelect in
             LampSubtypeCell(
-                subtype: subtype,
+                lampSubtype: subtype,
                 isSelected: isSelected,
                 onSelect: onSelect
             )
@@ -209,7 +209,7 @@ extension TupeCell where DataType == RoomCategory, ManagerType == RoomCategoryMa
         self.iconHeight = iconHeight
         self.subtypeCellBuilder = { subtype, isSelected, onSelect in
             RoomSubtypeCell(
-                subtype: subtype,
+                roomSubtype: subtype,
                 isSelected: isSelected,
                 onSelect: onSelect
             )

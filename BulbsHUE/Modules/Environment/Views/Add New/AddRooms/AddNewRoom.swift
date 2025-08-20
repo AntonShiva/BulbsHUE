@@ -28,6 +28,14 @@ struct AddNewRoom: View {
                 // Скроллируемая область с категориями комнат
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 8) {
+                        Rectangle()
+                            .foregroundColor(.clear)
+                            .adaptiveFrame(width: 332, height: 64)
+                            .background(Color(red: 0.79, green: 1, blue: 1))
+                            .cornerRadius(15)
+                           .transition(.opacity.combined(with: .move(edge: .top)))
+                            .opacity(0)
+                        
                         ForEach(categoryManager.roomCategories, id: \.id) { roomCategory in
                             TupeCell(
                                 roomCategory: roomCategory,
@@ -38,20 +46,22 @@ struct AddNewRoom: View {
                         }
                     }
                 }
-                .adaptiveOffset(y: 132)
-                .adaptiveFrame(height: 530)
+                .adaptiveOffset(y: 65)
+                .adaptiveFrame(height: 555)
                 // Кнопка продолжения
                 VStack {
                     Spacer()
                    
                     
                     if categoryManager.hasSelection {
-                        CustomStepIndicator(currentStep: 0)
-                            .adaptiveOffset(y: 93)
-                        CustomButtonAdaptiveRoom(text: "continue", width: 390, height: 266, image: "BGRename", offsetX: 2.3, offsetY: 18.8) {
-                            saveRoomWithType()
+                        ZStack{
+                            CustomStepIndicator(currentStep: 0)
+                                .adaptiveOffset(y: -45)
+                            CustomButtonAdaptiveRoom(text: "continue", width: 390, height: 266, image: "BGRename", offsetX: 2.3, offsetY: 18.8) {
+                                saveRoomWithType()
+                            }
                         }
-                       
+                        .adaptiveOffset(y: 12)
                     }
                 }
                 .adaptiveFrame(height: 245)

@@ -119,7 +119,7 @@ struct SelectCategoriesSheet: View {
                     Spacer()
                     
                     if typeManager.hasSelection {
-                        CostumButton(text: "save lamp", width: 250, height: 190, image: "BGCustomButton") {
+                        CostumButton(text: "save lamp", width: 230, height: 210, image: "BGCustomButton") {
                             saveLampWithCategory()
                         }
                         .padding(.bottom, 20)
@@ -184,4 +184,11 @@ struct SelectCategoriesSheet: View {
 #Preview {
     SelectCategoriesSheet()
         .environmentObject(NavigationManager.shared)
+}
+#Preview {
+    SelectCategoriesSheet()
+        .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
+        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2065-13&m=dev")!)
+        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
