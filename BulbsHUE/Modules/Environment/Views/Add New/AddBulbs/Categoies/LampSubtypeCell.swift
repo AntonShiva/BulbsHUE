@@ -19,8 +19,8 @@ struct LampSubtypeCell: View {
             Image(subtype.iconName)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 24, height: 24)
-                .frame(width: 40) // Фиксированная область для иконки
+                .adaptiveFrame(width: 24, height: 24)
+                .adaptiveFrame(width: 40) // Фиксированная область для иконки
             
             // Название подтипа - берется из модели данных
             Text(subtype.name)
@@ -33,7 +33,7 @@ struct LampSubtypeCell: View {
             // Индикатор выбора - показывает реальное состояние выбора
             SelectionIndicator(isSelected: isSelected)
         }
-        .frame(width: 274, height: 28)
+        .adaptiveFrame(width: 274, height: 28)
         .contentShape(Rectangle()) // Вся область ячейки кликабельна
         .onTapGesture {
             onSelect() // Вызывает callback для переключения состояния

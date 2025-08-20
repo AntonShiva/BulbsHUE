@@ -31,10 +31,11 @@ where DataType.SubtypeType == ManagerType.SubtypeType {
     // Вычисляет общую высоту ячейки в зависимости от развернутого состояния
     private var totalHeight: CGFloat {
         if isExpanded && !typeData.subtypes.isEmpty {
-            let subtypeHeight: CGFloat = 40 // Высота каждого подтипа
-            let spacing: CGFloat = 8 // Отступ между подтипами
-            let padding: CGFloat = 16 // Отступы сверху и снизу
-            return cellHeight + (CGFloat(typeData.subtypes.count) * subtypeHeight) + (CGFloat(typeData.subtypes.count - 1) * spacing) + padding
+            let subtypeHeight: CGFloat = 30 // Точная высота каждого подтипа
+            let spacing: CGFloat = 14
+            let topPadding: CGFloat = 24 // Отступ сверху
+            let bottomPadding: CGFloat = 4 // Минимальный отступ снизу
+            return cellHeight + (CGFloat(typeData.subtypes.count) * subtypeHeight) + (CGFloat(typeData.subtypes.count - 1) * spacing) + topPadding + bottomPadding
         } else {
             return cellHeight
         }
@@ -89,7 +90,7 @@ where DataType.SubtypeType == ManagerType.SubtypeType {
                 
                 // Развернутый список подтипов с реальными данными
                 if isExpanded && !typeData.subtypes.isEmpty {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 14) {
                         ForEach(Array(typeData.subtypes.enumerated()), id: \.element.id) { index, subtype in
                             subtypeCellBuilder(
                                 subtype,
@@ -101,8 +102,8 @@ where DataType.SubtypeType == ManagerType.SubtypeType {
                             )
                         }
                     }
-                    .adaptivePadding(.top, 8)
-                    .adaptivePadding(.bottom, 8)
+                    .adaptivePadding(.top, 16)
+                    .adaptivePadding(.bottom, 4)
                     .opacity(isExpanded ? 1 : 0)
                 }
             }
