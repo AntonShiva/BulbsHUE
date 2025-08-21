@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftData
 
 // MARK: - Dependency Injection Container
 /// Контейнер для управления зависимостями приложения
@@ -23,9 +24,12 @@ final class DIContainer {
     /// Фабрика для создания LightRepository с реальными зависимостями
     private var _lightRepositoryFactory: (() -> LightRepositoryProtocol)?
     
+    /// Фабрика для создания RoomRepository с реальными зависимостями
+    private var _roomRepositoryFactory: (() -> RoomRepositoryProtocol)?
+    
     private lazy var _roomRepository: RoomRepositoryProtocol = {
-        // TODO: Создать конкретную реализацию
-        return MockRoomRepository()
+        // ✅ Используем реальный репозиторий вместо mock
+        return _roomRepositoryFactory?() ?? MockRoomRepository()
     }()
     
     private lazy var _bridgeRepository: BridgeRepositoryProtocol = {
@@ -136,6 +140,20 @@ final class DIContainer {
         _addLightToEnvironmentUseCase = AddLightToEnvironmentUseCase(lightRepository: _lightRepository)
         _getEnvironmentLightsUseCase = GetEnvironmentLightsUseCase(lightRepository: _lightRepository)
         _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: _lightRepository)
+    }
+    
+    /// Настройка реального RoomRepository с зависимостями
+    /// - Parameter dataPersistenceService: Сервис для работы с SwiftData
+    func configureRoomRepository(dataPersistenceService: DataPersistenceService) {
+        _roomRepositoryFactory = {
+            RoomRepositoryImpl(modelContext: dataPersistenceService.container.mainContext)
+        }
+        
+        // Принудительно пересоздаем зависимые Use Cases
+        _roomRepository = _roomRepositoryFactory!()
+        _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: _roomRepository, lightRepository: lightRepository)
+        _getRoomsUseCase = GetRoomsUseCase(roomRepository: _roomRepository)
+        _deleteRoomUseCase = DeleteRoomUseCase(roomRepository: _roomRepository)
     }
 }
 

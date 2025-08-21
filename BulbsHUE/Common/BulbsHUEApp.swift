@@ -36,10 +36,16 @@ struct BulbsHUEApp: App {
         let appVM = AppViewModel(dataPersistenceService: dataService)
         self._appViewModel = StateObject(wrappedValue: appVM)
         
-        // ✅ НАСТРОЙКА РЕАЛЬНОГО LIGHT REPOSITORY
+        // ✅ НАСТРОЙКА РЕАЛЬНЫХ REPOSITORIES
         // Конфигурируем DIContainer с реальными зависимостями
         DIContainer.shared.configureLightRepository(
             appViewModel: appVM,
+            dataPersistenceService: dataService
+        )
+        
+        // ✅ НАСТРОЙКА РЕАЛЬНОГО ROOM REPOSITORY
+        // Конфигурируем RoomRepository для сохранения комнат в SwiftData
+        DIContainer.shared.configureRoomRepository(
             dataPersistenceService: dataService
         )
         

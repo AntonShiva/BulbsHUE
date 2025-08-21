@@ -181,7 +181,7 @@ struct BulbCell: View {
 }
 
 // MARK: - Удобные расширения для создания типизированных ячеек
-extension TupeCell where DataType == BulbType, ManagerType == BulbTypeManager, SubtypeCellView == LampSubtypeCell {
+extension TupeCell where DataType == BulbType, ManagerType == BulbTypeManager, SubtypeCellView == SubtypeCell<LampSubtype> {
     /// Создает ячейку для типов ламп
     init(bulbType: BulbType, typeManager: BulbTypeManager, cellHeight: CGFloat = 64, iconWidth: CGFloat? = nil, iconHeight: CGFloat? = nil) {
         self.typeData = bulbType
@@ -190,7 +190,7 @@ extension TupeCell where DataType == BulbType, ManagerType == BulbTypeManager, S
         self.iconWidth = iconWidth
         self.iconHeight = iconHeight
         self.subtypeCellBuilder = { subtype, isSelected, onSelect in
-            LampSubtypeCell(
+            SubtypeCell(
                 lampSubtype: subtype,
                 isSelected: isSelected,
                 onSelect: onSelect
@@ -199,7 +199,7 @@ extension TupeCell where DataType == BulbType, ManagerType == BulbTypeManager, S
     }
 }
 
-extension TupeCell where DataType == RoomCategory, ManagerType == RoomCategoryManager, SubtypeCellView == RoomSubtypeCell {
+extension TupeCell where DataType == RoomCategory, ManagerType == RoomCategoryManager, SubtypeCellView == SubtypeCell<RoomSubtype> {
     /// Создает ячейку для категорий комнат
     init(roomCategory: RoomCategory, categoryManager: RoomCategoryManager, cellHeight: CGFloat = 64, iconWidth: CGFloat? = nil, iconHeight: CGFloat? = nil) {
         self.typeData = roomCategory
@@ -208,7 +208,7 @@ extension TupeCell where DataType == RoomCategory, ManagerType == RoomCategoryMa
         self.iconWidth = iconWidth
         self.iconHeight = iconHeight
         self.subtypeCellBuilder = { subtype, isSelected, onSelect in
-            RoomSubtypeCell(
+            SubtypeCell(
                 roomSubtype: subtype,
                 isSelected: isSelected,
                 onSelect: onSelect

@@ -40,6 +40,7 @@ final class DataPersistenceService: ObservableObject {
             // Конфигурируем схему данных
             let schema = Schema([
                 LightDataModel.self,
+                RoomDataModel.self, // ✅ Добавляем модель комнат для персистентного хранения
                 // Здесь можно добавить другие модели для настроек
             ])
             

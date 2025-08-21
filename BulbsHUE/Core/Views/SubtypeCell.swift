@@ -57,10 +57,6 @@ extension SubtypeCell where SubtypeType == RoomSubtype {
     }
 }
 
-// MARK: - Type aliases для удобства использования
-typealias LampSubtypeCell = SubtypeCell<LampSubtype>
-typealias RoomSubtypeCell = SubtypeCell<RoomSubtype>
-
 // MARK: - Preview
 #Preview {
     ZStack {
