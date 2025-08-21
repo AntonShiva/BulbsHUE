@@ -24,6 +24,9 @@ final class RoomControlViewModel: ObservableObject {
     /// Средняя яркость всех ламп в комнате
     @Published var brightness: Double = 100.0
     
+    /// Запомненная яркость для восстановления при включении (аналогично лампам)
+    private var rememberedBrightness: Double = 100.0
+    
     /// Цвет комнаты по умолчанию (тот же что у ламп)
     @Published var defaultWarmColor = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
     
@@ -101,8 +104,20 @@ final class RoomControlViewModel: ObservableObject {
         // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Предотвращаем обновления состояния во время batch операции
         isUpdatingFromBatch = true
         
-        // Сразу устанавливаем UI состояние для responsiveness
-        isOn = newState
+        // ✅ СИНХРОНИЗАЦИЯ: Правильно синхронизируем isOn и brightness (как в лампах)
+        if newState {
+            // Включаем комнату - восстанавливаем запомненную яркость
+            isOn = true
+            let targetBrightness = rememberedBrightness > 0 ? rememberedBrightness : 100.0
+            brightness = targetBrightness
+        } else {
+            // Выключаем комнату - запоминаем текущую яркость и сбрасываем слайдер в 0
+            if brightness > 0 {
+                rememberedBrightness = brightness
+            }
+            isOn = false
+            brightness = 0.0 // ← КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: сбрасываем яркость в 0 при выключении
+        }
         
         // Получаем все лампы комнаты
         let roomLights = getRoomLights()
@@ -146,6 +161,23 @@ final class RoomControlViewModel: ObservableObject {
         // Устанавливаем яркость локально для UI responsiveness
         brightness = newBrightness
         
+        // ✅ СИНХРОНИЗАЦИЯ: Если яркость увеличивается при выключенной комнате - включаем комнату
+        if newBrightness > 0 && !isOn {
+            isOn = true
+            rememberedBrightness = newBrightness
+        }
+        // ✅ СИНХРОНИЗАЦИЯ: Если яркость = 0 и комната включена - выключаем комнату
+        else if newBrightness == 0 && isOn {
+            if brightness > 0 {
+                rememberedBrightness = brightness
+            }
+            isOn = false
+        }
+        // Обновляем запомненную яркость при изменении (если комната включена)
+        else if newBrightness > 0 && isOn {
+            rememberedBrightness = newBrightness
+        }
+        
         // Отменяем предыдущую задачу дебаунса
         brightnessTask?.cancel()
         
@@ -182,6 +214,23 @@ final class RoomControlViewModel: ObservableObject {
         
         // Устанавливаем яркость локально
         brightness = newBrightness
+        
+        // ✅ СИНХРОНИЗАЦИЯ: Если яркость увеличивается при выключенной комнате - включаем комнату
+        if newBrightness > 0 && !isOn {
+            isOn = true
+            rememberedBrightness = newBrightness
+        }
+        // ✅ СИНХРОНИЗАЦИЯ: Если яркость = 0 и комната включена - выключаем комнату
+        else if newBrightness == 0 && isOn {
+            if brightness > 0 {
+                rememberedBrightness = brightness
+            }
+            isOn = false
+        }
+        // Обновляем запомненную яркость при изменении (если комната включена)
+        else if newBrightness > 0 && isOn {
+            rememberedBrightness = newBrightness
+        }
         
         print("🏠 💡 Коммит яркости для комнаты '\(room.name)': \(newBrightness)%")
         
@@ -278,15 +327,33 @@ final class RoomControlViewModel: ObservableObject {
         }
         
         // Комната "включена" если хотя бы одна лампа включена
-        isOn = roomLights.contains { $0.on.on }
+        let newIsOn = roomLights.contains { $0.on.on }
         
         // Средняя яркость включенных ламп
         let onLights = roomLights.filter { $0.on.on }
+        let newBrightness: Double
+        
         if !onLights.isEmpty {
             let totalBrightness = onLights.compactMap { $0.dimming?.brightness }.reduce(0, +)
-            brightness = Double(totalBrightness) / Double(onLights.count)
+            newBrightness = Double(totalBrightness) / Double(onLights.count)
         } else {
-            brightness = 0
+            newBrightness = 0
+        }
+        
+        // ✅ СИНХРОНИЗАЦИЯ: Применяем ту же логику, что и в лампах
+        if !newIsOn {
+            // Комната выключена - показываем 0, но запоминаем яркость если она есть
+            isOn = false
+            brightness = 0.0
+            if newBrightness > 0 {
+                rememberedBrightness = newBrightness
+            }
+        } else {
+            // Комната включена - показываем актуальную яркость и запоминаем её
+            isOn = true
+            let currentBrightness = newBrightness > 0 ? newBrightness : 1.0
+            brightness = currentBrightness
+            rememberedBrightness = currentBrightness
         }
     }
     
