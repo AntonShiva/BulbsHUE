@@ -8,32 +8,29 @@
 import SwiftUI
 
 struct AddNewRoom: View {
-    @StateObject private var categoryManager = RoomCategoryManager()
+    // MARK: - Environment Dependencies
     @EnvironmentObject var nav: NavigationManager
     @EnvironmentObject var appViewModel: AppViewModel
     
-    // States для управления шагами
-    @State private var currentStep: Int = 0
-    @State private var selectedLights: Set<String> = [] // ID выбранных ламп
+    // MARK: - ViewModel (создается с правильными зависимостями)
+    @StateObject private var viewModel = AddNewRoomViewModel()
     
     var body: some View {
         ZStack {
             BGLight()
             
-            HeaderAddNew(title: "NEW ROOM"){
-                
-                    DismissButton{
-                        nav.go(.environment)
-                    }
-                
+            HeaderAddNew(title: "NEW ROOM") {
+                DismissButton {
+                    viewModel.cancelRoomCreation()
+                }
             }
             .adaptiveOffset(y: -323)
             
             VStack(spacing: 0) {
                 
-                // Контент в зависимости от шага
+                // Контент в зависимости от шага ViewModel
                 Group {
-                    if currentStep == 0 {
+                    if viewModel.currentStep == 0 {
                         // Шаг 1: Выбор категории комнаты
                         categorySelectionView
                             .transition(.asymmetric(
@@ -50,28 +47,36 @@ struct AddNewRoom: View {
                     }
                 }
                 
-                
-                // Кнопка продолжения
+                // Кнопка продолжения с поддержкой активности
                 VStack {
                     Spacer()
-                   
-                    if shouldShowContinueButton {
-                        ZStack{
-                            CustomStepIndicator(currentStep: currentStep)
-                                .adaptiveOffset(y: -45)
-                                .animation(.easeInOut(duration: 0.3), value: currentStep)
-                            
-                            CustomButtonAdaptiveRoom(text: currentStep == 0 ? "continue" : "create room", width: 390, height: 266, image: "BGRename", offsetX: 2.3, offsetY: 18.8) {
-                                handleContinueAction()
-                            }
-                            .animation(.easeInOut(duration: 0.3), value: currentStep)
+                    
+                    ZStack {
+                        CustomStepIndicator(currentStep: viewModel.currentStep)
+                            .adaptiveOffset(y: -45)
+                            .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
+                        
+                        CustomButtonAdaptiveRoom(
+                            text: viewModel.continueButtonText,
+                            width: 390,
+                            height: 266,
+                            image: "BGRename",
+                            offsetX: 2.3,
+                            offsetY: 18.8,
+                            isEnabled: viewModel.isContinueButtonEnabled
+                        ) {
+                            viewModel.handleContinueAction()
                         }
-                        .adaptiveOffset(y: 12)
+                        .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
                     }
+                    .adaptiveOffset(y: 12)
                 }
                 .adaptiveFrame(height: 245)
             }
-            
+        }
+        .onAppear {
+            // Устанавливаем реальные зависимости при появлении View
+            setupViewModelDependencies()
         }
     }
     
@@ -84,13 +89,13 @@ struct AddNewRoom: View {
                     .adaptiveFrame(width: 332, height: 64)
                     .background(Color(red: 0.79, green: 1, blue: 1))
                     .cornerRadius(15)
-                   .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                     .opacity(0)
                 
-                ForEach(categoryManager.roomCategories, id: \.id) { roomCategory in
+                ForEach(viewModel.categoryManager.roomCategories, id: \.id) { roomCategory in
                     TupeCell(
                         roomCategory: roomCategory,
-                        categoryManager: categoryManager,
+                        categoryManager: viewModel.categoryManager,
                         iconWidth: 32, // Увеличенная ширина для комнат
                         iconHeight: 32 // Увеличенная высота для комнат
                     )
@@ -101,7 +106,7 @@ struct AddNewRoom: View {
         .adaptiveFrame(height: 555)
     }
     
-    // MARK: - Представление выбора ламп
+        // MARK: - Представление выбора ламп
     private var lightSelectionView: some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 8) {
@@ -110,15 +115,15 @@ struct AddNewRoom: View {
                     .adaptiveFrame(width: 332, height: 64)
                     .background(Color(red: 0.79, green: 1, blue: 1))
                     .cornerRadius(15)
-                   .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                     .opacity(0)
-                
-                ForEach(availableLights, id: \.id) { light in
+
+                ForEach(viewModel.availableLights, id: \.id) { light in
                     LightSelectionCell(
                         light: light,
-                        isSelected: selectedLights.contains(light.id)
+                        isSelected: viewModel.isLightSelected(light.id)
                     ) {
-                        toggleLightSelection(light.id)
+                        viewModel.toggleLightSelection(light.id)
                     }
                 }
             }
@@ -127,93 +132,20 @@ struct AddNewRoom: View {
         .adaptiveFrame(height: 555)
     }
     
-    // MARK: - Computed Properties
-    private var shouldShowContinueButton: Bool {
-        if currentStep == 0 {
-            return categoryManager.hasSelection
-        } else {
-            return !selectedLights.isEmpty
-        }
-    }
+    // MARK: - Private Methods
     
-    private var availableLights: [LightEntity] {
-        // Конвертируем Light в LightEntity и фильтруем доступные
-        return appViewModel.lightsViewModel.lights.compactMap { light in
-            // Определяем тип лампы из архетипа или по умолчанию
-            let lightType: LightType
-            if let archetype = light.metadata.archetype?.lowercased() {
-                switch archetype {
-                case let type where type.contains("ceiling"):
-                    lightType = .ceiling
-                case let type where type.contains("floor"):
-                    lightType = .floor
-                case let type where type.contains("wall"):
-                    lightType = .wall
-                case let type where type.contains("table"), let type where type.contains("desk"):
-                    lightType = .table
-                default:
-                    lightType = .other
-                }
-            } else {
-                lightType = .other
-            }
-            
-            return LightEntity(
-                id: light.id,
-                name: light.metadata.name,
-                type: lightType,
-                subtype: nil, // Пока упрощаем
-                isOn: light.on.on,
-                brightness: Double(light.dimming?.brightness ?? 0),
-                color: light.color?.xy.map { LightColor(x: $0.x, y: $0.y) },
-                colorTemperature: light.color_temperature?.mirek,
-                isReachable: true, // В API v2 все лампы считаются достижимыми, если они есть в списке
-                roomId: nil, // Упрощаем - считаем что все лампы доступны для назначения
-                userSubtype: nil,
-                userIcon: nil
-            )
-        }
-    }
-    
-    // MARK: - Actions
-    private func handleContinueAction() {
-        if currentStep == 0 {
-            // Переход к выбору ламп
-            withAnimation(.easeInOut(duration: 0.3)) {
-                currentStep = 1
-            }
-        } else {
-            // Создание комнаты
-            createRoomWithLights()
-        }
-    }
-    
-    private func toggleLightSelection(_ lightId: String) {
-        if selectedLights.contains(lightId) {
-            selectedLights.remove(lightId)
-        } else {
-            selectedLights.insert(lightId)
-        }
-    }
-    
-    
-    // MARK: - Сохранение комнаты с лампами
-    private func createRoomWithLights() {
-        guard let selectedSubtype = categoryManager.getSelectedSubtype() else {
-            print("❌ Missing selected room subtype")
-            return
-        }
+    /// Настройка реальных зависимостей ViewModel после инициализации View
+    private func setupViewModelDependencies() {
+        // Устанавливаем реальные зависимости из EnvironmentObject
+        viewModel.setLightsProvider(appViewModel)
+        viewModel.setNavigationManager(nav)
         
-        let selectedLightEntities = availableLights.filter { selectedLights.contains($0.id) }
-        
-        // Здесь будет логика создания комнаты с выбранными лампами
-        print("✅ Комната будет создана:")
-        print("   Тип: '\(selectedSubtype.name)'")
-        print("   Иконка: '\(selectedSubtype.iconName)'")
-        print("   Лампы: \(selectedLightEntities.map { $0.name })")
-        
-        // Возвращаемся к основному экрану
-        nav.go(.environment)
+        // Создаем сервис создания комнат с UseCase из DIContainer
+        let diContainer = DIContainer.shared
+        let roomCreationService = DIRoomCreationService(
+            createRoomWithLightsUseCase: diContainer.createRoomWithLightsUseCase
+        )
+        viewModel.setRoomCreationService(roomCreationService)
     }
 }
 

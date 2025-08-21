@@ -44,6 +44,70 @@ struct CreateRoomUseCase: UseCase {
     }
 }
 
+// MARK: - Create Room With Lights Use Case
+struct CreateRoomWithLightsUseCase: UseCase {
+    private let roomRepository: RoomRepositoryProtocol
+    private let lightRepository: LightRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol, lightRepository: LightRepositoryProtocol) {
+        self.roomRepository = roomRepository
+        self.lightRepository = lightRepository
+    }
+    
+    struct Input {
+        let roomName: String
+        let roomType: RoomSubType
+        let lightIds: [String]
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<RoomEntity, Error> {
+        // Валидация входных данных
+        guard !input.roomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return Fail(error: RoomError.invalidName)
+                .eraseToAnyPublisher()
+        }
+        
+        guard !input.lightIds.isEmpty else {
+            return Fail(error: RoomError.noLightsProvided)
+                .eraseToAnyPublisher()
+        }
+        
+        // Проверяем, что все лампы существуют
+        let lightChecks = input.lightIds.map { lightId in
+            lightRepository.getLight(by: lightId)
+                .map { light -> Bool in
+                    return light != nil
+                }
+        }
+        
+        return Publishers.MergeMany(lightChecks)
+            .collect()
+            .flatMap { results -> AnyPublisher<RoomEntity, Error> in
+                // Проверяем, что все лампы найдены
+                guard results.allSatisfy({ $0 }) else {
+                    return Fail(error: RoomError.lightNotFound)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Создаем комнату
+                let room = RoomEntity(
+                    id: UUID().uuidString,
+                    name: input.roomName,
+                    type: input.roomType,
+                    lightIds: input.lightIds,
+                    isActive: true,
+                    createdAt: Date(),
+                    updatedAt: Date()
+                )
+                
+                return self.roomRepository.createRoom(room)
+                    .map { _ in room }
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+}
+
 // MARK: - Add Light To Room Use Case
 struct AddLightToRoomUseCase: UseCase {
     private let roomRepository: RoomRepositoryProtocol
@@ -127,6 +191,7 @@ enum RoomError: Error, LocalizedError {
     case invalidName
     case roomAlreadyExists
     case cannotDeleteNonEmptyRoom
+    case noLightsProvided
     
     var errorDescription: String? {
         switch self {
@@ -140,6 +205,8 @@ enum RoomError: Error, LocalizedError {
             return "Room with this name already exists"
         case .cannotDeleteNonEmptyRoom:
             return "Cannot delete room with lights"
+        case .noLightsProvided:
+            return "No lights provided for room creation"
         }
     }
 }

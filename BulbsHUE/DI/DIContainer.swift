@@ -59,6 +59,10 @@ final class DIContainer {
         return SearchLightsUseCase(lightRepository: lightRepository)
     }()
     
+    private lazy var _createRoomWithLightsUseCase: CreateRoomWithLightsUseCase = {
+        return CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: lightRepository)
+    }()
+    
     // MARK: - Services
     private lazy var _appStore: AppStore = {
         let middlewares: [Middleware] = [
@@ -90,6 +94,7 @@ final class DIContainer {
     var addLightToEnvironmentUseCase: AddLightToEnvironmentUseCase { _addLightToEnvironmentUseCase }
     var getEnvironmentLightsUseCase: GetEnvironmentLightsUseCase { _getEnvironmentLightsUseCase }
     var searchLightsUseCase: SearchLightsUseCase { _searchLightsUseCase }
+    var createRoomWithLightsUseCase: CreateRoomWithLightsUseCase { _createRoomWithLightsUseCase }
     
     // Services
     var appStore: AppStore { _appStore }
