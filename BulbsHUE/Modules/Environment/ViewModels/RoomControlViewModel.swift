@@ -41,6 +41,12 @@ final class RoomControlViewModel: ObservableObject {
     /// Флаг конфигурации
     private var isConfigured: Bool = false
     
+    /// Флаг для предотвращения циклических обновлений во время batch операций
+    private var isUpdatingFromBatch: Bool = false
+    
+    /// Задача для дебаунса изменений яркости
+    private var brightnessTask: Task<Void, Never>?
+    
     // MARK: - Initialization
     
     private init() {
@@ -50,6 +56,12 @@ final class RoomControlViewModel: ObservableObject {
     /// Создать изолированный экземпляр (для SwiftUI StateObject)
     static func createIsolated() -> RoomControlViewModel {
         return RoomControlViewModel()
+    }
+    
+    deinit {
+        // Отменяем все активные задачи при деинициализации
+        brightnessTask?.cancel()
+        cancellables.removeAll()
     }
     
     // MARK: - Configuration
@@ -86,27 +98,75 @@ final class RoomControlViewModel: ObservableObject {
         guard let room = currentRoom,
               let lightControlService = lightControlService else { return }
         
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Предотвращаем обновления состояния во время batch операции
+        isUpdatingFromBatch = true
+        
+        // Сразу устанавливаем UI состояние для responsiveness
         isOn = newState
         
-        // Получаем все лампы комнаты и управляем ими
+        // Получаем все лампы комнаты
         let roomLights = getRoomLights()
-        for light in roomLights {
-            lightControlService.setPower(for: light, on: newState)
+        guard !roomLights.isEmpty else { 
+            isUpdatingFromBatch = false
+            return 
+        }
+        
+        print("🏠 Переключение комнаты '\(room.name)' -> \(newState ? "ВКЛ" : "ВЫКЛ") (\(roomLights.count) ламп)")
+        
+        // Групповое управление лампами с ожиданием завершения
+        Task { [weak self] in
+            // Отправляем команды всем лампам ОДНОВРЕМЕННО, а не по очереди
+            await withTaskGroup(of: Void.self) { group in
+                for light in roomLights {
+                    group.addTask {
+                        lightControlService.setPower(for: light, on: newState)
+                    }
+                }
+            }
+            
+            // Ждем небольшую задержку для получения обновлений от API
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 секунды
+            
+            await MainActor.run { [weak self] in
+                self?.isUpdatingFromBatch = false
+                print("🏠 ✅ Batch операция завершена для комнаты '\(room.name)'")
+            }
         }
     }
     
-    /// Установить яркость всех ламп в комнате
+    /// Установить яркость всех ламп в комнате (с дебаунсом)
     /// - Parameter newBrightness: Новая яркость (0-100)
     func setBrightnessThrottled(_ newBrightness: Double) {
         guard let room = currentRoom,
               let lightControlService = lightControlService else { return }
         
+        // УЛУЧШЕНИЕ: Предотвращаем конфликты при групповом изменении яркости
+        isUpdatingFromBatch = true
+        
+        // Устанавливаем яркость локально для UI responsiveness
         brightness = newBrightness
         
-        // Устанавливаем яркость для всех ламп в комнате
-        let roomLights = getRoomLights()
-        for light in roomLights {
-            lightControlService.setBrightness(for: light, brightness: newBrightness)
+        // Отменяем предыдущую задачу дебаунса
+        brightnessTask?.cancel()
+        
+        // Создаем новую задачу с дебаунсом для плавности
+        brightnessTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 секунды дебаунс
+            
+            guard let self = self, !Task.isCancelled else { return }
+            
+            let roomLights = self.getRoomLights()
+            await withTaskGroup(of: Void.self) { group in
+                for light in roomLights {
+                    group.addTask {
+                        lightControlService.setBrightness(for: light, brightness: newBrightness)
+                    }
+                }
+            }
+            
+            await MainActor.run { [weak self] in
+                self?.isUpdatingFromBatch = false
+            }
         }
     }
     
@@ -116,12 +176,33 @@ final class RoomControlViewModel: ObservableObject {
         guard let room = currentRoom,
               let lightControlService = lightControlService else { return }
         
+        // Отменяем любую pending задачу
+        brightnessTask?.cancel()
+        isUpdatingFromBatch = true
+        
+        // Устанавливаем яркость локально
         brightness = newBrightness
         
-        // Коммитим яркость для всех ламп в комнате
-        let roomLights = getRoomLights()
-        for light in roomLights {
-            lightControlService.commitBrightness(for: light, brightness: newBrightness)
+        print("🏠 💡 Коммит яркости для комнаты '\(room.name)': \(newBrightness)%")
+        
+        // Групповой коммит яркости
+        Task { [weak self] in
+            let roomLights = self?.getRoomLights() ?? []
+            await withTaskGroup(of: Void.self) { group in
+                for light in roomLights {
+                    group.addTask {
+                        lightControlService.commitBrightness(for: light, brightness: newBrightness)
+                    }
+                }
+            }
+            
+            // Небольшая задержка для синхронизации
+            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 секунды
+            
+            await MainActor.run { [weak self] in
+                self?.isUpdatingFromBatch = false
+                print("🏠 ✅ Коммит яркости завершен для комнаты '\(self?.currentRoom?.name ?? "Unknown")'")
+            }
         }
     }
     
@@ -170,6 +251,12 @@ final class RoomControlViewModel: ObservableObject {
     /// - Parameter lights: Массив всех ламп
     private func updateStateFromLights(_ lights: [Light]) {
         guard let room = currentRoom else { return }
+        
+        // Игнорируем обновления от API во время batch операций
+        guard !isUpdatingFromBatch else { 
+            print("🏠 ⏸️ Пропускаем обновление состояния комнаты '\(room.name)' - выполняется batch операция")
+            return 
+        }
         
         let roomLights = lights.filter { room.lightIds.contains($0.id) }
         updateRoomState(from: roomLights)
