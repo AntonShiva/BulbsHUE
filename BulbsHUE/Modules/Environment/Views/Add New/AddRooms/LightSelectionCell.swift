@@ -43,28 +43,7 @@ struct LightSelectionCell: View {
                             .textCase(.uppercase)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        // Тип/состояние лампы (подпись)
-                        Group {
-                            if let roomId = light.roomId {
-                                Text("ALREADY ASSIGNED")
-                                    .font(Font.custom("DMSans-Light", size: 10))
-                                    .kerning(2)
-                                    .foregroundColor(Color.orange.opacity(0.8))
-                                    .textCase(.uppercase)
-                            } else if !light.isReachable {
-                                Text("UNREACHABLE")
-                                    .font(Font.custom("DMSans-Light", size: 10))
-                                    .kerning(2)
-                                    .foregroundColor(Color.red.opacity(0.8))
-                                    .textCase(.uppercase)
-                            } else {
-                                Text(light.type.displayName)
-                                    .font(Font.custom("DMSans-Light", size: 10))
-                                    .kerning(2)
-                                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.6))
-                                    .textCase(.uppercase)
-                            }
-                        }
+               
                     }
                       
                     // CheckView вместо шеврона (только для доступных ламп)

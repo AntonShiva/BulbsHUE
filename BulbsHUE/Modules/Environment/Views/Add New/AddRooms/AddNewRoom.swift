@@ -37,13 +37,21 @@ struct AddNewRoom: View {
                                 insertion: .move(edge: .leading).combined(with: .opacity),
                                 removal: .move(edge: .trailing).combined(with: .opacity)
                             ))
-                    } else {
+                    } else if viewModel.currentStep == 1 {
                         // Шаг 2: Выбор ламп
                         lightSelectionView
                             .transition(.asymmetric(
                                 insertion: .move(edge: .trailing).combined(with: .opacity),
                                 removal: .move(edge: .leading).combined(with: .opacity)
                             ))
+                    } else {
+                        // Шаг 3: Ввод названия комнаты
+                        roomNameInputView
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
+                            .adaptiveOffset(y: 150)
                     }
                 }
                 
@@ -129,6 +137,47 @@ struct AddNewRoom: View {
             }
         }
         .adaptiveOffset(y: 65)
+        .adaptiveFrame(height: 555)
+    }
+    
+    // MARK: - Представление ввода названия комнаты
+    private var roomNameInputView: some View {
+        VStack(spacing: 24) {
+            // Заголовок
+            Text("your new room name")
+                .font(Font.custom("DMSans-Regular", size: 14))
+                .kerning(2.8)
+                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                .textCase(.uppercase)
+                .adaptiveOffset(y: 65)
+            
+            // TextField для ввода названия
+            ZStack {
+                Rectangle()
+                    .foregroundColor(.clear)
+                    .adaptiveFrame(width: 332, height: 64)
+                    .background(Color(red: 0.79, green: 1, blue: 1))
+                    .cornerRadius(15)
+                    .opacity(0.1)
+                
+                TextField("", text: $viewModel.customRoomName)
+                    .font(Font.custom("DMSans-Regular", size: 14))
+                    .kerning(2.8)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                    .textCase(.uppercase)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        // При нажатии Done на клавиатуре - создаем комнату
+                        if viewModel.isContinueButtonEnabled {
+                            viewModel.handleContinueAction()
+                        }
+                    }
+            }
+            .adaptiveOffset(y: 65)
+            
+            Spacer()
+        }
         .adaptiveFrame(height: 555)
     }
     

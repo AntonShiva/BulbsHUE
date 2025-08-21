@@ -12,8 +12,8 @@ struct EnvironmentView: View {
     @EnvironmentObject var appViewModel: AppViewModel
     @EnvironmentObject var dataPersistenceService: DataPersistenceService
     
-    /// Специализированная ViewModel для экрана Environment
-    @State private var environmentViewModel: EnvironmentViewModel?
+    /// Координатор для управления лампами и комнатами (SOLID принципы)
+    @State private var environmentCoordinator: EnvironmentCoordinator?
     
     var body: some View {
         if nav.currentRoute == .addRoom {
@@ -42,58 +42,70 @@ struct EnvironmentView: View {
             SelectorTabEnviromentView()
                 .adaptiveOffset(y: -264)
             
-            // Используем данные из EnvironmentViewModel с персистентным хранением
-            if let viewModel = environmentViewModel {
-                if !viewModel.hasAssignedLights {
-                    EmptyBulbsLightsView {
-                        nav.go(.addNewBulb)
-                    }
-                } else  {
-                    if  nav.еnvironmentTab == .bulbs{
+            // ✅ Используем координатор с разделением ответственности (SOLID)
+            if let coordinator = environmentCoordinator {
+                if  nav.еnvironmentTab == .bulbs {
+                    // Вкладка ламп
+                    if !coordinator.hasAssignedLights {
+                        EmptyBulbsLightsView {
+                            nav.go(.addNewBulb)
+                        }
+                    } else {
                         AssignedBulbsLightsListView(
-                            lights: viewModel.assignedLights,
+                            lights: coordinator.lightsViewModel.assignedLights,
                             onRemoveLight: { lightId in
-                                viewModel.removeLightFromEnvironment(lightId)
+                                coordinator.removeLightFromEnvironment(lightId)
                             }
                         )
                         .adaptiveOffset(y: 30)
-                    } else if  nav.еnvironmentTab == .rooms{
+                    }
+                } else if nav.еnvironmentTab == .rooms {
+                    // Вкладка комнат
+                    if !coordinator.hasRooms {
                         EmptyRoovmsLightsView{
                             nav.currentRoute = .addRoom
                             nav.isTabBarVisible = false
                         }
+                    } else {
+                        AssignedRoomsListView(
+                            rooms: coordinator.roomsViewModel.rooms,
+                            onRemoveRoom: { roomId in
+                                coordinator.removeRoom(roomId)
+                            }
+                        )
+                        .adaptiveOffset(y: 30)
                     }
                 }
             }
         }
         .onAppear {
-            // ИСПРАВЛЕНИЕ: Проверяем наличие подключения перед загрузкой
+            // ✅ SOLID: Создаем координатор через фабрику с разделением ответственности
             if appViewModel.connectionStatus == .connected {
-                // Создаем ViewModel с обоими сервисами
-                if environmentViewModel == nil {
-                    environmentViewModel = EnvironmentViewModel(
+                if environmentCoordinator == nil {
+                    environmentCoordinator = EnvironmentCoordinator.create(
                         appViewModel: appViewModel,
-                        dataPersistenceService: dataPersistenceService
+                        dataPersistenceService: dataPersistenceService,
+                        diContainer: DIContainer.shared
                     )
                 }
                 
-                // Обновляем данные ламп при каждом появлении экрана
+                // Обновляем данные при каждом появлении экрана
                 appViewModel.lightsViewModel.loadLights()
-                environmentViewModel?.refreshLights()
+                environmentCoordinator?.refreshAll()
             } else {
                 // Нет подключения - пропускаем загрузку
             }
         }
         
         .refreshable {
-            // Поддержка pull-to-refresh
-            environmentViewModel?.refreshLights()
+            // ✅ Поддержка pull-to-refresh для всех данных
+            environmentCoordinator?.refreshAll()
         }
         .onChange(of: nav.еnvironmentTab) { newTab in
-            // ИСПРАВЛЕНИЕ: При переключении вкладок принудительно обновляем состояние ламп
+            // ✅ При переключении вкладок принудительно обновляем состояние
             
             // Принудительная синхронизация состояния без запроса к API
-            environmentViewModel?.forceStateSync()
+            environmentCoordinator?.forceStateSync()
             
             // Дополнительно обновляем данные из API для получения актуального состояния (если подключены)
             if appViewModel.connectionStatus == .connected {
@@ -159,18 +171,22 @@ private struct AssignedBulbsLightsListView: View {
     let lights: [Light]
     let onRemoveLight: ((String) -> Void)?
     
+    @EnvironmentObject var appViewModel: AppViewModel
+    @EnvironmentObject var nav: NavigationManager
+    
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 ForEach(lights) { light in
+                    // ✅ ИСПРАВЛЕНО: Используем оригинальный ItemControl с полной логикой
                     ItemControl(light: light)
-                        .id("item_\(light.id)_\(light.on.on)_\(Int(light.dimming?.brightness ?? 0))") // Уникальный ID с состоянием для принудительного обновления
-                        .padding(.horizontal, 10) // Дополнительные отступы для каждого элемента
-                        .contextMenu {
-                            Button("Убрать из Environment", role: .destructive) {
-                                onRemoveLight?(light.id)
-                            }
+                    .id("item_\(light.id)_\(light.on.on)_\(Int(light.dimming?.brightness ?? 0))") // Уникальный ID с состоянием для принудительного обновления
+                    .padding(.horizontal, 10) // Дополнительные отступы для каждого элемента
+                    .contextMenu {
+                        Button("Убрать из Environment", role: .destructive) {
+                            onRemoveLight?(light.id)
                         }
+                    }
                 }
             }
             .padding(.horizontal, 20) // Добавляем отступы по краям
@@ -218,7 +234,7 @@ private struct MockAssignedLightsListView: View {
     }
 }
 
-#Preview("Environment with Mock Lights") {
+#Preview("Environment with Mock Data") {
     EnvironmentView()
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())

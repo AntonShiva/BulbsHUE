@@ -19,6 +19,7 @@ struct CreateRoomUseCase: UseCase {
     struct Input {
         let name: String
         let type: RoomSubType
+        let iconName: String
     }
     
     func execute(_ input: Input) -> AnyPublisher<RoomEntity, Error> {
@@ -32,6 +33,7 @@ struct CreateRoomUseCase: UseCase {
             id: UUID().uuidString,
             name: input.name,
             type: input.type,
+            iconName: input.iconName,
             lightIds: [],
             isActive: true,
             createdAt: Date(),
@@ -57,6 +59,7 @@ struct CreateRoomWithLightsUseCase: UseCase {
     struct Input {
         let roomName: String
         let roomType: RoomSubType
+        let iconName: String // ✅ Иконка подтипа
         let lightIds: [String]
     }
     
@@ -72,6 +75,7 @@ struct CreateRoomWithLightsUseCase: UseCase {
                 .eraseToAnyPublisher()
         }
         
+        // ✅ ПРОВЕРКА ЧЕРЕЗ РЕАЛЬНЫЙ REPOSITORY
         // Проверяем, что все лампы существуют
         let lightChecks = input.lightIds.map { lightId in
             lightRepository.getLight(by: lightId)
@@ -80,20 +84,26 @@ struct CreateRoomWithLightsUseCase: UseCase {
                 }
         }
         
+        print("🔍 Проверяем существование ламп: \(input.lightIds)")
+        
         return Publishers.MergeMany(lightChecks)
             .collect()
             .flatMap { results -> AnyPublisher<RoomEntity, Error> in
                 // Проверяем, что все лампы найдены
                 guard results.allSatisfy({ $0 }) else {
+                    print("❌ Не все лампы найдены. Результаты: \(results)")
                     return Fail(error: RoomError.lightNotFound)
                         .eraseToAnyPublisher()
                 }
+                
+                print("✅ Все лампы найдены, создаем комнату")
                 
                 // Создаем комнату
                 let room = RoomEntity(
                     id: UUID().uuidString,
                     name: input.roomName,
                     type: input.roomType,
+                    iconName: input.iconName, // ✅ Сохраняем иконку
                     lightIds: input.lightIds,
                     isActive: true,
                     createdAt: Date(),
@@ -181,6 +191,32 @@ struct GetRoomLightsUseCase: UseCase {
                     .eraseToAnyPublisher()
             }
             .eraseToAnyPublisher()
+    }
+}
+
+// MARK: - Get Rooms Use Case
+struct GetRoomsUseCase: UseCase, GetRoomsUseCaseProtocol {
+    private let roomRepository: RoomRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol) {
+        self.roomRepository = roomRepository
+    }
+    
+    func execute(_ input: Void) -> AnyPublisher<[RoomEntity], Error> {
+        return roomRepository.getAllRooms()
+    }
+}
+
+// MARK: - Delete Room Use Case
+struct DeleteRoomUseCase: UseCase, DeleteRoomUseCaseProtocol {
+    private let roomRepository: RoomRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol) {
+        self.roomRepository = roomRepository
+    }
+    
+    func execute(_ roomId: String) -> AnyPublisher<Void, Error> {
+        return roomRepository.deleteRoom(id: roomId)
     }
 }
 

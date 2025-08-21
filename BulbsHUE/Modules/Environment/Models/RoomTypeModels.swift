@@ -105,13 +105,21 @@ class RoomCategoryManager: ObservableObject {
     
         // Генерируем категории комнат с подтипами
     lazy var roomCategories: [RoomCategory] = {
-        return [
+        let categories = [
             generateRoomCategory(name: "TRADITIONAL", iconName: "Traditional", iconPrefix: "tr", count: 9),
             generateRoomCategory(name: "PRACTICAL", iconName: "Practical", iconPrefix: "pr", count: 8),
             generateRoomCategory(name: "RECREATION", iconName: "Recreation", iconPrefix: "re", count: 9),
             generateRoomCategory(name: "OUTSIDE", iconName: "Outside", iconPrefix: "Ou", count: 9),
             generateRoomCategory(name: "LEVELS", iconName: "Levels", iconPrefix: "Liv", count: 5)
         ]
+        
+        // 🔍 DEBUG: Логируем создание категорий
+        print("🏠 RoomCategoryManager создал \(categories.count) категорий:")
+        for category in categories {
+            print("   - \(category.name): \(category.subtypes.count) подтипов, иконка: \(category.iconName)")
+        }
+        
+        return categories
     }()
     
    

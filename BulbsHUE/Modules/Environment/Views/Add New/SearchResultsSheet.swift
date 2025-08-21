@@ -123,26 +123,39 @@ struct SearchResultsSheet: View {
     
     // MARK: - Helper Functions
     private func getLightsToShow() -> [Light] {
+        let lights: [Light]
+        
         switch nav.searchType {
         case .network:
             // Показываем результаты сетевого поиска
             if !lightsViewModel.networkFoundLights.isEmpty {
-                return lightsViewModel.networkFoundLights
-            }
-            
-            // Показываем все доступные лампы
-            if !lightsViewModel.lights.isEmpty {
+                lights = lightsViewModel.networkFoundLights
+            } else if !lightsViewModel.lights.isEmpty {
+                // Показываем все доступные лампы
                 print("📋 Показываем все доступные лампы: \(lightsViewModel.lights.count)")
-                return lightsViewModel.lights
+                lights = lightsViewModel.lights
+            } else {
+                // Фоллбек: показываем лампы, которые выглядят как новые
+                lights = lightsViewModel.lights.filter { $0.isNewLight }
             }
-            
-            // Фоллбек: показываем лампы, которые выглядят как новые
-            return lightsViewModel.lights.filter { $0.isNewLight }
             
         case .serialNumber:
             // Для serial search всегда показываем ВСЕ доступные лампы
             print("📋 Serial search: показываем все лампы для выбора: \(lightsViewModel.lights.count)")
-            return lightsViewModel.lights
+            lights = lightsViewModel.lights
+        }
+        
+        // 🔌 СОРТИРОВКА: Сначала подключенные к электросети, потом неподключенные
+        return lights.sorted { first, second in
+            // Сначала идут подключенные лампы (isReachable = true)
+            if first.isReachable && !second.isReachable {
+                return true  // first (подключенная) должна быть выше
+            } else if !first.isReachable && second.isReachable {
+                return false // second (подключенная) должна быть выше
+            } else {
+                // Если обе в одинаковом состоянии - сортируем по имени
+                return first.metadata.name.localizedCaseInsensitiveCompare(second.metadata.name) == .orderedAscending
+            }
         }
     }
 }

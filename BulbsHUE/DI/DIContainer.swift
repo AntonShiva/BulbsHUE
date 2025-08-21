@@ -15,9 +15,13 @@ final class DIContainer {
     
     // MARK: - Repositories
     private lazy var _lightRepository: LightRepositoryProtocol = {
-        // TODO: Создать конкретную реализацию
-        return MockLightRepository()
+        // ✅ ИСПРАВЛЕНО: Используем реальный репозиторий вместо mock
+        // Создаем через фабричный метод, который будет установлен извне
+        return _lightRepositoryFactory?() ?? MockLightRepository()
     }()
+    
+    /// Фабрика для создания LightRepository с реальными зависимостями
+    private var _lightRepositoryFactory: (() -> LightRepositoryProtocol)?
     
     private lazy var _roomRepository: RoomRepositoryProtocol = {
         // TODO: Создать конкретную реализацию
@@ -63,6 +67,14 @@ final class DIContainer {
         return CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: lightRepository)
     }()
     
+    private lazy var _getRoomsUseCase: GetRoomsUseCase = {
+        return GetRoomsUseCase(roomRepository: roomRepository)
+    }()
+    
+    private lazy var _deleteRoomUseCase: DeleteRoomUseCase = {
+        return DeleteRoomUseCase(roomRepository: roomRepository)
+    }()
+    
     // MARK: - Services
     private lazy var _appStore: AppStore = {
         let middlewares: [Middleware] = [
@@ -95,10 +107,36 @@ final class DIContainer {
     var getEnvironmentLightsUseCase: GetEnvironmentLightsUseCase { _getEnvironmentLightsUseCase }
     var searchLightsUseCase: SearchLightsUseCase { _searchLightsUseCase }
     var createRoomWithLightsUseCase: CreateRoomWithLightsUseCase { _createRoomWithLightsUseCase }
+    var getRoomsUseCase: GetRoomsUseCase { _getRoomsUseCase }
+    var deleteRoomUseCase: DeleteRoomUseCase { _deleteRoomUseCase }
     
     // Services
     var appStore: AppStore { _appStore }
     var navigationManager: NavigationManager { _navigationManager }
+    
+    // MARK: - Configuration
+    
+    /// Настройка реального LightRepository с зависимостями
+    /// - Parameters:
+    ///   - appViewModel: AppViewModel с данными Philips Hue API
+    ///   - dataPersistenceService: Сервис для работы с локальными данными
+    func configureLightRepository(appViewModel: AppViewModel, dataPersistenceService: DataPersistenceService) {
+        _lightRepositoryFactory = {
+            PhilipsHueLightRepository(
+                appViewModel: appViewModel,
+                dataPersistenceService: dataPersistenceService
+            )
+        }
+        
+        // Принудительно пересоздаем зависимые Use Cases
+        _lightRepository = _lightRepositoryFactory!()
+        _toggleLightUseCase = ToggleLightUseCase(lightRepository: _lightRepository)
+        _updateLightBrightnessUseCase = UpdateLightBrightnessUseCase(lightRepository: _lightRepository)
+        _updateLightColorUseCase = UpdateLightColorUseCase(lightRepository: _lightRepository)
+        _addLightToEnvironmentUseCase = AddLightToEnvironmentUseCase(lightRepository: _lightRepository)
+        _getEnvironmentLightsUseCase = GetEnvironmentLightsUseCase(lightRepository: _lightRepository)
+        _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: _lightRepository)
+    }
 }
 
 // MARK: - Logging Middleware
@@ -148,7 +186,12 @@ final class MockLightRepository: LightRepositoryProtocol {
     }
     
     func getLight(by id: String) -> AnyPublisher<LightEntity?, Error> {
-        return Just(nil).setFailureType(to: Error.self).eraseToAnyPublisher()
+        // ✅ ИСПРАВЛЕНО: Ищем лампу среди всех доступных ламп
+        return getAllLights()
+            .map { lights in
+                lights.first { $0.id == id }
+            }
+            .eraseToAnyPublisher()
     }
     
     func getAssignedLights() -> AnyPublisher<[LightEntity], Error> {
@@ -214,50 +257,67 @@ final class MockRoomRepository: RoomRepositoryProtocol {
     private let roomsSubject = CurrentValueSubject<[RoomEntity], Never>([])
     
     func getAllRooms() -> AnyPublisher<[RoomEntity], Error> {
-        let mockRooms = [
-            RoomEntity(
-                id: "living_room_1",
-                name: "Living Room",
-                type: .livingRoom,
-                lightIds: ["1"],
-                isActive: true,
-                createdAt: Date(),
-                updatedAt: Date()
-            ),
-            RoomEntity(
-                id: "kitchen_1",
-                name: "Kitchen",
-                type: .kitchen,
-                lightIds: ["2"],
-                isActive: true,
-                createdAt: Date(),
-                updatedAt: Date()
-            )
-        ]
-        return Just(mockRooms).setFailureType(to: Error.self).eraseToAnyPublisher()
+        // ✅ ИСПРАВЛЕНО: Возвращаем сохраненные комнаты
+        return roomsSubject
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
     
     func getRoom(by id: String) -> AnyPublisher<RoomEntity?, Error> {
-        return Just(nil).setFailureType(to: Error.self).eraseToAnyPublisher()
+        return roomsSubject
+            .map { rooms in
+                rooms.first { $0.id == id }
+            }
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
     
     func getRoomsByType(_ type: RoomType) -> AnyPublisher<[RoomEntity], Error> {
-        return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+        return roomsSubject
+            .map { rooms in
+                rooms.filter { $0.type.parentEnvironmentType == type }
+            }
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
     
     func getActiveRooms() -> AnyPublisher<[RoomEntity], Error> {
-        return Just([]).setFailureType(to: Error.self).eraseToAnyPublisher()
+        return roomsSubject
+            .map { rooms in
+                rooms.filter { $0.isActive }
+            }
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
     
     func createRoom(_ room: RoomEntity) -> AnyPublisher<Void, Error> {
+        // ✅ ИСПРАВЛЕНО: Сохраняем комнату в памяти
+        var currentRooms = roomsSubject.value
+        currentRooms.append(room)
+        roomsSubject.send(currentRooms)
+        
+        print("✅ MockRoomRepository: Комната '\(room.name)' сохранена. Всего комнат: \(currentRooms.count)")
+        
         return Just(()).setFailureType(to: Error.self).eraseToAnyPublisher()
     }
     
     func updateRoom(_ room: RoomEntity) -> AnyPublisher<Void, Error> {
+        // ✅ ИСПРАВЛЕНО: Обновляем комнату в памяти
+        var currentRooms = roomsSubject.value
+        if let index = currentRooms.firstIndex(where: { $0.id == room.id }) {
+            currentRooms[index] = room
+            roomsSubject.send(currentRooms)
+            print("✅ MockRoomRepository: Комната '\(room.name)' обновлена")
+        }
         return Just(()).setFailureType(to: Error.self).eraseToAnyPublisher()
     }
     
     func deleteRoom(id: String) -> AnyPublisher<Void, Error> {
+        // ✅ ИСПРАВЛЕНО: Удаляем комнату из памяти
+        var currentRooms = roomsSubject.value
+        currentRooms.removeAll { $0.id == id }
+        roomsSubject.send(currentRooms)
+        print("✅ MockRoomRepository: Комната удалена. Осталось комнат: \(currentRooms.count)")
         return Just(()).setFailureType(to: Error.self).eraseToAnyPublisher()
     }
     

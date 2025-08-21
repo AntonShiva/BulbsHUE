@@ -36,6 +36,13 @@ struct BulbsHUEApp: App {
         let appVM = AppViewModel(dataPersistenceService: dataService)
         self._appViewModel = StateObject(wrappedValue: appVM)
         
+        // ✅ НАСТРОЙКА РЕАЛЬНОГО LIGHT REPOSITORY
+        // Конфигурируем DIContainer с реальными зависимостями
+        DIContainer.shared.configureLightRepository(
+            appViewModel: appVM,
+            dataPersistenceService: dataService
+        )
+        
         let appStore = AppStore()
         self._store = StateObject(wrappedValue: appStore)
         self._migrationAdapter = StateObject(wrappedValue: MigrationAdapter(store: appStore, appViewModel: appVM))

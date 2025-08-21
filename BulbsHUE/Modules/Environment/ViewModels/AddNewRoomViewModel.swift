@@ -15,11 +15,14 @@ final class AddNewRoomViewModel: ObservableObject {
     
     // MARK: - Published Properties (UI State)
     
-    /// Текущий шаг в процессе создания комнаты (0 - выбор категории, 1 - выбор ламп)
+    /// Текущий шаг в процессе создания комнаты (0 - выбор категории, 1 - выбор ламп, 2 - ввод названия)
     @Published var currentStep: Int = 0
     
     /// Множество ID выбранных ламп
     @Published var selectedLights: Set<String> = []
+    
+    /// Пользовательское название комнаты
+    @Published var customRoomName: String = ""
     
     /// Индикатор загрузки для создания комнаты
     @Published var isCreatingRoom: Bool = false
@@ -98,6 +101,9 @@ final class AddNewRoomViewModel: ObservableObject {
         case 1:
             // На втором шаге кнопка активна только если выбраны лампы
             return !selectedLights.isEmpty
+        case 2:
+            // На третьем шаге кнопка активна только если введено название комнаты
+            return !customRoomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         default:
             return false
         }
@@ -105,44 +111,59 @@ final class AddNewRoomViewModel: ObservableObject {
     
     /// Текст для кнопки в зависимости от текущего шага
     var continueButtonText: String {
-        return currentStep == 0 ? "continue" : "create room"
+        switch currentStep {
+        case 0:
+            return "continue"
+        case 1:
+            return "continue"
+        case 2:
+            return "create"
+        default:
+            return "continue"
+        }
     }
     
     /// Список доступных ламп, преобразованных в LightEntity
+    /// ✅ ТОЛЬКО ПОДКЛЮЧЕННЫЕ К ЭЛЕКТРОСЕТИ (isReachable = true)
     var availableLights: [LightEntity] {
         guard let lightsProvider = lightsProvider else { return [] }
         
-        return lightsProvider.lights.compactMap { light in
-            // ✅ ПРАВИЛЬНАЯ ЛОГИКА: используем пользовательские подтипы, НЕ архетипы API
-            // Если лампа имеет пользовательский подтип - используем его
-            let lightType: LightType
-            let lightSubtype: LightSubtype?
-            
-            if let userSubtypeName = light.metadata.userSubtypeName {
-                // Лампа уже настроена пользователем - используем его выбор
-                lightSubtype = LightSubtype.allCases.first { $0.displayName.uppercased() == userSubtypeName.uppercased() }
-                lightType = lightSubtype?.parentType ?? .other
-            } else {
-                // Лампа еще не настроена - используем общий тип "other" до настройки
-                lightType = .other
-                lightSubtype = nil
+        return lightsProvider.lights
+            .filter { light in
+                // 🔌 ФИЛЬТР: Показываем только лампы, подключенные к электросети
+                return light.isReachable
             }
-            
-            return LightEntity(
-                id: light.id,
-                name: light.metadata.name,
-                type: lightType,
-                subtype: lightSubtype,
-                isOn: light.on.on,
-                brightness: Double(light.dimming?.brightness ?? 0),
-                color: light.color?.xy.map { LightColor(x: $0.x, y: $0.y) },
-                colorTemperature: light.color_temperature?.mirek,
-                isReachable: light.isReachable, // Используем правильный метод проверки доступности
-                roomId: nil, // Лампы доступны для назначения в комнату
-                userSubtype: light.metadata.userSubtypeName,
-                userIcon: light.metadata.userSubtypeIcon
-            )
-        }
+            .compactMap { light in
+                // ✅ ПРАВИЛЬНАЯ ЛОГИКА: используем пользовательские подтипы, НЕ архетипы API
+                // Если лампа имеет пользовательский подтип - используем его
+                let lightType: LightType
+                let lightSubtype: LightSubtype?
+                
+                if let userSubtypeName = light.metadata.userSubtypeName {
+                    // Лампа уже настроена пользователем - используем его выбор
+                    lightSubtype = LightSubtype.allCases.first { $0.displayName.uppercased() == userSubtypeName.uppercased() }
+                    lightType = lightSubtype?.parentType ?? .other
+                } else {
+                    // Лампа еще не настроена - используем общий тип "other" до настройки
+                    lightType = .other
+                    lightSubtype = nil
+                }
+                
+                return LightEntity(
+                    id: light.id,
+                    name: light.metadata.name,
+                    type: lightType,
+                    subtype: lightSubtype,
+                    isOn: light.on.on,
+                    brightness: Double(light.dimming?.brightness ?? 0),
+                    color: light.color?.xy.map { LightColor(x: $0.x, y: $0.y) },
+                    colorTemperature: light.color_temperature?.mirek,
+                    isReachable: true, // Все лампы в этом списке подключены (из-за фильтра выше)
+                    roomId: nil, // Лампы доступны для назначения в комнату
+                    userSubtype: light.metadata.userSubtypeName,
+                    userIcon: light.metadata.userSubtypeIcon
+                )
+            }
     }
     
     // MARK: - Public Actions (View Event Handlers)
@@ -154,6 +175,9 @@ final class AddNewRoomViewModel: ObservableObject {
             // Переход к выбору ламп
             proceedToLightSelection()
         case 1:
+            // Переход к вводу названия комнаты
+            proceedToNameInput()
+        case 2:
             // Создание комнаты
             Task {
                 await createRoom()
@@ -214,6 +238,23 @@ final class AddNewRoomViewModel: ObservableObject {
         }
     }
     
+    /// Переход к шагу ввода названия комнаты
+    private func proceedToNameInput() {
+        guard !selectedLights.isEmpty else {
+            print("❌ Попытка перехода без выбранных ламп")
+            return
+        }
+        
+        // Устанавливаем название по умолчанию из выбранного подтипа
+        if let selectedSubtype = categoryManager.getSelectedSubtype() {
+            customRoomName = selectedSubtype.name
+        }
+        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            currentStep = 2
+        }
+    }
+    
     /// Создание комнаты с выбранными лампами
     private func createRoom() async {
         guard let selectedSubtype = categoryManager.getSelectedSubtype(),
@@ -238,9 +279,17 @@ final class AddNewRoomViewModel: ObservableObject {
             print("   Лампы: \(selectedLightEntities.map { $0.name })")
             
             // ✅ РЕАЛЬНАЯ ЛОГИКА: Создаем комнату через Use Case
+            let finalRoomName = customRoomName.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Если пользователь не ввел название - используем название подтипа
+            let roomName = finalRoomName.isEmpty ? selectedSubtype.name : finalRoomName
+            
+            print("📝 Используем название комнаты: '\(roomName)' (пользовательское: '\(finalRoomName)', подтип: '\(selectedSubtype.name)')")
+            
             let roomEntity = try await roomCreationService.createRoomWithLights(
-                name: selectedSubtype.name,
+                name: roomName,
                 type: selectedSubtype.roomType,
+                iconName: selectedSubtype.iconName, // ✅ Передаем иконку подтипа
                 lightIds: selectedLightIds
             )
             
@@ -270,6 +319,7 @@ final class AddNewRoomViewModel: ObservableObject {
     private func resetState() {
         currentStep = 0
         selectedLights.removeAll()
+        customRoomName = ""
         categoryManager.clearSelection()
         isCreatingRoom = false
     }
@@ -291,7 +341,7 @@ protocol NavigationManaging: AnyObject {
 
 /// Протокол для сервиса создания комнат (Dependency Inversion Principle)
 protocol RoomCreationServicing {
-    func createRoomWithLights(name: String, type: RoomSubType, lightIds: [String]) async throws -> RoomEntity
+    func createRoomWithLights(name: String, type: RoomSubType, iconName: String, lightIds: [String]) async throws -> RoomEntity
 }
 
 // MARK: - Extensions для соответствия протоколам
@@ -318,10 +368,11 @@ class DIRoomCreationService: RoomCreationServicing {
         self.createRoomWithLightsUseCase = createRoomWithLightsUseCase
     }
     
-    func createRoomWithLights(name: String, type: RoomSubType, lightIds: [String]) async throws -> RoomEntity {
+    func createRoomWithLights(name: String, type: RoomSubType, iconName: String, lightIds: [String]) async throws -> RoomEntity {
         let input = CreateRoomWithLightsUseCase.Input(
             roomName: name,
             roomType: type,
+            iconName: iconName,
             lightIds: lightIds
         )
         

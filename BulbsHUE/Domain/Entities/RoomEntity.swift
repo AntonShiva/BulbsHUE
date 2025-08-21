@@ -13,6 +13,7 @@ struct RoomEntity: Equatable, Identifiable {
     let id: String
     let name: String
     let type: RoomSubType
+    let iconName: String // ✅ Иконка подтипа, выбранная пользователем
     let lightIds: [String]
     let isActive: Bool
     let createdAt: Date
