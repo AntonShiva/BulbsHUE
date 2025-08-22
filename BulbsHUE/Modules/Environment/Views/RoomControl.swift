@@ -45,9 +45,9 @@ struct RoomControl: View {
                     baseColor: roomControlViewModel.defaultWarmColor,
                     bulbName: room.name,
                     bulbType: roomControlViewModel.getRoomType(),
-                    roomName: "\(roomControlViewModel.getLightCount()) lights",
+                    roomName: "\(roomControlViewModel.getLightCount())",
                     bulbIcon: roomControlViewModel.getRoomIcon(),
-                    roomIcon: "",
+                    roomIcon: "bulb",
                     onToggle: { newState in
                         // Переключаем все лампы в комнате
                         roomControlViewModel.setPower(newState)
