@@ -7,62 +7,90 @@
 
 import SwiftUI
 
+/// Меню настроек для комнаты (обновленная версия, использующая универсальные компоненты)
+/// Использует UniversalMenuView для единообразного интерфейса с меню ламп
 struct MenuItemRooms: View {
     let roomName: String
-    /// Тип лампы (пользовательский подтип)
+    /// Тип комнаты (пользовательский подтип)
     let roomType: String
-   /// Иконка лампы
-    let icon: String
+    /// Количество подключенных ламп в комнате
+    let bulbCount: Int
     /// Базовый цвет для фона компонента
     let baseColor: Color
+    
+    /// Инициализатор для создания меню комнаты
+    /// - Parameters:
+    ///   - roomName: Название комнаты
+    ///   - roomType: Тип комнаты
+    ///   - bulbCount: Количество ламп в комнате
+    ///   - baseColor: Базовый цвет для интерфейса
+    init(roomName: String, 
+         roomType: String, 
+         bulbCount: Int, 
+         baseColor: Color = .cyan) {
+        self.roomName = roomName
+        self.roomType = roomType
+        self.bulbCount = bulbCount
+        self.baseColor = baseColor
+    }
+    
     var body: some View {
-        ZStack{
-            BGItem(baseColor: baseColor)
-                .adaptiveFrame(width: 278, height: 140)
-            
-            Image(icon)
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(baseColor.preferredForeground)
-                .adaptiveFrame(width: 32, height: 32)
-                .adaptiveOffset(y: -42)
-            
-            Text(roomName)
-                .font(Font.custom("DMSans-Medium", size: 20))
-                .kerning(4.2)
-                .foregroundColor(baseColor.preferredForeground)
-                .textCase(.uppercase)
-                .lineLimit(1)
-                .adaptiveOffset(y: -5)
-            
-            Text(roomType)
-                .font(Font.custom("DMSans-Light", size: 14))
-                .kerning(2.8)
-                .foregroundColor(baseColor.preferredForeground.opacity(0.9))
-                .textCase(.uppercase)
-                .lineLimit(1)
-                .adaptiveOffset(y: 17)
-            
-            // Разделительная линия
-            Rectangle()
-                .fill(baseColor.preferredForeground)
-                .adaptiveFrame(width: 212, height: 2)
-                .opacity(0.2)
-                .adaptiveOffset(y: 30)
-            
-            Text("5 bulbs")
-                .font(Font.custom("DMSans-Light", size: 15))
-                .kerning(3)
-                .foregroundColor(baseColor.preferredForeground.opacity(0.9))
-                .textCase(.uppercase)
-                .lineLimit(1)
-                .adaptiveOffset(y: 48.5)
-        }
-        .adaptiveOffset(y: -173)
+        // Используем универсальное меню с конфигурацией для комнаты
+        UniversalMenuView(
+            itemData: .room(
+                title: roomName,
+                subtitle: roomType,
+                bulbCount: bulbCount,
+                baseColor: baseColor
+            ),
+            menuConfig: .forRoom(
+                onChangeType: {
+                    print("🏠 Change room type pressed")
+                    // TODO: Реализовать смену типа комнаты
+                },
+                onRename: { newName in
+                    print("✏️ Rename room to: \(newName)")
+                    // TODO: Реализовать переименование комнаты
+                },
+                onReorganize: {
+                    print("📋 Reorganize room pressed")
+                    // TODO: Реализовать реорганизацию комнаты (перенос ламп)
+                },
+                onDelete: {
+                    print("🗑️ Delete room pressed")
+                    // TODO: Реализовать удаление комнаты
+                }
+            )
+        )
     }
 }
 
-#Preview {
-    MenuItemRooms(roomName: "Room name", roomType: "Тип", icon: "bulb", baseColor: .cyan)
+#Preview("Room with 5 bulbs") {
+    MenuItemRooms(
+        roomName: "LIVING ROOM", 
+        roomType: "RECREATION", 
+        bulbCount: 5, 
+        baseColor: .cyan
+    )
+    .environmentObject(NavigationManager.shared)
+}
+
+#Preview("Room with 2 bulbs") {
+    MenuItemRooms(
+        roomName: "BEDROOM", 
+        roomType: "PERSONAL", 
+        bulbCount: 2, 
+        baseColor: .orange
+    )
+    .environmentObject(NavigationManager.shared)
+}
+
+#Preview("Empty room") {
+    MenuItemRooms(
+        roomName: "KITCHEN", 
+        roomType: "PRACTICAL", 
+        bulbCount: 0, 
+        baseColor: .green
+    )
+    .environmentObject(NavigationManager.shared)
 }
