@@ -48,6 +48,11 @@ struct MenuItemRooms: View {
                     print("🏠 Change room type pressed")
                     // TODO: Реализовать смену типа комнаты
                 },
+                onTypeChanged: { typeName, iconName in
+                    print("✅ Room type changed to: \(typeName), icon: \(iconName)")
+                    // TODO: Сохранить новый тип комнаты в модель данных
+                    // Здесь нужно обновить данные комнаты с новым типом
+                },
                 onRename: { newName in
                     print("✏️ Rename room to: \(newName)")
                     // TODO: Реализовать переименование комнаты

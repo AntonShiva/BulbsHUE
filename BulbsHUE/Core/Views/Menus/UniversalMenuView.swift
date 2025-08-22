@@ -14,6 +14,8 @@ struct UniversalMenuView: View {
     
     /// Состояние для управления переходом к экрану переименования
     @State private var showRenameView: Bool = false
+    /// Состояние для отображения экрана выбора типа
+    @State private var showTypeSelection: Bool = false
     /// Состояние для хранения нового имени
     @State private var newName: String = ""
     
@@ -43,8 +45,11 @@ struct UniversalMenuView: View {
             // Карточка элемента
             createItemCard()
             
-            // Основное меню или экран переименования
-            if !showRenameView {
+            // Основное меню, экран переименования или выбор типа
+            if showTypeSelection {
+                createTypeSelectionView()
+                    .adaptiveOffset(y: -70)
+            } else if !showRenameView {
                 createMainMenu()
             } else {
                 createRenameView()
@@ -85,12 +90,16 @@ struct UniversalMenuView: View {
     @ViewBuilder
     private func createMainMenu() -> some View {
         VStack(spacing: 9.5) {
-            // Кнопка "Change type" или "Change type" для комнат
-            if let changeTypeAction = menuConfig.changeTypeAction {
+            // Кнопка "Change type" для ламп и комнат
+            if menuConfig.changeTypeAction != nil {
                 createMenuButton(
                     icon: menuConfig.changeTypeIcon ?? "bulb",
                     title: "Change type",
-                    action: changeTypeAction
+                    action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showTypeSelection = true
+                        }
+                    }
                 )
                 
                 createSeparator()
@@ -177,6 +186,45 @@ struct UniversalMenuView: View {
         .textCase(.uppercase)
     }
     
+    /// Создает экран выбора типа
+    @ViewBuilder
+    private func createTypeSelectionView() -> some View {
+        ZStack {
+            switch itemData {
+            case .bulb:
+                BulbTypeSelectionSheet(
+                    onSave: { typeName, iconName in
+                        print("🔄 Saving bulb type: \(typeName), icon: \(iconName)")
+                        menuConfig.onTypeChanged?(typeName, iconName)
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showTypeSelection = false
+                        }
+                    },
+                    onCancel: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showTypeSelection = false
+                        }
+                    }
+                )
+            case .room:
+                RoomTypeSelectionSheet(
+                    onSave: { typeName, iconName in
+                        print("🏠 Saving room type: \(typeName), icon: \(iconName)")
+                        menuConfig.onTypeChanged?(typeName, iconName)
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showTypeSelection = false
+                        }
+                    },
+                    onCancel: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showTypeSelection = false
+                        }
+                    }
+                )
+            }
+        }
+    }
+    
     /// Создает кнопку меню
     @ViewBuilder
     private func createMenuButton(icon: String, title: String, action: @escaping () -> Void) -> some View {
@@ -244,6 +292,8 @@ struct MenuConfiguration {
     
     /// Действие при нажатии "Change type"
     let changeTypeAction: (() -> Void)?
+    /// Действие при смене типа (имя, иконка)
+    let onTypeChanged: ((String, String) -> Void)?
     /// Действие при переименовании
     let renameAction: ((String) -> Void)?
     /// Действие при нажатии "Reorganize"
@@ -255,6 +305,7 @@ struct MenuConfiguration {
     static func forBulb(
         icon: String,
         onChangeType: (() -> Void)? = nil,
+        onTypeChanged: ((String, String) -> Void)? = nil,
         onRename: ((String) -> Void)? = nil,
         onReorganize: (() -> Void)? = nil,
         onDelete: @escaping () -> Void
@@ -264,6 +315,7 @@ struct MenuConfiguration {
             deleteTitle: "Delete Bulb",
             changeTypeIcon: icon,
             changeTypeAction: onChangeType,
+            onTypeChanged: onTypeChanged,
             renameAction: onRename,
             reorganizeAction: onReorganize,
             deleteAction: onDelete
@@ -273,6 +325,7 @@ struct MenuConfiguration {
     /// Конфигурация для комнаты
     static func forRoom(
         onChangeType: (() -> Void)? = nil,
+        onTypeChanged: ((String, String) -> Void)? = nil,
         onRename: ((String) -> Void)? = nil,
         onReorganize: (() -> Void)? = nil,
         onDelete: @escaping () -> Void
@@ -282,6 +335,7 @@ struct MenuConfiguration {
             deleteTitle: "Delete Room",
             changeTypeIcon: "o1", // Иконка комнаты
             changeTypeAction: onChangeType,
+            onTypeChanged: onTypeChanged,
             renameAction: onRename,
             reorganizeAction: onReorganize,
             deleteAction: onDelete

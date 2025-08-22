@@ -53,6 +53,9 @@ class NavigationManager: ObservableObject {
     // Выбранная лампа для показа MenuView
     @Published var selectedLightForMenu: Light? = nil
     
+    // Выбранная комната для показа MenuView
+    @Published var selectedRoomForMenu: RoomEntity? = nil
+    
     // Тип поиска ламп
     @Published var searchType: SearchType = .network
     
@@ -111,6 +114,7 @@ class NavigationManager: ObservableObject {
             // Сбрасываем состояния
             resetAddBulbState()
             selectedLightForMenu = nil
+            selectedRoomForMenu = nil
             
             // Обновляем видимость TabBar
             togleTabBarVisible()
@@ -164,6 +168,16 @@ class NavigationManager: ObservableObject {
     func showMenuView(for light: Light) {
         withAnimation(.easeInOut(duration: 0.15)) {
             selectedLightForMenu = light
+            selectedRoomForMenu = nil // Сбрасываем выбор комнаты
+            currentRoute = .menuView
+            togleTabBarVisible() // Обновляем видимость TabBar
+        }
+    }
+    
+    func showMenuView(for room: RoomEntity) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            selectedRoomForMenu = room
+            selectedLightForMenu = nil // Сбрасываем выбор лампы
             currentRoute = .menuView
             togleTabBarVisible() // Обновляем видимость TabBar
         }
@@ -172,6 +186,7 @@ class NavigationManager: ObservableObject {
     func hideMenuView() {
         withAnimation(.easeInOut(duration: 0.15)) {
             selectedLightForMenu = nil
+            selectedRoomForMenu = nil
             currentRoute = .environment
             togleTabBarVisible() // Обновляем видимость TabBar
         }

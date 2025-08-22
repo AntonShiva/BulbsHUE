@@ -53,8 +53,8 @@ struct RoomControl: View {
                         roomControlViewModel.setPower(newState)
                     },
                     onMenuTap: {
-                        // TODO: Показать меню комнаты
-                        print("🏠 Меню комнаты \(room.name)")
+                        // Показываем MenuView для этой комнаты
+                        nav.showMenuView(for: room)
                     }
                 )
                 

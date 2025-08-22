@@ -28,15 +28,22 @@ struct MainContainer: View {
                 // Этот экран также управляется состоянием в AddNewBulb
                 AddNewBulb()
             case .menuView:
-                // Показываем MenuView с выбранной лампой
+                // Показываем MenuView с выбранной лампой или комнатой
                 if let selectedLight = nav.selectedLightForMenu {
                     MenuView(
                         bulbName: selectedLight.metadata.name,
                         bulbIcon: getBulbIcon(for: selectedLight),
                         bulbType: getBulbType(for: selectedLight)
                     )
+                } else if let selectedRoom = nav.selectedRoomForMenu {
+                    MenuItemRooms(
+                        roomName: selectedRoom.name,
+                        roomType: getRoomType(for: selectedRoom),
+                        bulbCount: getRoomLightCount(for: selectedRoom),
+                        baseColor: getRoomColor(for: selectedRoom)
+                    )
                 } else {
-                    // Fallback если лампа не выбрана
+                    // Fallback если ничего не выбрано
                     EnvironmentView()
                 }
             case .development:
@@ -59,5 +66,22 @@ struct MainContainer: View {
     private func getBulbType(for light: Light) -> String {
         // Возвращаем тип из пользовательских настроек или дефолтный
         return light.metadata.userSubtypeName ?? light.metadata.archetype ?? "Smart Light"
+    }
+    
+    // MARK: - Room Helper Methods
+    
+    private func getRoomType(for room: RoomEntity) -> String {
+        // Возвращаем тип комнаты из модели данных
+        return room.type.displayName
+    }
+    
+    private func getRoomLightCount(for room: RoomEntity) -> Int {
+        // Получаем количество ламп в комнате
+        return room.lightCount
+    }
+    
+    private func getRoomColor(for room: RoomEntity) -> Color {
+        // TODO: Получить цвет комнаты из настроек
+        return .cyan
     }
 }

@@ -50,6 +50,11 @@ struct MenuView: View {
                     print("🔄 Change bulb type pressed")
                     // TODO: Реализовать смену типа лампы
                 },
+                onTypeChanged: { typeName, iconName in
+                    print("✅ Bulb type changed to: \(typeName), icon: \(iconName)")
+                    // TODO: Сохранить новый тип лампы в модель данных
+                    // Здесь нужно обновить selectedLightForMenu с новым типом
+                },
                 onRename: { newName in
                     print("✏️ Rename bulb to: \(newName)")
                     // TODO: Реализовать переименование лампы
