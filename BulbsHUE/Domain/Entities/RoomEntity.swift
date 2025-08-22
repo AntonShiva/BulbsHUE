@@ -13,6 +13,7 @@ struct RoomEntity: Equatable, Identifiable {
     let id: String
     let name: String
     let type: RoomSubType
+    let subtypeName: String // ✅ Оригинальное название подтипа (например, "BACKYARD")
     let iconName: String // ✅ Иконка подтипа, выбранная пользователем
     let lightIds: [String]
     let isActive: Bool
@@ -43,6 +44,7 @@ enum RoomSubType: String, CaseIterable {
     
     // Outdoor areas
     case garden = "GARDEN"
+    case backyard = "BACKYARD"
     case patio = "PATIO"
     case balcony = "BALCONY"
     case driveway = "DRIVEWAY"
@@ -77,6 +79,7 @@ enum RoomSubType: String, CaseIterable {
         
         // Outdoor
         case .garden: return "Garden"
+        case .backyard: return "Backyard"
         case .patio: return "Patio"
         case .balcony: return "Balcony"
         case .driveway: return "Driveway"
@@ -104,7 +107,7 @@ enum RoomSubType: String, CaseIterable {
         switch self {
         case .livingRoom, .bedroom, .kitchen, .diningRoom, .bathroom, .hallway, .office:
             return .traditional
-        case .garden, .patio, .balcony, .driveway, .entrance:
+        case .garden, .backyard, .patio, .balcony, .driveway, .entrance:
             return .outdoor
         case .garage, .basement, .laundryRoom, .storage, .workshop, .pantry:
             return .practical

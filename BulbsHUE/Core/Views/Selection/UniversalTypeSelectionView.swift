@@ -157,6 +157,8 @@ protocol TypeSelectionConfig {
     func getSelectedTypeData() -> (String, String)?
     /// Создает список типов для выбора
     func createTypeList() -> AnyView
+    /// Сбрасывает выбор
+    func clearSelection()
 }
 
 
@@ -175,21 +177,34 @@ struct BulbTypeSelectionSheet: View {
             onSave: onSave,
             onCancel: onCancel
         )
+        .onAppear {
+            // Сбрасываем выбор при каждом открытии
+            typeManager.clearSelection()
+        }
     }
 }
 
 /// Специализированный экран выбора типов комнат
 struct RoomTypeSelectionSheet: View {
     @StateObject private var categoryManager = RoomCategoryManager()
-    let onSave: (String, String) -> Void
+    let onSave: (String, String, RoomSubType) -> Void
     let onCancel: () -> Void
     
     var body: some View {
         UniversalTypeSelectionView(
             config: RoomTypeConfig(categoryManager: categoryManager),
-            onSave: onSave,
+            onSave: { typeName, iconName in
+                // Получаем выбранный подтип с RoomSubType
+                if let selectedSubtype = categoryManager.getSelectedSubtype() {
+                    onSave(typeName, iconName, selectedSubtype.roomType)
+                }
+            },
             onCancel: onCancel
         )
+        .onAppear {
+            // Сбрасываем выбор при каждом открытии
+            categoryManager.clearSelection()
+        }
     }
 }
 
@@ -231,6 +246,10 @@ struct BulbTypeConfig: TypeSelectionConfig {
             }
         )
     }
+    
+    func clearSelection() {
+        typeManager.clearSelection()
+    }
 }
 
 struct RoomTypeConfig: TypeSelectionConfig {
@@ -269,6 +288,10 @@ struct RoomTypeConfig: TypeSelectionConfig {
             }
         )
     }
+    
+    func clearSelection() {
+        categoryManager.clearSelection()
+    }
 }
 
 #Preview("Bulb Type Selection") {
@@ -285,8 +308,8 @@ struct RoomTypeConfig: TypeSelectionConfig {
 
 #Preview("Room Type Selection") {
     RoomTypeSelectionSheet(
-        onSave: { name, icon in
-            print("Save room type: \(name), icon: \(icon)")
+        onSave: { name, icon, roomType in
+            print("Save room type: \(name), icon: \(icon), type: \(roomType)")
         },
         onCancel: {
             print("Cancel room type selection")

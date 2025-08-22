@@ -288,6 +288,7 @@ extension UniversalItemControl {
         id: "room_mock_01",
         name: "Living Room",
         type: .livingRoom,
+        subtypeName: "LIVING ROOM",
         iconName: "tr1", // ✅ Добавляем иконку
         lightIds: ["light1", "light2", "light3"],
         isActive: true,
@@ -339,6 +340,7 @@ extension UniversalItemControl {
                 id: "room1",
                 name: "Kitchen",
                 type: .kitchen,
+                subtypeName: "KITCHEN",
                 iconName: "tr2", // ✅ Добавляем иконку
                 lightIds: ["light1", "light2"],
                 isActive: true,

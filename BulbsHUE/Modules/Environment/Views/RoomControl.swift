@@ -43,8 +43,8 @@ struct RoomControl: View {
                 ControlView(
                     isOn: $roomControlViewModel.isOn,
                     baseColor: roomControlViewModel.defaultWarmColor,
-                    bulbName: room.name,
-                    bulbType: roomControlViewModel.getRoomType(),
+                    bulbName: roomControlViewModel.getRoomSubtype(), // ✅ Показываем подтип (BEDROOM)
+                    bulbType: roomControlViewModel.getRoomType(), // ✅ Показываем тип (TRADITIONAL)
                     roomName: "\(roomControlViewModel.getLightCount())",
                     bulbIcon: roomControlViewModel.getRoomIcon(),
                     roomIcon: "bulb",
@@ -109,6 +109,7 @@ struct RoomControl: View {
         id: "room_mock_01",
         name: "Living Room",
         type: .livingRoom,
+        subtypeName: "LIVING ROOM",
         iconName: "tr1",
         lightIds: ["light1", "light2", "light3"],
         isActive: true,

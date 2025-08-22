@@ -208,8 +208,31 @@ struct UniversalMenuView: View {
                 )
             case .room:
                 RoomTypeSelectionSheet(
-                    onSave: { typeName, iconName in
-                        print("🏠 Saving room type: \(typeName), icon: \(iconName)")
+                    onSave: { typeName, iconName, roomSubType in
+                        print("🏠 Saving room type: \(typeName), icon: \(iconName), type: \(roomSubType)")
+                        
+                        // Обновляем selectedRoomForMenu с новыми данными
+                        if let currentRoom = nav.selectedRoomForMenu {
+                            
+                            let updatedRoom = RoomEntity(
+                                id: currentRoom.id,
+                                name: currentRoom.name,
+                                type: roomSubType,
+                                subtypeName: typeName, // ✅ Сохраняем оригинальное название
+                                iconName: iconName,
+                                lightIds: currentRoom.lightIds,
+                                isActive: currentRoom.isActive,
+                                createdAt: currentRoom.createdAt,
+                                updatedAt: Date()
+                            )
+                            
+                            // Обновляем NavigationManager с новыми данными
+                            nav.selectedRoomForMenu = updatedRoom
+                            
+                            // TODO: Здесь должно быть реальное сохранение через репозиторий
+                            // DIContainer.shared.roomRepository.updateRoom(updatedRoom)
+                        }
+                        
                         menuConfig.onTypeChanged?(typeName, iconName)
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showTypeSelection = false

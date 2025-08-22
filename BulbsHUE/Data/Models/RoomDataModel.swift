@@ -24,6 +24,9 @@ final class RoomDataModel {
     /// Тип комнаты (например: LIVING_ROOM, BEDROOM, KITCHEN)
     var roomType: String
     
+    /// Оригинальное название подтипа (например: "BACKYARD", "KITCHEN")
+    var subtypeName: String?
+    
     /// Иконка комнаты, выбранная пользователем (например: "re1", "tr2", "pr3")
     var iconName: String
     
@@ -55,6 +58,7 @@ final class RoomDataModel {
         roomId: String,
         name: String,
         roomType: String,
+        subtypeName: String? = nil,
         iconName: String,
         lightIds: [String] = [],
         isActive: Bool = true,
@@ -64,6 +68,7 @@ final class RoomDataModel {
         self.roomId = roomId
         self.name = name
         self.roomType = roomType
+        self.subtypeName = subtypeName
         self.iconName = iconName
         self.lightIds = lightIds
         self.isActive = isActive
@@ -84,6 +89,7 @@ extension RoomDataModel {
             roomId: roomEntity.id,
             name: roomEntity.name,
             roomType: roomEntity.type.rawValue,
+            subtypeName: roomEntity.subtypeName,
             iconName: roomEntity.iconName,
             lightIds: roomEntity.lightIds,
             isActive: roomEntity.isActive,
@@ -102,6 +108,7 @@ extension RoomDataModel {
             id: roomId,
             name: name,
             type: roomSubType,
+            subtypeName: subtypeName ?? roomSubType.displayName, // Используем сохраненное название или fallback
             iconName: iconName,
             lightIds: lightIds,
             isActive: isActive,
@@ -115,6 +122,7 @@ extension RoomDataModel {
     func updateFromRoomEntity(_ roomEntity: RoomEntity) {
         self.name = roomEntity.name
         self.roomType = roomEntity.type.rawValue
+        self.subtypeName = roomEntity.subtypeName
         self.iconName = roomEntity.iconName
         self.lightIds = roomEntity.lightIds
         self.isActive = roomEntity.isActive

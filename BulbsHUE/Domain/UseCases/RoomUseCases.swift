@@ -33,6 +33,7 @@ struct CreateRoomUseCase: UseCase {
             id: UUID().uuidString,
             name: input.name,
             type: input.type,
+            subtypeName: input.type.displayName, // TODO: Передавать оригинальное название
             iconName: input.iconName,
             lightIds: [],
             isActive: true,
@@ -103,6 +104,7 @@ struct CreateRoomWithLightsUseCase: UseCase {
                     id: UUID().uuidString,
                     name: input.roomName,
                     type: input.roomType,
+                    subtypeName: input.roomType.displayName, // TODO: Передавать оригинальное название
                     iconName: input.iconName, // ✅ Сохраняем иконку
                     lightIds: input.lightIds,
                     isActive: true,

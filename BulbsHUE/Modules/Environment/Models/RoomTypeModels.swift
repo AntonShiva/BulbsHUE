@@ -189,7 +189,7 @@ class RoomCategoryManager: ObservableObject {
         case "STUDIO": return .artStudio
         
         // Outside
-        case "BACKYARD": return .garden // Используем .garden для заднего двора
+        case "BACKYARD": return .backyard // ✅ Используем новый .backyard
         case "PATIO": return .patio
         case "BALCONY": return .balcony
         case "DRIVEWAY": return .driveway

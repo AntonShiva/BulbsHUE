@@ -260,9 +260,14 @@ final class RoomControlViewModel: ObservableObject {
         return currentRoom?.name ?? "Unknown Room"
     }
     
-    /// Получить тип комнаты
+    /// Получить тип комнаты (родительская категория)
     func getRoomType() -> String {
-        return currentRoom?.type.displayName ?? "Room"
+        return currentRoom?.type.parentEnvironmentType.displayName.uppercased() ?? "ROOM"
+    }
+    
+    /// Получить подтип комнаты (конкретное название)
+    func getRoomSubtype() -> String {
+        return currentRoom?.subtypeName ?? currentRoom?.type.displayName ?? "Room"
     }
     
     /// Получить иконку комнаты

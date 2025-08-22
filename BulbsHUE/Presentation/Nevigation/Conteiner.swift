@@ -71,8 +71,8 @@ struct MainContainer: View {
     // MARK: - Room Helper Methods
     
     private func getRoomType(for room: RoomEntity) -> String {
-        // Возвращаем тип комнаты из модели данных
-        return room.type.displayName
+        // Возвращаем тип комнаты (например, "TRADITIONAL", "OUTDOOR", "PRACTICAL")
+        return room.type.parentEnvironmentType.displayName.uppercased()
     }
     
     private func getRoomLightCount(for room: RoomEntity) -> Int {
