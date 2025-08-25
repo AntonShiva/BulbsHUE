@@ -276,8 +276,7 @@ struct UniversalMenuView: View {
         case .room(let title, let subtitle, let bulbCount, let baseColor):
             EditItemCardRoom(
                 roomTitle: title,
-               
-                bulbCount: bulbCount,
+               bulbCount: bulbCount,
                 baseColor: baseColor
             )
            

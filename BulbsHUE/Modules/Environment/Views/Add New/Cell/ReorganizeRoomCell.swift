@@ -19,7 +19,7 @@ struct ReorganizeRoomCell: View {
                 .opacity(0.1)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             
-            VStack(spacing: 0) {
+            VStack(spacing: 8) {
                 // Основная ячейка (неизменная часть)
                 ZStack {
                     HStack {
@@ -38,18 +38,18 @@ struct ReorganizeRoomCell: View {
                                     .kerning(3)
                                     .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    
+                                
                                 
                                 Text("room name")
-                                  .font(Font.custom("DM Sans", size: 12))
-                                  .kerning(2.4)
-                                  .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                                  .opacity(0.4)
-                                  .frame(maxWidth: .infinity, alignment: .leading)
+                                    .font(Font.custom("DM Sans", size: 12))
+                                    .kerning(2.4)
+                                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                    .opacity(0.4)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .textCase(.uppercase)
                             .adaptiveOffset(x: 6)
-                       
+                            
                         }
                         .adaptivePadding(.trailing, 10)
                         
@@ -82,14 +82,50 @@ struct ReorganizeRoomCell: View {
                             .buttonStyle(.plain)
                         }
                         .adaptiveFrame(width: 30)
-
+                        
                         .adaptiveOffset(x: -50)
                         
                     }
-                   
+                    
                 }
                 .adaptiveFrame(width: 332, height: 64)
-    
+                if true{
+                // list of rooms
+                VStack{
+                    ZStack{
+                        Rectangle()
+                            .foregroundColor(.clear)
+                            .adaptiveFrame(width: 332, height: 264)
+                            .background(Color(red: 0.79, green: 1, blue: 1).opacity(0.1))
+                            .cornerRadius(15)
+                            .blur(radius: 2)
+                        VStack(spacing: 15){
+                            HStack{
+                                Image("ReorganizeRoom")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .adaptiveFrame(width: 22, height: 22)
+                                    .adaptivePadding(.trailing, 8)
+                                
+                                Text("move bulb to")
+                                    .font( Font.custom("DMSans-Light", size: 16))
+                                    .kerning(2.72)
+                                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                    .textCase(.uppercase)
+                            }
+                            
+                            
+                            // список комнат
+                            VStack{
+                                RoomManagementCell(iconName: "tr1", roomName: "Room name", roomType: "room type")
+                                RoomManagementCell(iconName: "tr1", roomName: "Room name", roomType: "room type")
+                                RoomManagementCell(iconName: "tr1", roomName: "Room name", roomType: "room type")
+                                
+                            }
+                        }
+                    }
+                }
+            }
             }
         }
     }
