@@ -54,25 +54,37 @@ struct ReorganizeRoomCell: View {
                         .adaptivePadding(.trailing, 10)
                         
                         HStack{
-                            Image("Delete")
-                                .resizable()
-                                .scaledToFit()
-                                .adaptiveFrame(width: 24, height: 24)
-                                .adaptiveFrame(width: 52)
+                            Button {
+                                
+                            } label: {
+                                Image("Delete")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .adaptiveFrame(width: 24, height: 24)
+                            }
+                            .adaptiveFrame(width: 52)
+                            .buttonStyle(.plain)
                             
                             Rectangle()
                                 .fill(Color(red: 0.79, green: 1, blue: 1))
                                 .adaptiveFrame(width: 1.5, height: 40)
                                 .opacity(0.2)
                             
-                            Image("ReorganizeRoom")
-                                .resizable()
-                                .scaledToFit()
-                                .adaptiveFrame(width: 22, height: 22)
-                                .adaptiveFrame(width: 52)
+                            Button {
+                                
+                            } label: {
+                                Image("ReorganizeRoom")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .adaptiveFrame(width: 22, height: 22)
+                                    .adaptiveFrame(width: 52)
+                            }
+                            .buttonStyle(.plain)
                         }
                         .adaptiveFrame(width: 30)
+
                         .adaptiveOffset(x: -50)
+                        
                     }
                    
                 }

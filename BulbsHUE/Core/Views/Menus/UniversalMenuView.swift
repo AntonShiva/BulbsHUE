@@ -16,6 +16,8 @@ struct UniversalMenuView: View {
     @State private var showRenameView: Bool = false
     /// Состояние для отображения экрана выбора типа
     @State private var showTypeSelection: Bool = false
+    /// Состояние для режима реорганизации (показ списка ламп для переноса)
+    @State private var showReorganizeMode: Bool = false
     /// Состояние для хранения нового имени
     @State private var newName: String = ""
     
@@ -36,17 +38,31 @@ struct UniversalMenuView: View {
             .fill(Color(red: 0.02, green: 0.09, blue: 0.13))
             .adaptiveFrame(width: 375, height: 678)
             
+            Text("room management")
+              .font(
+                Font.custom("DM Sans", size: 16))
+              .kerning(2.72)
+              .foregroundColor(.white)
+              .textCase(.uppercase)
+              .adaptiveOffset(y: -290)
             // Кнопка закрытия
             DismissButton {
                 nav.hideMenuView()
             }
-            .adaptiveOffset(x: 130, y: -290)
+            .adaptiveOffset(x: 140, y: -290)
             
-            // Карточка элемента
-            createItemCard()
-            
-            // Основное меню, экран переименования или выбор типа
-            if showTypeSelection {
+            // Карточка элемента или специальная карточка для режима реорганизации
+            if showReorganizeMode {
+                createReorganizeCard()
+                    .adaptiveOffset(y: -173)
+            } else {
+                createItemCard()
+            }
+        
+            // Основное меню, экран переименования, выбор типа или режим реорганизации
+            if showReorganizeMode {
+                createReorganizeView()
+            } else if showTypeSelection {
                 createTypeSelectionView()
                     .adaptiveOffset(y: -70)
             } else if !showRenameView {
@@ -123,7 +139,12 @@ struct UniversalMenuView: View {
                 createMenuButton(
                     icon: "Reorganize",
                     title: "Reorganize",
-                    action: reorganizeAction
+                    action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showReorganizeMode = true
+                        }
+                        reorganizeAction()
+                    }
                 )
                 
                 createSeparator()
@@ -246,6 +267,44 @@ struct UniversalMenuView: View {
                 )
             }
         }
+    }
+    
+    /// Создает карточку для режима реорганизации
+    @ViewBuilder
+    private func createReorganizeCard() -> some View {
+        switch itemData {
+        case .room(let title, let subtitle, let bulbCount, let baseColor):
+            EditItemCardRoom(
+                roomTitle: title,
+               
+                bulbCount: bulbCount,
+                baseColor: baseColor
+            )
+           
+        default:
+            // Для ламп используем обычную карточку
+            createItemCard()
+        }
+    }
+    
+    /// Создает вид режима реорганизации с списком ламп
+    @ViewBuilder
+    private func createReorganizeView() -> some View {
+        // Основное меню, экран переименования, выбор типа или режим реорганизации
+        VStack(spacing: 12) {
+         // Список ламп в комнате
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    // TODO: Здесь должны быть реальные лампы из комнаты
+                    // Пока показываем примеры для демонстрации UI
+                    ForEach(0..<3, id: \.self) { index in
+                        ReorganizeRoomCell()
+                    }
+                }
+               
+            }
+        }
+       .adaptiveOffset(y: 300)
     }
     
     /// Создает кнопку меню
@@ -399,9 +458,35 @@ struct MenuConfiguration {
         menuConfig: .forRoom(
             onChangeType: { print("Change room type") },
             onRename: { newName in print("Rename room to: \(newName)") },
-            onReorganize: { print("Reorganize room") },
+            onReorganize: { print("Reorganize room - switching to reorganize mode") },
             onDelete: { print("Delete room") }
         )
     )
     .environmentObject(NavigationManager.shared)
+}
+
+#Preview("Room Menu - Reorganize Mode") {
+    struct ReorganizeModePreview: View {
+        @State private var showReorganizeMode = true
+        
+        var body: some View {
+            UniversalMenuView(
+                itemData: .room(
+                    title: "LIVING ROOM",
+                    subtitle: "RECREATION",
+                    bulbCount: 3,
+                    baseColor: .purple
+                ),
+                menuConfig: .forRoom(
+                    onChangeType: { print("Change room type") },
+                    onRename: { newName in print("Rename room to: \(newName)") },
+                    onReorganize: { print("Reorganize room") },
+                    onDelete: { print("Delete room") }
+                )
+            )
+            .environmentObject(NavigationManager.shared)
+        }
+    }
+    
+    return ReorganizeModePreview()
 }

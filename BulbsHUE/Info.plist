@@ -8,7 +8,8 @@
 		<string>DMSans-Light.ttf</string>
 		<string>DMSans-Medium.ttf</string>
 		<string>DMSans-Bold.ttf</string>
-		<string>InstrumentSans-Medium.ttf</string>
+        <string>DMSans-SemiBold.ttf</string>
+       <string>InstrumentSans-Medium.ttf</string>
 	</array>
 	<key>UIRequiresPersistentWiFi</key>
 	<true/>
