@@ -83,6 +83,10 @@ final class DIContainer {
         return MoveLightBetweenRoomsUseCase(roomRepository: roomRepository, lightRepository: lightRepository)
     }()
     
+    private lazy var _removeLightFromRoomUseCase: RemoveLightFromRoomUseCase = {
+        return RemoveLightFromRoomUseCase(roomRepository: roomRepository)
+    }()
+    
     // MARK: - Services
     private lazy var _appStore: AppStore = {
         let middlewares: [Middleware] = [
@@ -118,6 +122,7 @@ final class DIContainer {
     var getRoomsUseCase: GetRoomsUseCase { _getRoomsUseCase }
     var deleteRoomUseCase: DeleteRoomUseCase { _deleteRoomUseCase }
     var moveLightBetweenRoomsUseCase: MoveLightBetweenRoomsUseCase { _moveLightBetweenRoomsUseCase }
+    var removeLightFromRoomUseCase: RemoveLightFromRoomUseCase { _removeLightFromRoomUseCase }
     
     // Services
     var appStore: AppStore { _appStore }
@@ -160,6 +165,7 @@ final class DIContainer {
         _getRoomsUseCase = GetRoomsUseCase(roomRepository: _roomRepository)
         _deleteRoomUseCase = DeleteRoomUseCase(roomRepository: _roomRepository)
         _moveLightBetweenRoomsUseCase = MoveLightBetweenRoomsUseCase(roomRepository: _roomRepository, lightRepository: lightRepository)
+        _removeLightFromRoomUseCase = RemoveLightFromRoomUseCase(roomRepository: _roomRepository)
     }
 }
 

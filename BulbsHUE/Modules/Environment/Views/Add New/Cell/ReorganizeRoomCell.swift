@@ -573,8 +573,55 @@ struct ReorganizeRoomCell: View {
     
     /// Удаляет лампу из текущей комнаты (оставляет в окружении)
     private func removeLightFromCurrentRoom() {
-        // TODO: Реализовать логику удаления из комнаты
-        print("🔄 Удаление лампы из комнаты: \(light?.metadata.name ?? "Unknown")")
+        guard let light = light else {
+            print("❌ Ошибка: Нет данных лампы для удаления из комнаты")
+            return
+        }
+        
+        // Получаем ID текущей комнаты
+        guard let roomId = getCurrentRoomId() else {
+            print("❌ Ошибка: Лампа не находится в комнате")
+            return
+        }
+        
+        isLoading = true
+        
+        // Получаем Use Case из DIContainer
+        let removeLightUseCase = DIContainer.shared.removeLightFromRoomUseCase
+        
+        // Создаем input для Use Case
+        let input = RemoveLightFromRoomUseCase.Input(
+            roomId: roomId,
+            lightId: light.id
+        )
+        
+        // Выполняем удаление лампы из комнаты
+        removeLightUseCase.execute(input)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    self.isLoading = false
+                    
+                    switch completion {
+                    case .finished:
+                        print("✅ Лампа '\(light.metadata.name)' успешно удалена из комнаты")
+                        
+                        // Перезагружаем список комнат для обновления состояния
+                        self.loadRooms()
+                        
+                        // Вызываем callback для обновления UI в родительском View
+                        self.onLightMoved?()
+                        
+                    case .failure(let error):
+                        print("❌ Ошибка при удалении лампы из комнаты: \(error.localizedDescription)")
+                        // TODO: Показать alert с ошибкой пользователю
+                    }
+                },
+                receiveValue: { _ in
+                    // Операция завершена успешно
+                }
+            )
+            .store(in: &cancellables)
     }
     
     /// Полностью удаляет лампу из окружения

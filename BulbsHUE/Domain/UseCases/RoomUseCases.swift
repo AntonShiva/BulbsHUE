@@ -282,6 +282,44 @@ struct MoveLightBetweenRoomsUseCase: UseCase {
     }
 }
 
+// MARK: - Remove Light From Room Use Case
+struct RemoveLightFromRoomUseCase: UseCase {
+    private let roomRepository: RoomRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol) {
+        self.roomRepository = roomRepository
+    }
+    
+    struct Input {
+        let roomId: String
+        let lightId: String
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<Void, Error> {
+        // Сначала проверяем, существует ли комната
+        return roomRepository.getRoom(by: input.roomId)
+            .flatMap { room -> AnyPublisher<Void, Error> in
+                guard let room = room else {
+                    return Fail(error: RoomError.roomNotFound)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Проверяем, что лампа действительно находится в этой комнате
+                guard room.lightIds.contains(input.lightId) else {
+                    return Fail(error: RoomError.lightNotFound)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Удаляем лампу из комнаты
+                return self.roomRepository.removeLightFromRoom(
+                    roomId: input.roomId,
+                    lightId: input.lightId
+                )
+            }
+            .eraseToAnyPublisher()
+    }
+}
+
 // MARK: - Room Errors
 enum RoomError: Error, LocalizedError {
     case roomNotFound
