@@ -12,6 +12,9 @@ struct RoomManagementCell: View{
     var roomName: String
     var roomType: String
     
+    /// Callback для обработки нажатия на шеврон (для переноса лампы)
+    var onChevronTap: (() -> Void)?
+    
     var body: some View {
         ZStack(alignment: .top) {
             // Расширяемый фон
@@ -55,10 +58,8 @@ struct RoomManagementCell: View{
                             .adaptiveOffset(x: 6)
                             // Кнопка с поворотом - поворачивается только если есть подтипы
                             ChevronButton{
-                               
-                                    withAnimation(.easeInOut(duration: 0.15)) {
-                                       
-                                }
+                                // Вызываем callback при нажатии на шеврон
+                                onChevronTap?()
                             }
                            
                             .adaptiveFrame(width: 60)
@@ -78,7 +79,7 @@ struct RoomManagementCell: View{
     ZStack{
         BG()
         
-        RoomManagementCell(iconName: "tr1", roomName: "Room name", roomType: "room type")
+        RoomManagementCell(iconName: "tr1", roomName: "Room name", roomType: "room type", onChevronTap: nil)
     }
     .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2075-219&t=sC3aD0A4Ffr835aT-4")!)
     .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")

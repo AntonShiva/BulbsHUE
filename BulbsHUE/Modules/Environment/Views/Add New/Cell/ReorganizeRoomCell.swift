@@ -23,9 +23,12 @@ struct ReorganizeRoomCell: View {
     let light: Light?
     
     /// Инициализатор с данными лампочки
-    /// - Parameter light: Данные лампочки для отображения
-    init(light: Light? = nil) {
+    /// - Parameters:
+    ///   - light: Данные лампочки для отображения
+    ///   - onLightMoved: Callback при успешном переносе лампы
+    init(light: Light? = nil, onLightMoved: (() -> Void)? = nil) {
         self.light = light
+        self.onLightMoved = onLightMoved
     }
     
     /// Состояние показа/скрытия списка комнат
@@ -40,6 +43,9 @@ struct ReorganizeRoomCell: View {
     /// Подписки Combine
     @State private var cancellables = Set<AnyCancellable>()
     
+    /// Callback при успешном переносе лампы (для обновления UI)
+    var onLightMoved: (() -> Void)?
+    
     // MARK: - Computed Properties
     
     /// Вычисляет общую высоту области списка комнат в зависимости от количества комнат
@@ -50,15 +56,17 @@ struct ReorganizeRoomCell: View {
             let headerHeight: CGFloat = 60    // Высота заголовка "move bulb to"
             let padding: CGFloat = 30         // Отступы сверху и снизу
             
-            if rooms.isEmpty && !isLoading {
-                // Если комнат нет - показываем минимальную высоту для сообщения "No rooms"
+            let availableRooms = getAvailableRooms()
+            
+            if availableRooms.isEmpty && !isLoading {
+                // Если доступных комнат нет - показываем минимальную высоту для сообщения
                 return headerHeight + 60 + padding
             } else if isLoading {
                 // Во время загрузки - высота для ProgressView
                 return headerHeight + 60 + padding
             } else {
-                // Рассчитываем высоту по количеству комнат (максимум на 2 комнаты)
-                let visibleRoomsCount = min(rooms.count, 2)
+                // Рассчитываем высоту по количеству доступных комнат (максимум на 2 комнаты)
+                let visibleRoomsCount = min(availableRooms.count, 2)
                 return headerHeight + (CGFloat(visibleRoomsCount) * roomCellHeight) + 
                        (CGFloat(max(visibleRoomsCount - 1, 0)) * spacing) + padding
             }
@@ -187,19 +195,25 @@ struct ReorganizeRoomCell: View {
                                 
                                 // Список комнат из единого источника данных
                                 VStack(spacing: 8) {
-                                    // Показываем максимум 2 комнаты
-                                    ForEach(Array(rooms.prefix(2)), id: \.id) { room in
+                                    // Показываем максимум 2 комнаты, исключая текущую комнату лампы
+                                    let availableRooms = getAvailableRooms()
+                                    ForEach(Array(availableRooms.prefix(2)), id: \.id) { room in
                                         RoomManagementCell(
                                             iconName: room.iconName,
                                             roomName: room.name, 
-                                            roomType: room.type.displayName
+                                            roomType: room.type.displayName,
+                                            onChevronTap: {
+                                                // Перемещаем лампу в выбранную комнату
+                                                moveLightToRoom(room)
+                                            }
                                         )
                                     }
                                         
                                     
-                                    // Показываем сообщение если комнат нет
-                                    if rooms.isEmpty && !isLoading {
-                                        Text("No rooms")
+                                    // Показываем сообщение если доступных комнат нет
+                                    
+                                    if availableRooms.isEmpty && !isLoading {
+                                        Text("Нет доступных комнат")
                                             .font(Font.custom("DMSans-Light", size: 14))
                                             .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.6))
                                             .adaptivePadding(.vertical, 20)
@@ -247,6 +261,36 @@ struct ReorganizeRoomCell: View {
         return "Не назначена"
     }
     
+    /// Получает ID текущей комнаты для лампочки
+    /// - Returns: ID комнаты или nil
+    private func getCurrentRoomId() -> String? {
+        guard let light = light else {
+            return nil
+        }
+        
+        // Ищем комнату, к которой принадлежит эта лампочка
+        for room in rooms {
+            if room.lightIds.contains(light.id) {
+                return room.id
+            }
+        }
+        
+        return nil
+    }
+    
+    /// Фильтрует комнаты, исключая текущую комнату лампы
+    /// - Returns: Список доступных комнат для переноса
+    private func getAvailableRooms() -> [RoomEntity] {
+        guard let light = light else {
+            return rooms
+        }
+        
+        // Исключаем текущую комнату лампы из списка
+        return rooms.filter { room in
+            !room.lightIds.contains(light.id)
+        }
+    }
+    
     // MARK: - Private Methods
     
     /// Загружает список комнат из единого источника данных
@@ -268,6 +312,60 @@ struct ReorganizeRoomCell: View {
                 },
                 receiveValue: { roomsList in
                     self.rooms = roomsList
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    /// Перемещает лампу в выбранную комнату
+    /// - Parameter targetRoom: Комната, в которую нужно переместить лампу
+    private func moveLightToRoom(_ targetRoom: RoomEntity) {
+        guard let light = light else {
+            print("❌ Ошибка: Нет данных лампы для перемещения")
+            return
+        }
+        
+        isLoading = true
+        
+        // Получаем Use Case из DIContainer
+        let moveLightUseCase = DIContainer.shared.moveLightBetweenRoomsUseCase
+        
+        // Создаем input для Use Case
+        let input = MoveLightBetweenRoomsUseCase.Input(
+            lightId: light.id,
+            fromRoomId: getCurrentRoomId(), // Может быть nil если лампа не в комнате
+            toRoomId: targetRoom.id
+        )
+        
+        // Выполняем перенос лампы
+        moveLightUseCase.execute(input)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    self.isLoading = false
+                    
+                    switch completion {
+                    case .finished:
+                       
+                        
+                        // Скрываем список комнат после успешного переноса
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            self.showRoomsList = false
+                        }
+                        
+                        // Перезагружаем список комнат для обновления состояния
+                        self.loadRooms()
+                        
+                        // Вызываем callback для обновления UI в родительском View
+                        self.onLightMoved?()
+                        
+                    case .failure(let error):
+                        print("❌ Ошибка при перемещении лампы: \(error.localizedDescription)")
+                        // TODO: Показать alert с ошибкой пользователю
+                    }
+                },
+                receiveValue: { _ in
+                    // Операция завершена успешно
                 }
             )
             .store(in: &cancellables)

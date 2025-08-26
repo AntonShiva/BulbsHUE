@@ -313,7 +313,13 @@ struct UniversalMenuView: View {
                     } else {
                         // Показываем реальные лампы комнаты
                         ForEach(roomLights, id: \.id) { light in
-                            ReorganizeRoomCell(light: light)
+                            ReorganizeRoomCell(
+                                light: light,
+                                onLightMoved: {
+                                    // Перезагружаем лампы комнаты после переноса
+                                    loadRoomLights()
+                                }
+                            )
                         }
                     }
                 }

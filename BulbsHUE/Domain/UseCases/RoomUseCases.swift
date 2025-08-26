@@ -222,6 +222,66 @@ struct DeleteRoomUseCase: UseCase, DeleteRoomUseCaseProtocol {
     }
 }
 
+// MARK: - Move Light Between Rooms Use Case
+struct MoveLightBetweenRoomsUseCase: UseCase {
+    private let roomRepository: RoomRepositoryProtocol
+    private let lightRepository: LightRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol, lightRepository: LightRepositoryProtocol) {
+        self.roomRepository = roomRepository
+        self.lightRepository = lightRepository
+    }
+    
+    struct Input {
+        let lightId: String
+        let fromRoomId: String?  // nil если лампа не в комнате
+        let toRoomId: String
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<Void, Error> {
+        // Проверяем, что лампа существует
+        return lightRepository.getLight(by: input.lightId)
+            .flatMap { light -> AnyPublisher<Void, Error> in
+                guard light != nil else {
+                    return Fail(error: RoomError.lightNotFound)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Проверяем, что целевая комната существует
+                return self.roomRepository.getRoom(by: input.toRoomId)
+                    .flatMap { targetRoom -> AnyPublisher<Void, Error> in
+                        guard targetRoom != nil else {
+                            return Fail(error: RoomError.roomNotFound)
+                                .eraseToAnyPublisher()
+                        }
+                        
+                        // Если лампа в другой комнате - удаляем её оттуда
+                        let removeFromOldRoom: AnyPublisher<Void, Error>
+                        if let fromRoomId = input.fromRoomId {
+                            removeFromOldRoom = self.roomRepository.removeLightFromRoom(
+                                roomId: fromRoomId,
+                                lightId: input.lightId
+                            )
+                        } else {
+                            removeFromOldRoom = Just(()).setFailureType(to: Error.self).eraseToAnyPublisher()
+                        }
+                        
+                        // Удаляем из старой комнаты, затем добавляем в новую
+                        return removeFromOldRoom
+                            .flatMap { _ in
+                                return self.roomRepository.addLightToRoom(
+                                    roomId: input.toRoomId,
+                                    lightId: input.lightId
+                                )
+                            }
+                            .eraseToAnyPublisher()
+                    }
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+}
+
 // MARK: - Room Errors
 enum RoomError: Error, LocalizedError {
     case roomNotFound

@@ -79,6 +79,10 @@ final class DIContainer {
         return DeleteRoomUseCase(roomRepository: roomRepository)
     }()
     
+    private lazy var _moveLightBetweenRoomsUseCase: MoveLightBetweenRoomsUseCase = {
+        return MoveLightBetweenRoomsUseCase(roomRepository: roomRepository, lightRepository: lightRepository)
+    }()
+    
     // MARK: - Services
     private lazy var _appStore: AppStore = {
         let middlewares: [Middleware] = [
@@ -113,6 +117,7 @@ final class DIContainer {
     var createRoomWithLightsUseCase: CreateRoomWithLightsUseCase { _createRoomWithLightsUseCase }
     var getRoomsUseCase: GetRoomsUseCase { _getRoomsUseCase }
     var deleteRoomUseCase: DeleteRoomUseCase { _deleteRoomUseCase }
+    var moveLightBetweenRoomsUseCase: MoveLightBetweenRoomsUseCase { _moveLightBetweenRoomsUseCase }
     
     // Services
     var appStore: AppStore { _appStore }
@@ -154,6 +159,7 @@ final class DIContainer {
         _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: _roomRepository, lightRepository: lightRepository)
         _getRoomsUseCase = GetRoomsUseCase(roomRepository: _roomRepository)
         _deleteRoomUseCase = DeleteRoomUseCase(roomRepository: _roomRepository)
+        _moveLightBetweenRoomsUseCase = MoveLightBetweenRoomsUseCase(roomRepository: _roomRepository, lightRepository: lightRepository)
     }
 }
 
@@ -340,10 +346,34 @@ final class MockRoomRepository: RoomRepositoryProtocol {
     }
     
     func addLightToRoom(roomId: String, lightId: String) -> AnyPublisher<Void, Error> {
+        // ✅ ИСПРАВЛЕНО: Реально добавляем лампу в комнату
+        var currentRooms = roomsSubject.value
+        if let index = currentRooms.firstIndex(where: { $0.id == roomId }) {
+            var updatedRoom = currentRooms[index]
+            if !updatedRoom.lightIds.contains(lightId) {
+                updatedRoom.lightIds.append(lightId)
+                updatedRoom.updatedAt = Date()
+                currentRooms[index] = updatedRoom
+                roomsSubject.send(currentRooms)
+                print("✅ MockRoomRepository: Лампа \(lightId) добавлена в комнату '\(updatedRoom.name)'")
+            }
+        }
         return Just(()).setFailureType(to: Error.self).eraseToAnyPublisher()
     }
     
     func removeLightFromRoom(roomId: String, lightId: String) -> AnyPublisher<Void, Error> {
+        // ✅ ИСПРАВЛЕНО: Реально удаляем лампу из комнаты
+        var currentRooms = roomsSubject.value
+        if let index = currentRooms.firstIndex(where: { $0.id == roomId }) {
+            var updatedRoom = currentRooms[index]
+            if let lightIndex = updatedRoom.lightIds.firstIndex(of: lightId) {
+                updatedRoom.lightIds.remove(at: lightIndex)
+                updatedRoom.updatedAt = Date()
+                currentRooms[index] = updatedRoom
+                roomsSubject.send(currentRooms)
+                print("✅ MockRoomRepository: Лампа \(lightId) удалена из комнаты '\(updatedRoom.name)'")
+            }
+        }
         return Just(()).setFailureType(to: Error.self).eraseToAnyPublisher()
     }
     

@@ -10,15 +10,15 @@ import Foundation
 // MARK: - Domain Entity для комнаты
 /// Представляет группу ламп в определенной комнате
 struct RoomEntity: Equatable, Identifiable {
-    let id: String
-    let name: String
-    let type: RoomSubType
-    let subtypeName: String // ✅ Оригинальное название подтипа (например, "BACKYARD")
-    let iconName: String // ✅ Иконка подтипа, выбранная пользователем
-    let lightIds: [String]
-    let isActive: Bool
-    let createdAt: Date
-    let updatedAt: Date
+    var id: String
+    var name: String
+    var type: RoomSubType
+    var subtypeName: String // ✅ Оригинальное название подтипа (например, "BACKYARD")
+    var iconName: String // ✅ Иконка подтипа, выбранная пользователем
+    var lightIds: [String]
+    var isActive: Bool
+    var createdAt: Date
+   var updatedAt: Date
     
     /// Количество ламп в комнате
     var lightCount: Int {
