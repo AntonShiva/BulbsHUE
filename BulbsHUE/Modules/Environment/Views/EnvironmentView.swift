@@ -19,107 +19,149 @@ struct EnvironmentView: View {
         if nav.currentRoute == .addRoom {
             AddNewRoom()
         } else {
-        ZStack {
-            BG()
-            
-            Header(title: "ENVIRONMENT") {
-                // Левая кнопка - ваше меню
-                MenuButton { }
-            } rightView: {
-                // Правая кнопка - плюс
-                AddHeaderButton {
-                    nav.go(.addNewBulb)
+            ZStack {
+                BG()
+                
+                Header(title: "ENVIRONMENT") {
+                    // Левая кнопка - ваше меню
+                    MenuButton { }
+                } rightView: {
+                    // Правая кнопка - плюс
+                    // ✅ Логика в зависимости от активной вкладки (SOLID: Single Responsibility)
+                    AddHeaderButton {
+                        handleAddButtonAction()
+                    }
                 }
-            }
-            .adaptiveOffset(y: -330)
-            .onTapGesture(count: 3) {
-                // Секретный triple-tap для доступа к Development меню
+                .adaptiveOffset(y: -330)
+                .onTapGesture(count: 3) {
+                    // Секретный triple-tap для доступа к Development меню
 #if DEBUG
-                nav.go(.development)
+                    nav.go(.development)
 #endif
-            }
-            
-            SelectorTabEnviromentView()
-                .adaptiveOffset(y: -264)
-            
-            // ✅ Используем координатор с разделением ответственности (SOLID)
-            if let coordinator = environmentCoordinator {
-                if  nav.еnvironmentTab == .bulbs {
-                    // Вкладка ламп
-                    if !coordinator.hasAssignedLights {
-                        EmptyBulbsLightsView {
-                            nav.go(.addNewBulb)
-                        }
-                    } else {
-                        AssignedBulbsLightsListView(
-                            lights: coordinator.lightsViewModel.assignedLights,
-                            onRemoveLight: { lightId in
-                                coordinator.removeLightFromEnvironment(lightId)
-                            }
-                        )
-                        .adaptiveOffset(y: 30)
-                    }
-                } else if nav.еnvironmentTab == .rooms {
-                    // Вкладка комнат
-                    if !coordinator.hasRooms {
-                        EmptyRoovmsLightsView{
-                            nav.currentRoute = .addRoom
-                            nav.isTabBarVisible = false
-                        }
-                    } else {
-                        AssignedRoomsListView(
-                            rooms: coordinator.roomsViewModel.rooms,
-                            onRemoveRoom: { roomId in
-                                coordinator.removeRoom(roomId)
-                            }
-                        )
-                        .adaptiveOffset(y: 30)
-                    }
-                }
-            }
-        }
-        .onAppear {
-            // ✅ SOLID: Создаем координатор через фабрику с разделением ответственности
-            if appViewModel.connectionStatus == .connected {
-                if environmentCoordinator == nil {
-                    environmentCoordinator = EnvironmentCoordinator.create(
-                        appViewModel: appViewModel,
-                        dataPersistenceService: dataPersistenceService,
-                        diContainer: DIContainer.shared
-                    )
                 }
                 
-                // Обновляем данные при каждом появлении экрана
-                appViewModel.lightsViewModel.loadLights()
-                environmentCoordinator?.refreshAll()
-            } else {
-                // Нет подключения - пропускаем загрузку
+                SelectorTabEnviromentView()
+                    .adaptiveOffset(y: -264)
+                
+                // ✅ Используем координатор с разделением ответственности (SOLID)
+                if let coordinator = environmentCoordinator {
+                    if  nav.еnvironmentTab == .bulbs {
+                        // Вкладка ламп
+                        if !coordinator.hasAssignedLights {
+                            EmptyBulbsLightsView {
+                                nav.go(.addNewBulb)
+                            }
+                        } else {
+                            AssignedBulbsLightsListView(
+                                lights: coordinator.lightsViewModel.assignedLights,
+                                onRemoveLight: { lightId in
+                                    coordinator.removeLightFromEnvironment(lightId)
+                                }
+                            )
+                            .adaptiveOffset(y: 30)
+                        }
+                    } else if nav.еnvironmentTab == .rooms {
+                        // Вкладка комнат
+                        if !coordinator.hasRooms {
+                            EmptyRoovmsLightsView{
+                                nav.currentRoute = .addRoom
+                                nav.isTabBarVisible = false
+                            }
+                        } else {
+                            AssignedRoomsListView(
+                                rooms: coordinator.roomsViewModel.rooms,
+                                onRemoveRoom: { roomId in
+                                    coordinator.removeRoom(roomId)
+                                }
+                            )
+                            .adaptiveOffset(y: 30)
+                        }
+                    }
+                }
             }
-        }
-        
-        .refreshable {
-            // ✅ Поддержка pull-to-refresh для всех данных
-            environmentCoordinator?.refreshAll()
-        }
-        .onChange(of: nav.еnvironmentTab) { newTab in
-            // ✅ При переключении вкладок принудительно обновляем состояние
+            .onAppear {
+                // ✅ SOLID: Создаем координатор через фабрику с разделением ответственности
+                if appViewModel.connectionStatus == .connected {
+                    if environmentCoordinator == nil {
+                        environmentCoordinator = EnvironmentCoordinator.create(
+                            appViewModel: appViewModel,
+                            dataPersistenceService: dataPersistenceService,
+                            diContainer: DIContainer.shared
+                        )
+                    }
+                    
+                    // Обновляем данные при каждом появлении экрана
+                    appViewModel.lightsViewModel.loadLights()
+                    environmentCoordinator?.refreshAll()
+                } else {
+                    // Нет подключения - пропускаем загрузку
+                }
+            }
             
-            // Принудительная синхронизация состояния без запроса к API
-            environmentCoordinator?.forceStateSync()
-            
-            // Дополнительно обновляем данные из API для получения актуального состояния (если подключены)
-            if appViewModel.connectionStatus == .connected {
-                appViewModel.lightsViewModel.loadLights()
+            .refreshable {
+                // ✅ Поддержка pull-to-refresh для всех данных
+                environmentCoordinator?.refreshAll()
+            }
+            .onChange(of: nav.еnvironmentTab) { newTab in
+                // ✅ При переключении вкладок принудительно обновляем состояние
+                
+                // Принудительная синхронизация состояния без запроса к API
+                environmentCoordinator?.forceStateSync()
+                
+                // Дополнительно обновляем данные из API для получения актуального состояния (если подключены)
+                if appViewModel.connectionStatus == .connected {
+                    appViewModel.lightsViewModel.loadLights()
+                }
             }
         }
     }
+    // MARK: - Private Methods
+    
+    /// Обработка нажатия кнопки добавления в зависимости от активной вкладки
+    /// Следует принципам SOLID: Single Responsibility и Open/Closed
+    func handleAddButtonAction() {
+        switch nav.еnvironmentTab {
+        case .bulbs:
+            // Вкладка ламп - показываем поиск ламп с SearchResultsSheet
+            handleAddBulbAction()
+            
+        case .rooms:
+            // Вкладка комнат - переходим к созданию комнаты
+            handleAddRoomAction()
+        }
+    }
+    
+    /// Логика добавления лампы через поиск
+    func handleAddBulbAction() {
+        // Переходим на экран AddNewBulb и сразу запускаем поиск
+        nav.go(.addNewBulb)
+        
+        // ✅ НОВОЕ: Автоматически запускаем поиск ламп
+        // Проверяем подключение к мосту перед поиском
+        if appViewModel.connectionStatus == .connected {
+            // Запускаем поиск в сети
+            nav.startSearch()
+            appViewModel.lightsViewModel.searchForNewLights { _ in
+                // Результаты появятся в SearchResultsSheet автоматически
+            }
+        } else {
+            // Если нет подключения - показываем setup
+            appViewModel.showSetup = true
+        }
+    }
+    
+    /// Логика добавления комнаты
+     func handleAddRoomAction() {
+        // Переходим к созданию новой комнаты
+        nav.currentRoute = .addRoom
+        nav.isTabBarVisible = false
     }
 }
-
 // MARK: - Subviews
 
 /// Компонент для отображения пустого состояния
 private struct EmptyBulbsLightsView: View {
+    
     let onAddBulb: () -> Void
     
     var body: some View {
@@ -131,7 +173,7 @@ private struct EmptyBulbsLightsView: View {
                 .foregroundColor(Color(red: 0.75, green: 0.85, blue: 1))
                 .opacity(0.3)
                 .textCase(.uppercase)
-
+            
             AddButton(text: "add bulb", width: 427, height: 295) {
                 onAddBulb()
             }
@@ -139,7 +181,6 @@ private struct EmptyBulbsLightsView: View {
         }
     }
 }
-
 private struct EmptyRoovmsLightsView: View {
     let onAddBulb: () -> Void
     

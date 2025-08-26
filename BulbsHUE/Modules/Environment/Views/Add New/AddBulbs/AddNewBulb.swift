@@ -57,109 +57,109 @@ struct AddNewBulb: View {
                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                 .adaptiveOffset(y: -40)
             
-            Button(action: {
-                isSerialNumberFocused = true
-            }) {
-                ZStack{
-                    Rectangle()
-                        .foregroundColor(.clear)
-                        .adaptiveFrame(width: 244, height: 68)
-                        .background(Color(red: 0.4, green: 0.49, blue: 0.68))
-                        .cornerRadius(14)
-                        .blur(radius: 44.55)
-                        .rotationEffect(Angle(degrees: 13.02))
-                    
-                    Rectangle()
-                        .foregroundColor(.clear)
-                        .adaptiveFrame(width: 280, height: 72)
-                        .cornerRadius(50)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 50)
-                                .inset(by: 0.5)
-                                .stroke(Color(red: 0.32, green: 0.44, blue: 0.46), lineWidth: 1)
-                        )
-                    
-                    TextField("", text: $serialNumber)
-                        .font(Font.custom("DMSans-Light", size: 16))
-                        .kerning(2.6)
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                        .textCase(.uppercase)
-                        .focused($isSerialNumberFocused)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            let trimmedSerial = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-                            
-                            if !trimmedSerial.isEmpty {
-                                print("📝 Введен серийный номер: \(trimmedSerial)")
-                                
-                                // Проверяем формат
-                                if trimmedSerial.count != 6 {
-                                    print("⚠️ Серийный номер должен содержать 6 символов, получено: \(trimmedSerial.count)")
-                                    // Можно показать алерт пользователю
-                                }
-                                
-                                // Сохраняем серийный номер в NavigationManager
-                                nav.enteredSerialNumber = trimmedSerial
-                                
-                                // Запускаем поиск
-                                appViewModel.lightsViewModel.addLightBySerialNumber(trimmedSerial)
-                                
-                                // Переключаем NavigationManager для показа результатов
-                                nav.startSerialNumberSearch()
-                                
-                                // Очищаем поле
-                                serialNumber = ""
-                                isSerialNumberFocused = false
-                            }
-                        }
-                        .placeholder(when: serialNumber.isEmpty, alignment: .center) {
-                            Text("use serial number")
-                                .font(Font.custom("DMSans-Light", size: 16))
-                                .kerning(2.6)
-                                .multilineTextAlignment(.center)
-                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                                .textCase(.uppercase)
-                        }
-                    
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
-            .adaptiveOffset(y: 96)
-            
-            Text("on the lamp or label")
-                .font(Font.custom("DMSans-Light", size: 10))
-                .kerning(1.5)
-                .multilineTextAlignment(.center)
-                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-            
-                .adaptiveOffset(y: 147)
-            
-            
-            HStack {
-                Rectangle()
-                    .adaptiveFrame(width: 115, height: 1)
-                    .overlay(
-                        Rectangle()
-                            .stroke(Color(red: 0.79, green: 1, blue: 1), lineWidth: 1)
-                    )
-                    .opacity(0.4)
-                
-                Text("or")
-                    .font(Font.custom("DMSans-Light", size: 16))
-                    .kerning(2.4)
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                
-                Rectangle()
-                    .adaptiveFrame(width: 115, height: 1)
-                    .overlay(
-                        Rectangle()
-                            .stroke(Color(red: 0.79, green: 1, blue: 1), lineWidth: 1)
-                    )
-                    .opacity(0.4)
-            }
-            .adaptiveOffset(y: 191)
+//            Button(action: {
+//                isSerialNumberFocused = true
+//            }) {
+//                ZStack{
+//                    Rectangle()
+//                        .foregroundColor(.clear)
+//                        .adaptiveFrame(width: 244, height: 68)
+//                        .background(Color(red: 0.4, green: 0.49, blue: 0.68))
+//                        .cornerRadius(14)
+//                        .blur(radius: 44.55)
+//                        .rotationEffect(Angle(degrees: 13.02))
+//                    
+//                    Rectangle()
+//                        .foregroundColor(.clear)
+//                        .adaptiveFrame(width: 280, height: 72)
+//                        .cornerRadius(50)
+//                        .overlay(
+//                            RoundedRectangle(cornerRadius: 50)
+//                                .inset(by: 0.5)
+//                                .stroke(Color(red: 0.32, green: 0.44, blue: 0.46), lineWidth: 1)
+//                        )
+//                    
+//                    TextField("", text: $serialNumber)
+//                        .font(Font.custom("DMSans-Light", size: 16))
+//                        .kerning(2.6)
+//                        .multilineTextAlignment(.center)
+//                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+//                        .textCase(.uppercase)
+//                        .focused($isSerialNumberFocused)
+//                        .submitLabel(.done)
+//                        .onSubmit {
+//                            let trimmedSerial = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+//                            
+//                            if !trimmedSerial.isEmpty {
+//                                print("📝 Введен серийный номер: \(trimmedSerial)")
+//                                
+//                                // Проверяем формат
+//                                if trimmedSerial.count != 6 {
+//                                    print("⚠️ Серийный номер должен содержать 6 символов, получено: \(trimmedSerial.count)")
+//                                    // Можно показать алерт пользователю
+//                                }
+//                                
+//                                // Сохраняем серийный номер в NavigationManager
+//                                nav.enteredSerialNumber = trimmedSerial
+//                                
+//                                // Запускаем поиск
+//                                appViewModel.lightsViewModel.addLightBySerialNumber(trimmedSerial)
+//                                
+//                                // Переключаем NavigationManager для показа результатов
+//                                nav.startSerialNumberSearch()
+//                                
+//                                // Очищаем поле
+//                                serialNumber = ""
+//                                isSerialNumberFocused = false
+//                            }
+//                        }
+//                        .placeholder(when: serialNumber.isEmpty, alignment: .center) {
+//                            Text("use serial number")
+//                                .font(Font.custom("DMSans-Light", size: 16))
+//                                .kerning(2.6)
+//                                .multilineTextAlignment(.center)
+//                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+//                                .textCase(.uppercase)
+//                        }
+//                    
+//                }
+//            }
+//            .buttonStyle(PlainButtonStyle())
+//            .adaptiveOffset(y: 96)
+//            
+//            Text("on the lamp or label")
+//                .font(Font.custom("DMSans-Light", size: 10))
+//                .kerning(1.5)
+//                .multilineTextAlignment(.center)
+//                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+//            
+//                .adaptiveOffset(y: 147)
+//            
+//            
+//            HStack {
+//                Rectangle()
+//                    .adaptiveFrame(width: 115, height: 1)
+//                    .overlay(
+//                        Rectangle()
+//                            .stroke(Color(red: 0.79, green: 1, blue: 1), lineWidth: 1)
+//                    )
+//                    .opacity(0.4)
+//                
+//                Text("or")
+//                    .font(Font.custom("DMSans-Light", size: 16))
+//                    .kerning(2.4)
+//                    .multilineTextAlignment(.center)
+//                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+//                
+//                Rectangle()
+//                    .adaptiveFrame(width: 115, height: 1)
+//                    .overlay(
+//                        Rectangle()
+//                            .stroke(Color(red: 0.79, green: 1, blue: 1), lineWidth: 1)
+//                    )
+//                    .opacity(0.4)
+//            }
+//            .adaptiveOffset(y: 191)
                 CostumButton(text: "search in network", width: 377, height: 291, image: "BGCustomButton") {
                     if appViewModel.connectionStatus == .connected {
                         nav.startSearch()
@@ -173,7 +173,7 @@ struct AddNewBulb: View {
                     }
                 }
            
-            .adaptiveOffset(y: 290)
+            .adaptiveOffset(y: 190)
             
             } else {
                 FoundLampsView()
