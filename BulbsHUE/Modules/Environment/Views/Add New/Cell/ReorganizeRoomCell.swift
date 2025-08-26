@@ -19,6 +19,15 @@ struct ReorganizeRoomCell: View {
     
     // MARK: - Properties
     
+    /// Данные лампочки для отображения
+    let light: Light?
+    
+    /// Инициализатор с данными лампочки
+    /// - Parameter light: Данные лампочки для отображения
+    init(light: Light? = nil) {
+        self.light = light
+    }
+    
     /// Состояние показа/скрытия списка комнат
     @State private var showRoomsList = false
     
@@ -74,23 +83,22 @@ struct ReorganizeRoomCell: View {
                 ZStack {
                     HStack {
                         HStack(spacing: 0) {
-                            // Иконка типа
-                            Image("lightBulb")
+                            // Иконка типа лампочки
+                            Image(light?.metadata.userSubtypeIcon ?? "lightBulb")
                                 .resizable()
                                 .scaledToFit()
                                 .adaptiveFrame(width: 32, height: 32)
                                 .adaptiveFrame(width: 66)
                             
-                            // Название типа - берется из typeData
+                            // Реальные данные лампочки
                             VStack {
-                                Text("Bulb name")
+                                Text(light?.metadata.name ?? "Unknown Bulb")
                                     .font(Font.custom("DMSans-Regular", size: 14))
                                     .kerning(3)
                                     .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 
-                                
-                                Text("room name")
+                                Text(getCurrentRoomName())
                                     .font(Font.custom("DM Sans", size: 12))
                                     .kerning(2.4)
                                     .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
@@ -217,6 +225,25 @@ struct ReorganizeRoomCell: View {
         }
     }
     
+    // MARK: - Helper Methods
+    
+    /// Получает название текущей комнаты для лампочки
+    /// - Returns: Название комнаты или "Не назначена"
+    private func getCurrentRoomName() -> String {
+        guard let light = light else {
+            return "Не назначена"
+        }
+        
+        // Ищем комнату, к которой принадлежит эта лампочка
+        for room in rooms {
+            if room.lightIds.contains(light.id) {
+                return room.name
+            }
+        }
+        
+        return "Не назначена"
+    }
+    
     // MARK: - Private Methods
     
     /// Загружает список комнат из единого источника данных
@@ -247,7 +274,7 @@ struct ReorganizeRoomCell: View {
 #Preview {
     ZStack{
         BG()
-        ReorganizeRoomCell()
+        ReorganizeRoomCell(light: nil)
     }
     .environmentObject(DataPersistenceService())
     .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2075-219&t=p1MiOXAQpotRB4uj-4")!)

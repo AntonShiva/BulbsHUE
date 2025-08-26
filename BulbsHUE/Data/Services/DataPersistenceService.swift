@@ -178,6 +178,53 @@ final class DataPersistenceService: ObservableObject {
         }
     }
     
+    /// Получить данные комнаты по ID
+    /// - Parameter roomId: ID комнаты
+    /// - Returns: RoomDataModel или nil
+    func fetchRoomData(by roomId: String) -> RoomDataModel? {
+        let descriptor = FetchDescriptor<RoomDataModel>(
+            predicate: #Predicate { $0.roomId == roomId }
+        )
+        
+        do {
+            let rooms = try modelContext.fetch(descriptor)
+            return rooms.first
+        } catch {
+            return nil
+        }
+    }
+    
+    /// Получить лампы конкретной комнаты по roomId
+    /// - Parameter roomId: ID комнаты
+    /// - Returns: Массив Light моделей, назначенных в указанную комнату
+    func fetchLightsForRoom(roomId: String) -> [Light] {
+        // Сначала получаем комнату по ID
+        guard let roomData = fetchRoomData(by: roomId) else {
+            return []
+        }
+        
+        // Получаем лампы по их ID из списка комнаты
+        let lightIds = roomData.lightIds
+        guard !lightIds.isEmpty else {
+            return []
+        }
+        
+        // Создаем предикат для поиска ламп по множественным ID
+        let descriptor = FetchDescriptor<LightDataModel>(
+            predicate: #Predicate<LightDataModel> { lightData in
+                lightIds.contains(lightData.lightId)
+            },
+            sortBy: [SortDescriptor(\.name)]
+        )
+        
+        do {
+            let lightDataModels = try modelContext.fetch(descriptor)
+            return lightDataModels.map { $0.toLight() }
+        } catch {
+            return []
+        }
+    }
+    
     /// Назначить лампу в Environment (сделать видимой)
     /// - Parameter lightId: ID лампы
     func assignLightToEnvironment(_ lightId: String) {

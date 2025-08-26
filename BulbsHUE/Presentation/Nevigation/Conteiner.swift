@@ -37,6 +37,7 @@ struct MainContainer: View {
                     )
                 } else if let selectedRoom = nav.selectedRoomForMenu {
                     MenuItemRooms(
+                        roomId: selectedRoom.id,
                         roomName: selectedRoom.name,
                         roomType: getRoomType(for: selectedRoom),
                         bulbCount: getRoomLightCount(for: selectedRoom),

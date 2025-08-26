@@ -10,6 +10,7 @@ import SwiftUI
 /// Меню настроек для комнаты (обновленная версия, использующая универсальные компоненты)
 /// Использует UniversalMenuView для единообразного интерфейса с меню ламп
 struct MenuItemRooms: View {
+    let roomId: String
     let roomName: String
     /// Тип комнаты (пользовательский подтип)
     let roomType: String
@@ -20,14 +21,17 @@ struct MenuItemRooms: View {
     
     /// Инициализатор для создания меню комнаты
     /// - Parameters:
+    ///   - roomId: ID комнаты
     ///   - roomName: Название комнаты
     ///   - roomType: Тип комнаты
     ///   - bulbCount: Количество ламп в комнате
     ///   - baseColor: Базовый цвет для интерфейса
-    init(roomName: String, 
+    init(roomId: String,
+         roomName: String, 
          roomType: String, 
          bulbCount: Int, 
          baseColor: Color = .cyan) {
+        self.roomId = roomId
         self.roomName = roomName
         self.roomType = roomType
         self.bulbCount = bulbCount
@@ -41,7 +45,8 @@ struct MenuItemRooms: View {
                 title: roomName,
                 subtitle: roomType,
                 bulbCount: bulbCount,
-                baseColor: baseColor
+                baseColor: baseColor,
+                roomId: roomId
             ),
             menuConfig: .forRoom(
                 onChangeType: {
@@ -72,6 +77,7 @@ struct MenuItemRooms: View {
 
 #Preview("Room with 5 bulbs") {
     MenuItemRooms(
+        roomId: "preview_room_1",
         roomName: "LIVING ROOM", 
         roomType: "RECREATION", 
         bulbCount: 5, 
@@ -82,6 +88,7 @@ struct MenuItemRooms: View {
 
 #Preview("Room with 2 bulbs") {
     MenuItemRooms(
+        roomId: "preview_room_2",
         roomName: "BEDROOM", 
         roomType: "PERSONAL", 
         bulbCount: 2, 
@@ -92,6 +99,7 @@ struct MenuItemRooms: View {
 
 #Preview("Empty room") {
     MenuItemRooms(
+        roomId: "preview_room_3",
         roomName: "KITCHEN", 
         roomType: "PRACTICAL", 
         bulbCount: 0, 

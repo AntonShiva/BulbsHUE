@@ -11,6 +11,7 @@ import SwiftUI
 /// Этот компонент обеспечивает единообразный интерфейс меню для разных типов элементов
 struct UniversalMenuView: View {
     @EnvironmentObject var nav: NavigationManager
+    @EnvironmentObject var dataPersistenceService: DataPersistenceService
     
     /// Состояние для управления переходом к экрану переименования
     @State private var showRenameView: Bool = false
@@ -20,6 +21,8 @@ struct UniversalMenuView: View {
     @State private var showReorganizeMode: Bool = false
     /// Состояние для хранения нового имени
     @State private var newName: String = ""
+    /// Лампочки текущей комнаты для режима реорганизации
+    @State private var roomLights: [Light] = []
     
     /// Данные об элементе (лампа или комната)
     let itemData: MenuItemData
@@ -62,6 +65,7 @@ struct UniversalMenuView: View {
             // Основное меню, экран переименования, выбор типа или режим реорганизации
             if showReorganizeMode {
                 createReorganizeView()
+                    .adaptiveOffset(y: 30)
             } else if showTypeSelection {
                 createTypeSelectionView()
                     .adaptiveOffset(y: -70)
@@ -92,7 +96,7 @@ struct UniversalMenuView: View {
                 baseColor: baseColor,
                 bottomText: bottomText
             )
-        case .room(let title, let subtitle, let bulbCount, let baseColor):
+        case .room(let title, let subtitle, let bulbCount, let baseColor, _):
             MenuItemCard(
                 roomTitle: title,
                 subtitle: subtitle,
@@ -273,7 +277,7 @@ struct UniversalMenuView: View {
     @ViewBuilder
     private func createReorganizeCard() -> some View {
         switch itemData {
-        case .room(let title, let subtitle, let bulbCount, let baseColor):
+        case .room(let title, let subtitle, let bulbCount, let baseColor, _):
             EditItemCardRoom(
                 roomTitle: title,
                bulbCount: bulbCount,
@@ -291,19 +295,52 @@ struct UniversalMenuView: View {
     private func createReorganizeView() -> some View {
         // Основное меню, экран переименования, выбор типа или режим реорганизации
         VStack(spacing: 12) {
-         // Список ламп в комнате
+            // Список ламп в комнате
             ScrollView {
                 LazyVStack(spacing: 8) {
-                    // TODO: Здесь должны быть реальные лампы из комнаты
-                    // Пока показываем примеры для демонстрации UI
-                    ForEach(0..<3, id: \.self) { index in
-                        ReorganizeRoomCell()
+                    if roomLights.isEmpty {
+                        // Показываем сообщение если в комнате нет ламп
+                        VStack(spacing: 16) {
+                            Text("В комнате нет ламп")
+                                .font(Font.custom("DMSans-Medium", size: 16))
+                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.6))
+                            
+                            Text("Добавьте лампы в эту комнату")
+                                .font(Font.custom("DMSans-Light", size: 14))
+                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.4))
+                        }
+                        .adaptivePadding(.vertical, 40)
+                    } else {
+                        // Показываем реальные лампы комнаты
+                        ForEach(roomLights, id: \.id) { light in
+                            ReorganizeRoomCell(light: light)
+                        }
                     }
                 }
-               
             }
         }
-       .adaptiveOffset(y: 300)
+        .adaptiveOffset(y: 300)
+        .onAppear {
+            loadRoomLights()
+        }
+        .onChange(of: itemData.roomId) { oldValue, newValue in
+            if oldValue != newValue {
+                loadRoomLights()
+            }
+        }
+    }
+    
+    /// Загружает лампочки для текущей комнаты
+    private func loadRoomLights() {
+        guard let roomId = itemData.roomId else {
+            roomLights = []
+            return
+        }
+        
+        // Загружаем лампочки комнаты из DataPersistenceService
+        Task { @MainActor in
+            roomLights = dataPersistenceService.fetchLightsForRoom(roomId: roomId)
+        }
     }
     
     /// Создает кнопку меню
@@ -345,19 +382,29 @@ struct UniversalMenuView: View {
 /// Данные об элементе меню
 enum MenuItemData {
     case bulb(title: String, subtitle: String, icon: String, baseColor: Color, bottomText: String)
-    case room(title: String, subtitle: String, bulbCount: Int, baseColor: Color)
+    case room(title: String, subtitle: String, bulbCount: Int, baseColor: Color, roomId: String)
     
     var title: String {
         switch self {
-        case .bulb(let title, _, _, _, _), .room(let title, _, _, _):
+        case .bulb(let title, _, _, _, _), .room(let title, _, _, _, _):
             return title
         }
     }
     
     var baseColor: Color {
         switch self {
-        case .bulb(_, _, _, let baseColor, _), .room(_, _, _, let baseColor):
+        case .bulb(_, _, _, let baseColor, _), .room(_, _, _, let baseColor, _):
             return baseColor
+        }
+    }
+    
+    /// Получить ID комнаты (если это комната)
+    var roomId: String? {
+        switch self {
+        case .room(_, _, _, _, let roomId):
+            return roomId
+        case .bulb:
+            return nil
         }
     }
 }
@@ -444,6 +491,7 @@ struct MenuConfiguration {
         )
     )
     .environmentObject(NavigationManager.shared)
+    .environmentObject(DataPersistenceService())
 }
 
 #Preview("Room Menu") {
@@ -452,7 +500,8 @@ struct MenuConfiguration {
             title: "ROOM NAME",
             subtitle: "ROOM TYPE",
             bulbCount: 5,
-            baseColor: .cyan
+            baseColor: .cyan,
+            roomId: "preview_room_1"
         ),
         menuConfig: .forRoom(
             onChangeType: { print("Change room type") },
@@ -462,6 +511,7 @@ struct MenuConfiguration {
         )
     )
     .environmentObject(NavigationManager.shared)
+    .environmentObject(DataPersistenceService())
 }
 
 #Preview("Room Menu - Reorganize Mode") {
@@ -474,7 +524,8 @@ struct MenuConfiguration {
                     title: "LIVING ROOM",
                     subtitle: "RECREATION",
                     bulbCount: 3,
-                    baseColor: .purple
+                    baseColor: .purple,
+                    roomId: "preview_room_2"
                 ),
                 menuConfig: .forRoom(
                     onChangeType: { print("Change room type") },
@@ -484,6 +535,7 @@ struct MenuConfiguration {
                 )
             )
             .environmentObject(NavigationManager.shared)
+            .environmentObject(DataPersistenceService())
         }
     }
     
