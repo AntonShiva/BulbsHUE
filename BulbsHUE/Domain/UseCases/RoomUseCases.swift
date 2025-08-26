@@ -19,6 +19,7 @@ struct CreateRoomUseCase: UseCase {
     struct Input {
         let name: String
         let type: RoomSubType
+        let subtypeName: String
         let iconName: String
     }
     
@@ -33,7 +34,7 @@ struct CreateRoomUseCase: UseCase {
             id: UUID().uuidString,
             name: input.name,
             type: input.type,
-            subtypeName: input.type.displayName, // TODO: Передавать оригинальное название
+            subtypeName: input.subtypeName, // ✅ Используем переданное название подтипа
             iconName: input.iconName,
             lightIds: [],
             isActive: true,
@@ -60,6 +61,7 @@ struct CreateRoomWithLightsUseCase: UseCase {
     struct Input {
         let roomName: String
         let roomType: RoomSubType
+        let subtypeName: String // ✅ Настоящее название подтипа (например "DOWNSTAIRS")
         let iconName: String // ✅ Иконка подтипа
         let lightIds: [String]
     }
@@ -104,7 +106,7 @@ struct CreateRoomWithLightsUseCase: UseCase {
                     id: UUID().uuidString,
                     name: input.roomName,
                     type: input.roomType,
-                    subtypeName: input.roomType.displayName, // TODO: Передавать оригинальное название
+                    subtypeName: input.subtypeName, // ✅ Используем переданное название подтипа
                     iconName: input.iconName, // ✅ Сохраняем иконку
                     lightIds: input.lightIds,
                     isActive: true,
@@ -315,6 +317,35 @@ struct RemoveLightFromRoomUseCase: UseCase {
                     roomId: input.roomId,
                     lightId: input.lightId
                 )
+            }
+            .eraseToAnyPublisher()
+    }
+}
+
+// MARK: - Update Room Use Case
+struct UpdateRoomUseCase: UseCase {
+    private let roomRepository: RoomRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol) {
+        self.roomRepository = roomRepository
+    }
+    
+    struct Input {
+        let room: RoomEntity
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<Void, Error> {
+        // Сначала проверяем, существует ли комната
+        return roomRepository.getRoom(by: input.room.id)
+            .flatMap { existingRoom -> AnyPublisher<Void, Error> in
+                guard existingRoom != nil else {
+                    return Fail(error: RoomError.roomNotFound)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Обновляем комнату через репозиторий
+                // Репозиторий автоматически обновит roomsStream при изменении
+                return self.roomRepository.updateRoom(input.room)
             }
             .eraseToAnyPublisher()
     }

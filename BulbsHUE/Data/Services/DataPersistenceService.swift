@@ -332,7 +332,7 @@ final class DataPersistenceService: ObservableObject {
     // MARK: - Context Management
     
     /// Сохранить контекст
-    private func saveContext() {
+     func saveContext() {
         do {
             try modelContext.save()
         } catch {

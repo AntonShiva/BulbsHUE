@@ -19,6 +19,8 @@ struct MenuItemRooms: View {
     /// Базовый цвет для фона компонента
     let baseColor: Color
     
+    @EnvironmentObject var nav: NavigationManager
+    
     /// Инициализатор для создания меню комнаты
     /// - Parameters:
     ///   - roomId: ID комнаты
@@ -39,12 +41,18 @@ struct MenuItemRooms: View {
     }
     
     var body: some View {
+        // Используем данные из nav.selectedRoomForMenu для реактивности
+        let currentRoom = nav.selectedRoomForMenu
+        let displayRoomName = currentRoom?.subtypeName ?? roomName // ✅ Подтип как название (HOME)
+        let displayRoomType = currentRoom?.type.parentEnvironmentType.displayName.uppercased() ?? roomType // ✅ Тип как подзаголовок (LEVELS)
+        let displayBulbCount = currentRoom?.lightCount ?? bulbCount
+        
         // Используем универсальное меню с конфигурацией для комнаты
         UniversalMenuView(
             itemData: .room(
-                title: roomName,
-                subtitle: roomType,
-                bulbCount: bulbCount,
+                title: displayRoomName, // HOME (подтип)
+                subtitle: displayRoomType, // LEVELS (тип)
+                bulbCount: displayBulbCount,
                 baseColor: baseColor,
                 roomId: roomId
             ),

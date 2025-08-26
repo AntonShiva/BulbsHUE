@@ -13,8 +13,8 @@ struct RoomEntity: Equatable, Identifiable {
     var id: String
     var name: String
     var type: RoomSubType
-    var subtypeName: String // ✅ Оригинальное название подтипа (например, "BACKYARD")
-    var iconName: String // ✅ Иконка подтипа, выбранная пользователем
+    var subtypeName: String
+    var iconName: String 
     var lightIds: [String]
     var isActive: Bool
     var createdAt: Date
@@ -66,6 +66,13 @@ enum RoomSubType: String, CaseIterable {
     case musicRoom = "MUSIC_ROOM"
     case artStudio = "ART_STUDIO"
     
+    // Levels areas
+    case downstairs = "DOWNSTAIRS"
+    case upstairs = "UPSTAIRS"
+    case topFloor = "TOP_FLOOR"
+    case attic = "ATTIC"
+    case home = "HOME"
+    
     var displayName: String {
         switch self {
         // Traditional
@@ -100,6 +107,13 @@ enum RoomSubType: String, CaseIterable {
         case .library: return "Library"
         case .musicRoom: return "Music Room"
         case .artStudio: return "Art Studio"
+        
+        // Levels
+        case .downstairs: return "Downstairs"
+        case .upstairs: return "Upstairs"
+        case .topFloor: return "Top Floor"
+        case .attic: return "Attic"
+        case .home: return "Home"
         }
     }
     
@@ -113,6 +127,8 @@ enum RoomSubType: String, CaseIterable {
             return .practical
         case .gameRoom, .homeTheater, .gym, .library, .musicRoom, .artStudio:
             return .recreation
+        case .downstairs, .upstairs, .topFloor, .attic, .home:
+            return .levels
         }
     }
 }
@@ -123,6 +139,7 @@ enum RoomType: String, CaseIterable {
     case outdoor = "OUTDOOR"
     case practical = "PRACTICAL"
     case recreation = "RECREATION"
+    case levels = "LEVELS"
     
     var displayName: String {
         switch self {
@@ -130,6 +147,7 @@ enum RoomType: String, CaseIterable {
         case .outdoor: return "Outdoor"
         case .practical: return "Practical"
         case .recreation: return "Recreation"
+        case .levels: return "Levels"
         }
     }
 }

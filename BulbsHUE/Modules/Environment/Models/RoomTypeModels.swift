@@ -199,12 +199,12 @@ class RoomCategoryManager: ObservableObject {
         case "BARBECUE": return .garden // Используем .garden для барбекю зоны
         case "POOL": return .garden // Используем .garden для бассейна
         
-        // Levels (используем подходящие типы)
-        case "DOWNSTAIRS": return .livingRoom
-        case "UPSTAIRS": return .bedroom
-        case "TOP FLOOR": return .bedroom
-        case "ATTIC": return .storage
-        case "HOME": return .livingRoom
+        // Levels (используем новые типы для категории LEVELS)
+        case "DOWNSTAIRS": return .downstairs
+        case "UPSTAIRS": return .upstairs
+        case "TOP FLOOR": return .topFloor
+        case "ATTIC": return .attic
+        case "HOME": return .home
         
         // Дефолтное значение
         default: return .livingRoom

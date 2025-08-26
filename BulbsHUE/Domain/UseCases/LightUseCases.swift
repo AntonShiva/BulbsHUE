@@ -172,6 +172,55 @@ struct SearchLightsUseCase: UseCase {
     }
 }
 
+// MARK: - Update Light Type Use Case
+struct UpdateLightTypeUseCase: UseCase {
+    private let dataPersistenceService: DataPersistenceService
+    
+    init(dataPersistenceService: DataPersistenceService) {
+        self.dataPersistenceService = dataPersistenceService
+    }
+    
+    struct Input {
+        let lightId: String
+        let userSubtypeName: String
+        let userSubtypeIcon: String
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<Void, Error> {
+        // Создаем Future для асинхронного выполнения
+        return Future<Void, Error> { promise in
+            Task { @MainActor in
+                // Получаем текущие данные лампы
+                guard let lightData = self.dataPersistenceService.fetchLightData(by: input.lightId) else {
+                    promise(.failure(LightError.lightNotFound))
+                    return
+                }
+                
+                // Обновляем пользовательский тип и иконку
+                lightData.userSubtype = input.userSubtypeName
+                lightData.userSubtypeIcon = input.userSubtypeIcon
+                lightData.lastUpdated = Date()
+                
+                // Сохраняем изменения
+                self.dataPersistenceService.saveContext()
+                
+                // Отправляем уведомление об обновлении
+                NotificationCenter.default.post(
+                    name: Notification.Name("LightDataUpdated"),
+                    object: nil,
+                    userInfo: [
+                        "updateType": "userSubtype",
+                        "lightId": input.lightId
+                    ]
+                )
+                
+                promise(.success(()))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+}
+
 // MARK: - Light Errors
 enum LightError: Error, LocalizedError {
     case lightNotFound

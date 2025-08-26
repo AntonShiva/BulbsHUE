@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 /// Меню настроек для лампы (обновленная версия, использующая универсальные компоненты)
 /// Теперь является оберткой над UniversalMenuView для обратной совместимости
@@ -17,6 +18,9 @@ struct MenuView: View {
     let bulbIcon: String
     /// Базовый цвет для фона компонента
     let baseColor: Color
+    
+    /// Статическая переменная для хранения подписок Combine
+    private static var cancellables = Set<AnyCancellable>()
     
     /// Инициализатор для создания меню лампы
     /// - Parameters:
@@ -52,8 +56,45 @@ struct MenuView: View {
                 },
                 onTypeChanged: { typeName, iconName in
                     print("✅ Bulb type changed to: \(typeName), icon: \(iconName)")
-                    // TODO: Сохранить новый тип лампы в модель данных
-                    // Здесь нужно обновить selectedLightForMenu с новым типом
+                    
+                    // Получаем текущую выбранную лампу из NavigationManager
+                    guard let currentLight = NavigationManager.shared.selectedLightForMenu else {
+                        print("❌ Ошибка: Нет выбранной лампы для обновления типа")
+                        return
+                    }
+                    
+                    // Используем UpdateLightTypeUseCase для сохранения изменений
+                    let updateUseCase = DIContainer.shared.updateLightTypeUseCase
+                    let input = UpdateLightTypeUseCase.Input(
+                        lightId: currentLight.id,
+                        userSubtypeName: typeName,
+                        userSubtypeIcon: iconName
+                    )
+                    
+                    // Выполняем обновление через Combine
+                    updateUseCase.execute(input)
+                        .receive(on: DispatchQueue.main)
+                        .sink(
+                            receiveCompletion: { completion in
+                                switch completion {
+                                case .finished:
+                                    print("✅ Тип лампы успешно обновлен: \(typeName)")
+                                    
+                                    // Обновляем selectedLightForMenu с новыми данными
+                                    var updatedLight = currentLight
+                                    updatedLight.metadata.userSubtypeName = typeName
+                                    updatedLight.metadata.userSubtypeIcon = iconName
+                                    NavigationManager.shared.selectedLightForMenu = updatedLight
+                                    
+                                case .failure(let error):
+                                    print("❌ Ошибка при обновлении типа лампы: \(error.localizedDescription)")
+                                }
+                            },
+                            receiveValue: { _ in
+                                // Операция завершена успешно
+                            }
+                        )
+                        .store(in: &Self.cancellables)
                 },
                 onRename: { newName in
                     print("✏️ Rename bulb to: \(newName)")

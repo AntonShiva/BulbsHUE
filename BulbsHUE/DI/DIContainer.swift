@@ -87,6 +87,17 @@ final class DIContainer {
         return RemoveLightFromRoomUseCase(roomRepository: roomRepository)
     }()
     
+    private lazy var _updateLightTypeUseCase: UpdateLightTypeUseCase = {
+        return UpdateLightTypeUseCase(dataPersistenceService: _dataPersistenceService)
+    }()
+    
+    private lazy var _updateRoomUseCase: UpdateRoomUseCase = {
+        return UpdateRoomUseCase(roomRepository: roomRepository)
+    }()
+    
+    /// DataPersistenceService для Use Cases
+    private var _dataPersistenceService: DataPersistenceService = DataPersistenceService()
+    
     // MARK: - Services
     private lazy var _appStore: AppStore = {
         let middlewares: [Middleware] = [
@@ -123,6 +134,8 @@ final class DIContainer {
     var deleteRoomUseCase: DeleteRoomUseCase { _deleteRoomUseCase }
     var moveLightBetweenRoomsUseCase: MoveLightBetweenRoomsUseCase { _moveLightBetweenRoomsUseCase }
     var removeLightFromRoomUseCase: RemoveLightFromRoomUseCase { _removeLightFromRoomUseCase }
+    var updateLightTypeUseCase: UpdateLightTypeUseCase { _updateLightTypeUseCase }
+    var updateRoomUseCase: UpdateRoomUseCase { _updateRoomUseCase }
     
     // Services
     var appStore: AppStore { _appStore }
@@ -142,6 +155,9 @@ final class DIContainer {
             )
         }
         
+        // Обновляем DataPersistenceService для Use Cases
+        _dataPersistenceService = dataPersistenceService
+        
         // Принудительно пересоздаем зависимые Use Cases
         _lightRepository = _lightRepositoryFactory!()
         _toggleLightUseCase = ToggleLightUseCase(lightRepository: _lightRepository)
@@ -150,6 +166,7 @@ final class DIContainer {
         _addLightToEnvironmentUseCase = AddLightToEnvironmentUseCase(lightRepository: _lightRepository)
         _getEnvironmentLightsUseCase = GetEnvironmentLightsUseCase(lightRepository: _lightRepository)
         _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: _lightRepository)
+        _updateLightTypeUseCase = UpdateLightTypeUseCase(dataPersistenceService: _dataPersistenceService)
     }
     
     /// Настройка реального RoomRepository с зависимостями
@@ -166,6 +183,7 @@ final class DIContainer {
         _deleteRoomUseCase = DeleteRoomUseCase(roomRepository: _roomRepository)
         _moveLightBetweenRoomsUseCase = MoveLightBetweenRoomsUseCase(roomRepository: _roomRepository, lightRepository: lightRepository)
         _removeLightFromRoomUseCase = RemoveLightFromRoomUseCase(roomRepository: _roomRepository)
+        _updateRoomUseCase = UpdateRoomUseCase(roomRepository: _roomRepository)
     }
 }
 

@@ -29,6 +29,8 @@ final class RoomsViewModel: ObservableObject {
     /// Use Case для работы с комнатами
     private let getRoomsUseCase: GetRoomsUseCaseProtocol
     private let deleteRoomUseCase: DeleteRoomUseCaseProtocol
+    /// Репозиторий комнат для реактивных стримов
+    private let roomRepository: RoomRepositoryProtocol
     
     /// Подписки Combine
     private var cancellables = Set<AnyCancellable>()
@@ -39,13 +41,17 @@ final class RoomsViewModel: ObservableObject {
     /// - Parameters:
     ///   - getRoomsUseCase: Use Case для получения комнат
     ///   - deleteRoomUseCase: Use Case для удаления комнат
+    ///   - roomRepository: Репозиторий для реактивных стримов
     init(
         getRoomsUseCase: GetRoomsUseCaseProtocol,
-        deleteRoomUseCase: DeleteRoomUseCaseProtocol
+        deleteRoomUseCase: DeleteRoomUseCaseProtocol,
+        roomRepository: RoomRepositoryProtocol
     ) {
         self.getRoomsUseCase = getRoomsUseCase
         self.deleteRoomUseCase = deleteRoomUseCase
+        self.roomRepository = roomRepository
         
+        setupReactiveStreams()
         loadRooms()
     }
     
@@ -130,6 +136,25 @@ final class RoomsViewModel: ObservableObject {
     var emptyRooms: [RoomEntity] {
         rooms.filter { $0.isEmpty }
     }
+    
+    // MARK: - Private Methods
+    
+    /// Настройка подписки на реактивные стримы репозитория
+    private func setupReactiveStreams() {
+        // Подписываемся на реактивный стрим комнат из репозитория
+        roomRepository.roomsStream
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] updatedRooms in
+                // Автоматически обновляем список при изменениях в репозитории
+                print("🔄 RoomsViewModel: Получены обновленные данные комнат из реактивного стрима: \(updatedRooms.count)")
+                self?.rooms = updatedRooms
+                
+                if !updatedRooms.isEmpty {
+                    print("   Комнаты: \(updatedRooms.map { "\($0.name) (\($0.lightCount) ламп)" })")
+                }
+            }
+            .store(in: &cancellables)
+    }
 }
 
 // MARK: - Mock для тестирования
@@ -139,7 +164,8 @@ extension RoomsViewModel {
     static func createMock() -> RoomsViewModel {
         return RoomsViewModel(
             getRoomsUseCase: MockGetRoomsUseCase(),
-            deleteRoomUseCase: MockDeleteRoomUseCase()
+            deleteRoomUseCase: MockDeleteRoomUseCase(),
+            roomRepository: DIContainer.shared.roomRepository
         )
     }
 }
@@ -174,3 +200,5 @@ private struct MockDeleteRoomUseCase: DeleteRoomUseCaseProtocol {
             .eraseToAnyPublisher()
     }
 }
+
+

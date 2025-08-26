@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 /// Универсальное меню настроек для ламп и комнат
 /// Этот компонент обеспечивает единообразный интерфейс меню для разных типов элементов
@@ -23,6 +24,9 @@ struct UniversalMenuView: View {
     @State private var newName: String = ""
     /// Лампочки текущей комнаты для режима реорганизации
     @State private var roomLights: [Light] = []
+    
+    /// Статическая переменная для хранения подписок Combine
+    private static var cancellables = Set<AnyCancellable>()
     
     /// Данные об элементе (лампа или комната)
     let itemData: MenuItemData
@@ -251,11 +255,29 @@ struct UniversalMenuView: View {
                                 updatedAt: Date()
                             )
                             
-                            // Обновляем NavigationManager с новыми данными
-                            nav.selectedRoomForMenu = updatedRoom
-                            
-                            // TODO: Здесь должно быть реальное сохранение через репозиторий
-                            // DIContainer.shared.roomRepository.updateRoom(updatedRoom)
+                                                    // Обновляем NavigationManager с новыми данными
+                        nav.selectedRoomForMenu = updatedRoom
+                        
+                        // Сохраняем изменения в базе данных через Use Case
+                        let updateRoomUseCase = DIContainer.shared.updateRoomUseCase
+                        let input = UpdateRoomUseCase.Input(room: updatedRoom)
+                        
+                        updateRoomUseCase.execute(input)
+                            .receive(on: DispatchQueue.main)
+                            .sink(
+                                receiveCompletion: { completion in
+                                    switch completion {
+                                    case .finished:
+                                        print("✅ Тип комнаты успешно обновлен: \(typeName)")
+                                    case .failure(let error):
+                                        print("❌ Ошибка при обновлении типа комнаты: \(error.localizedDescription)")
+                                    }
+                                },
+                                receiveValue: { _ in
+                                    // Операция завершена успешно
+                                }
+                            )
+                            .store(in: &Self.cancellables)
                         }
                         
                         menuConfig.onTypeChanged?(typeName, iconName)

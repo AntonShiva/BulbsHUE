@@ -138,7 +138,8 @@ extension EnvironmentCoordinator {
         // Создаем ViewModel для комнат
         let roomsViewModel = RoomsViewModel(
             getRoomsUseCase: diContainer.getRoomsUseCase,
-            deleteRoomUseCase: diContainer.deleteRoomUseCase
+            deleteRoomUseCase: diContainer.deleteRoomUseCase,
+            roomRepository: diContainer.roomRepository
         )
         
         // Создаем координатор

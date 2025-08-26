@@ -305,6 +305,7 @@ final class AddNewRoomViewModel: ObservableObject {
             let roomEntity = try await roomCreationService.createRoomWithLights(
                 name: roomName,
                 type: selectedSubtype.roomType,
+                subtypeName: selectedSubtype.name, // ✅ Передаем название подтипа (DOWNSTAIRS)
                 iconName: selectedSubtype.iconName, // ✅ Передаем иконку подтипа
                 lightIds: selectedLightIds
             )
@@ -393,7 +394,7 @@ protocol NavigationManaging: AnyObject {
 
 /// Протокол для сервиса создания комнат (Dependency Inversion Principle)
 protocol RoomCreationServicing {
-    func createRoomWithLights(name: String, type: RoomSubType, iconName: String, lightIds: [String]) async throws -> RoomEntity
+    func createRoomWithLights(name: String, type: RoomSubType, subtypeName: String, iconName: String, lightIds: [String]) async throws -> RoomEntity
 }
 
 // MARK: - Extensions для соответствия протоколам
@@ -425,10 +426,11 @@ class DIRoomCreationService: RoomCreationServicing {
         self.createRoomWithLightsUseCase = createRoomWithLightsUseCase
     }
     
-    func createRoomWithLights(name: String, type: RoomSubType, iconName: String, lightIds: [String]) async throws -> RoomEntity {
+    func createRoomWithLights(name: String, type: RoomSubType, subtypeName: String, iconName: String, lightIds: [String]) async throws -> RoomEntity {
         let input = CreateRoomWithLightsUseCase.Input(
             roomName: name,
             roomType: type,
+            subtypeName: subtypeName,
             iconName: iconName,
             lightIds: lightIds
         )

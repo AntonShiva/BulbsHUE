@@ -38,6 +38,9 @@ final class RoomControlViewModel: ObservableObject {
     /// Сервис для управления комнатами
     private var roomService: RoomServiceProtocol?
     
+    /// Репозиторий комнат для реактивных стримов
+    private var roomRepository: RoomRepositoryProtocol?
+    
     /// Подписки Combine
     private var cancellables = Set<AnyCancellable>()
     
@@ -73,17 +76,21 @@ final class RoomControlViewModel: ObservableObject {
     /// - Parameters:
     ///   - lightControlService: Сервис управления лампами
     ///   - roomService: Сервис управления комнатами
+    ///   - roomRepository: Репозиторий для реактивных обновлений
     ///   - room: Комната для управления
     func configure(
         with lightControlService: LightControlling,
         roomService: RoomServiceProtocol,
+        roomRepository: RoomRepositoryProtocol,
         room: RoomEntity
     ) {
         self.lightControlService = lightControlService
         self.roomService = roomService
+        self.roomRepository = roomRepository
         self.isConfigured = true
         setupObservers()
         setCurrentRoom(room)
+        setupRoomObserver()
     }
     
     // MARK: - Public Methods
@@ -93,6 +100,7 @@ final class RoomControlViewModel: ObservableObject {
     func setCurrentRoom(_ room: RoomEntity) {
         self.currentRoom = room
         updateStateFromRoom()
+        setupRoomObserver() // Переустанавливаем подписку на новую комнату
     }
     
     /// Переключить питание всех ламп в комнате
@@ -297,6 +305,22 @@ final class RoomControlViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] lights in
                 self?.updateStateFromLights(lights)
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// Настройка подписки на изменения конкретной комнаты
+    private func setupRoomObserver() {
+        guard let roomRepository = roomRepository, let roomId = currentRoom?.id else { return }
+        
+        // Подписываемся на изменения конкретной комнаты из репозитория
+        roomRepository.roomStream(for: roomId)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] updatedRoom in
+                if let room = updatedRoom {
+                    print("🏠 RoomControlViewModel: Получено обновление комнаты '\(room.name)' - тип: \(room.type.displayName), подтип: \(room.subtypeName)")
+                    self?.currentRoom = room
+                }
             }
             .store(in: &cancellables)
     }
