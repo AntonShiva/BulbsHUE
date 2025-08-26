@@ -8,7 +8,22 @@ struct LightSelectionCell: View {
     
     // Computed property для определения доступности лампы
     private var isSelectable: Bool {
-        return light.roomId == nil && light.isReachable
+        return light.roomId == nil // Убираем проверку isReachable - можно выбирать и неактивные лампы
+    }
+    
+    // Функции для статуса как в Add Bulb
+    private func getStatusColor(isReachable: Bool, isOn: Bool) -> Color {
+        if !isReachable {
+            return Color.orange // Недоступна
+        }
+        return isOn ? Color.green : Color.red
+    }
+    
+    private func getStatusText(isReachable: Bool, isOn: Bool) -> String {
+        if !isReachable {
+            return "недоступна"
+        }
+        return isOn ? "включена" : "выключена"
     }
     
     var body: some View {
@@ -19,7 +34,7 @@ struct LightSelectionCell: View {
                 .adaptiveFrame(width: 332, height: 64)
                 .background(Color(red: 0.79, green: 1, blue: 1))
                 .cornerRadius(15)
-                .opacity(isSelectable ? 0.1 : 0.05) // Приглушенный фон для недоступных ламп
+                .opacity(light.isReachable ? 0.1 : 0.05) // Приглушенный фон для недоступных ламп
             
             // Контент ячейки
             HStack {
@@ -30,28 +45,39 @@ struct LightSelectionCell: View {
                         .scaledToFit()
                         .adaptiveFrame(width: 24, height: 24)
                         .adaptiveFrame(width: 66) // Фиксированная ширина для области иконки
-                        .opacity(isSelectable ? 1.0 : 0.5) // Приглушенная иконка для недоступных ламп
+                        .opacity(light.isReachable ? 1.0 : 0.5) // Приглушенная иконка для недоступных ламп
                     
                     // Информация о лампе
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         // Название лампы
                         Text(light.name)
                             .font(Font.custom("DMSans-Regular", size: 14))
                             .kerning(3)
                             .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                            .opacity(isSelectable ? 1.0 : 0.5) // Приглушенный текст для недоступных ламп
+                            .opacity(light.isReachable ? 1.0 : 0.5) // Приглушенный текст для недоступных ламп
                             .textCase(.uppercase)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-               
+                        // Статус лампы как в Add Bulb
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(getStatusColor(isReachable: light.isReachable, isOn: light.isOn))
+                                .frame(width: 6, height: 6)
+                            
+                            Text(getStatusText(isReachable: light.isReachable, isOn: light.isOn))
+                                .font(Font.custom("DMSans-Light", size: 10))
+                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1).opacity(0.7))
+                                .textCase(.uppercase)
+                        }
                     }
                       
-                    // CheckView вместо шеврона (только для доступных ламп)
+                    // CheckView для всех доступных для выбора ламп (включая неактивные)
                     if isSelectable {
                         CheckView(isActive: isSelected)
                             .adaptiveFrame(width: 50) // Фиксированная ширина для CheckView
+                            .opacity(light.isReachable ? 1.0 : 0.7) // Слегка приглушенный чекбокс для неактивных ламп
                     } else {
-                        // Пустое место вместо CheckView для недоступных ламп
+                        // Пустое место для ламп, уже назначенных в комнату
                         Rectangle()
                             .foregroundColor(.clear)
                             .adaptiveFrame(width: 50, height: 48)
@@ -98,21 +124,21 @@ struct LightSelectionCell: View {
             LightSelectionCell(
                 light: LightEntity(
                     id: "2",
-                    name: "Table Lamp",
+                    name: "Inactive Lamp",
                     type: .table,
                     subtype: .traditionalLamp,
                     isOn: false,
                     brightness: 0.0,
                     color: nil,
                     colorTemperature: 2700,
-                    isReachable: true,
-                    roomId: "room-123",
+                    isReachable: false, // Неактивная лампа
+                    roomId: nil,
                     userSubtype: nil,
                     userIcon: nil
                 ),
                 isSelected: false
             ) {
-                print("Light selected")
+                print("Inactive light selected")
             }
         }
     }

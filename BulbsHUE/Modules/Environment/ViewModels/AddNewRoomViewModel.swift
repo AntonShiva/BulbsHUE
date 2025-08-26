@@ -27,6 +27,9 @@ final class AddNewRoomViewModel: ObservableObject {
     /// Индикатор загрузки для создания комнаты
     @Published var isCreatingRoom: Bool = false
     
+    /// Индикатор поиска новых ламп
+    @Published var isSearchingLights: Bool = false
+    
     // MARK: - Dependencies
     
     /// Менеджер категорий комнат для управления выбором типа
@@ -40,6 +43,9 @@ final class AddNewRoomViewModel: ObservableObject {
     
     /// Сервис создания комнат (устанавливается извне)
     private var roomCreationService: RoomCreationServicing?
+    
+    /// Сервис поиска ламп (устанавливается извне)
+    private weak var lightsSearchProvider: LightsSearchProviding?
     
     // MARK: - Private Properties
     
@@ -76,6 +82,12 @@ final class AddNewRoomViewModel: ObservableObject {
         self.roomCreationService = service
     }
     
+    /// Установка провайдера поиска ламп
+    /// - Parameter provider: Провайдер поиска ламп
+    func setLightsSearchProvider(_ provider: LightsSearchProviding) {
+        self.lightsSearchProvider = provider
+    }
+    
     // MARK: - Private Setup
     
     /// Настройка привязок и подписок
@@ -99,11 +111,11 @@ final class AddNewRoomViewModel: ObservableObject {
             // На первом шаге кнопка активна только если выбрана категория
             return categoryManager.hasSelection
         case 1:
-            // На втором шаге кнопка активна только если выбраны лампы
-            return !selectedLights.isEmpty
+            // На втором шаге кнопка активна только если выбраны лампы и не идет поиск
+            return !selectedLights.isEmpty && !isSearchingLights
         case 2:
-            // На третьем шаге кнопка активна только если введено название комнаты
-            return !customRoomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            // На третьем шаге кнопка активна только если введено название комнаты и не создается комната
+            return !customRoomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isCreatingRoom
         default:
             return false
         }
@@ -115,24 +127,20 @@ final class AddNewRoomViewModel: ObservableObject {
         case 0:
             return "continue"
         case 1:
-            return "continue"
+            return isSearchingLights ? "searching..." : "continue"
         case 2:
-            return "create"
+            return isCreatingRoom ? "creating..." : "create"
         default:
             return "continue"
         }
     }
     
     /// Список доступных ламп, преобразованных в LightEntity
-    /// ✅ ТОЛЬКО ПОДКЛЮЧЕННЫЕ К ЭЛЕКТРОСЕТИ (isReachable = true)
+    /// ✅ ВСЕ ЛАМПЫ (включая отключенные) для создания комнат
     var availableLights: [LightEntity] {
         guard let lightsProvider = lightsProvider else { return [] }
         
         return lightsProvider.lights
-            .filter { light in
-                // 🔌 ФИЛЬТР: Показываем только лампы, подключенные к электросети
-                return light.isReachable
-            }
             .compactMap { light in
                 // ✅ ПРАВИЛЬНАЯ ЛОГИКА: используем пользовательские подтипы, НЕ архетипы API
                 // Если лампа имеет пользовательский подтип - используем его
@@ -158,7 +166,7 @@ final class AddNewRoomViewModel: ObservableObject {
                     brightness: Double(light.dimming?.brightness ?? 0),
                     color: light.color?.xy.map { LightColor(x: $0.x, y: $0.y) },
                     colorTemperature: light.color_temperature?.mirek,
-                    isReachable: true, // Все лампы в этом списке подключены (из-за фильтра выше)
+                    isReachable: light.isReachable, // Показываем реальный статус лампы
                     roomId: nil, // Лампы доступны для назначения в комнату
                     userSubtype: light.metadata.userSubtypeName,
                     userIcon: light.metadata.userSubtypeIcon
@@ -224,6 +232,8 @@ final class AddNewRoomViewModel: ObservableObject {
         navigationManager?.go(Router.environment)
     }
     
+
+    
     // MARK: - Private Methods
     
     /// Переход к шагу выбора ламп
@@ -235,6 +245,12 @@ final class AddNewRoomViewModel: ObservableObject {
         
         withAnimation(.easeInOut(duration: 0.3)) {
             currentStep = 1
+        }
+        
+        // ✅ АВТОМАТИЧЕСКИЙ ПОИСК ЛАМП при переходе к выбору
+        print("🔍 Запускаем автоматический поиск ламп при создании комнаты...")
+        Task {
+            await performLightSearch()
         }
     }
     
@@ -322,6 +338,37 @@ final class AddNewRoomViewModel: ObservableObject {
         customRoomName = ""
         categoryManager.clearSelection()
         isCreatingRoom = false
+        isSearchingLights = false
+    }
+    
+    /// Выполняет поиск новых ламп
+    @MainActor
+    private func performLightSearch() async {
+        guard let lightsSearchProvider = lightsSearchProvider else {
+            print("❌ LightsSearchProvider не установлен")
+            return
+        }
+        
+        isSearchingLights = true
+        
+        print("🔍 Начинаем поиск новых ламп для создания комнаты...")
+        
+        // Используем async/await версию поиска ламп
+        let foundLights = await withCheckedContinuation { continuation in
+            lightsSearchProvider.searchForNewLights { lights in
+                continuation.resume(returning: lights)
+            }
+        }
+        
+        if foundLights.isEmpty {
+            print("ℹ️ Новых ламп не найдено")
+        } else {
+            print("✅ Найдено \(foundLights.count) новых ламп")
+        }
+        
+        // UI обновится автоматически через lightsProvider.lights
+        
+        isSearchingLights = false
     }
     
 
@@ -332,6 +379,11 @@ final class AddNewRoomViewModel: ObservableObject {
 /// Протокол для провайдера ламп (Dependency Inversion Principle)
 protocol LightsProviding: AnyObject {
     var lights: [Light] { get }
+}
+
+/// Протокол для поиска ламп (Dependency Inversion Principle)
+protocol LightsSearchProviding: AnyObject {
+    func searchForNewLights(completion: @escaping ([Light]) -> Void)
 }
 
 /// Протокол для менеджера навигации (Dependency Inversion Principle)
@@ -351,6 +403,11 @@ extension AppViewModel: LightsProviding {
     var lights: [Light] {
         return lightsViewModel.lights
     }
+}
+
+/// Расширение LightsViewModel для соответствия LightsSearchProviding
+extension LightsViewModel: LightsSearchProviding {
+    // Метод уже реализован в LightsViewModel+NetworkSearch.swift
 }
 
 /// Расширение NavigationManager для соответствия NavigationManaging

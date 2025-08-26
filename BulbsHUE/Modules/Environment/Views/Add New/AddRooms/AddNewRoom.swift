@@ -116,28 +116,65 @@ struct AddNewRoom: View {
     
         // MARK: - Представление выбора ламп
     private var lightSelectionView: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 8) {
-                Rectangle()
-                    .foregroundColor(.clear)
-                    .adaptiveFrame(width: 332, height: 64)
-                    .background(Color(red: 0.79, green: 1, blue: 1))
-                    .cornerRadius(15)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                    .opacity(0)
+        VStack(spacing: 16) {
+            // Индикатор поиска
+            if viewModel.isSearchingLights {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.79, green: 1, blue: 1)))
+                        .scaleEffect(1.2)
+                    
+                    Text("поиск ламп...")
+                        .font(Font.custom("DMSans-Light", size: 14))
+                        .kerning(2.8)
+                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                        .textCase(.uppercase)
+                }
+                .adaptiveFrame(width: 332, height: 80)
+                .background(Color(red: 0.79, green: 1, blue: 1).opacity(0.05))
+                .cornerRadius(15)
+                .transition(.opacity.combined(with: .scale))
+            } else if viewModel.availableLights.isEmpty && !viewModel.isSearchingLights {
+                // Сообщение что ламп нет
+                VStack(spacing: 12) {
+                    Text("лампы не найдены")
+                        .font(Font.custom("DMSans-Light", size: 14))
+                        .kerning(2.8)
+                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                        .textCase(.uppercase)
+                }
+                .adaptiveFrame(width: 332, height: 80)
+                .background(Color(red: 0.79, green: 1, blue: 1).opacity(0.05))
+                .cornerRadius(15)
+                .transition(.opacity.combined(with: .scale))
+            }
+            
+            // Список ламп
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 8) {
+                    Rectangle()
+                        .foregroundColor(.clear)
+                        .adaptiveFrame(width: 332, height: 64)
+                        .background(Color(red: 0.79, green: 1, blue: 1))
+                        .cornerRadius(15)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .opacity(0)
 
-                ForEach(viewModel.availableLights, id: \.id) { light in
-                    LightSelectionCell(
-                        light: light,
-                        isSelected: viewModel.isLightSelected(light.id)
-                    ) {
-                        viewModel.toggleLightSelection(light.id)
+                    ForEach(viewModel.availableLights, id: \.id) { light in
+                        LightSelectionCell(
+                            light: light,
+                            isSelected: viewModel.isLightSelected(light.id)
+                        ) {
+                            viewModel.toggleLightSelection(light.id)
+                        }
                     }
                 }
             }
+            .adaptiveFrame(height: viewModel.isSearchingLights || (viewModel.availableLights.isEmpty && !viewModel.isSearchingLights) ? 475 : 555)
         }
         .adaptiveOffset(y: 65)
-        .adaptiveFrame(height: 555)
+        .animation(.easeInOut(duration: 0.3), value: viewModel.isSearchingLights)
+        .animation(.easeInOut(duration: 0.3), value: viewModel.availableLights.count)
     }
     
     // MARK: - Представление ввода названия комнаты
@@ -188,6 +225,9 @@ struct AddNewRoom: View {
         // Устанавливаем реальные зависимости из EnvironmentObject
         viewModel.setLightsProvider(appViewModel)
         viewModel.setNavigationManager(nav)
+        
+        // ✅ НОВОЕ: Устанавливаем провайдер поиска ламп
+        viewModel.setLightsSearchProvider(appViewModel.lightsViewModel)
         
         // Создаем сервис создания комнат с UseCase из DIContainer
         let diContainer = DIContainer.shared
