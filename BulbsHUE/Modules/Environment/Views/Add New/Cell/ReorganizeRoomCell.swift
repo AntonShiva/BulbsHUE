@@ -80,7 +80,7 @@ struct ReorganizeRoomCell: View {
             
             VStack(spacing: 8) {
                 // Основная ячейка (неизменная часть)
-                ZStack {
+             
                     HStack {
                         HStack(spacing: 0) {
                             // Иконка типа лампочки
@@ -88,15 +88,16 @@ struct ReorganizeRoomCell: View {
                                 .resizable()
                                 .scaledToFit()
                                 .adaptiveFrame(width: 32, height: 32)
-                                .adaptiveFrame(width: 66)
-                            
+                                .adaptiveFrame(width: 46)
+                                .adaptiveOffset(x: 5)
                             // Реальные данные лампочки
-                            VStack {
-                                Text(light?.metadata.name ?? "Unknown Bulb")
+                            VStack(alignment: .leading) {
+                                Text(light?.metadata.name ?? "Unknovv")
                                     .font(Font.custom("DMSans-Regular", size: 14))
                                     .kerning(3)
                                     .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                                     .frame(maxWidth: .infinity, alignment: .leading)
+                                    
                                 
                                 Text(getCurrentRoomName())
                                     .font(Font.custom("DM Sans", size: 12))
@@ -105,11 +106,14 @@ struct ReorganizeRoomCell: View {
                                     .opacity(0.4)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .lineLimit(1)
                             .textCase(.uppercase)
-                            .adaptiveOffset(x: 6)
+                            .adaptiveOffset(x: 10)
+                            .adaptiveFrame(width: 140)
                             
                         }
-                        .adaptivePadding(.trailing, 10)
+                        
+                        .adaptiveFrame(width: 180)
                         
                         HStack{
                             Button {
@@ -147,13 +151,12 @@ struct ReorganizeRoomCell: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        .adaptiveFrame(width: 30)
                         
-                        .adaptiveOffset(x: -50)
+                        .adaptiveOffset(x: 14)
                         
                     }
                     
-                }
+                
                 .adaptiveFrame(width: 332, height: 64)
                 
                 // Список комнат - показывается только при showRoomsList = true
