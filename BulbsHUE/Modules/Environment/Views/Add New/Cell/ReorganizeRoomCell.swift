@@ -46,6 +46,27 @@ struct ReorganizeRoomCell: View {
     /// Callback при успешном переносе лампы (для обновления UI)
     var onLightMoved: (() -> Void)?
     
+    // MARK: - Delete Menu States
+    
+    /// Типы действий удаления лампы
+    enum DeleteAction {
+        case removeFromRoom      // Удалить из комнаты
+        case removeFromEnvironment // Удалить из окружения
+    }
+    
+    /// Этапы меню удаления
+    enum MenuStage {
+        case hidden             // Меню скрыто
+        case selectAction       // Выбор действия (Remove from Room/Environment)
+        case confirmAction      // Подтверждение действия (Confirm/Discard)
+    }
+    
+    /// Текущий этап меню удаления
+    @State private var menuStage: MenuStage = .hidden
+    
+    /// Выбранное действие для удаления
+    @State private var selectedDeleteAction: DeleteAction?
+    
     // MARK: - Computed Properties
     
     /// Вычисляет общую высоту области списка комнат в зависимости от количества комнат
@@ -125,7 +146,10 @@ struct ReorganizeRoomCell: View {
                         
                         HStack{
                             Button {
-                                
+                                // Показываем первое меню для выбора типа удаления
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    menuStage = .selectAction
+                                }
                             } label: {
                                 Image("Delete")
                                     .resizable()
@@ -167,6 +191,49 @@ struct ReorganizeRoomCell: View {
                 
                 .adaptiveFrame(width: 332, height: 64)
                 
+                // Меню для удаления лампы - показывается в зависимости от этапа
+                if menuStage != .hidden {
+                    VStack{
+                        ZStack{
+                         Rectangle()
+                            .foregroundColor(.clear)
+                            .adaptiveFrame(width: 332, height: 192)
+                            .background(Color(red: 0.79, green: 1, blue: 1).opacity(0.1))
+                            .cornerRadius(15)
+                            .blur(radius: 2)
+                            VStack(spacing: 15){
+                                // Заголовок меню
+                                HStack{
+                                    Image("Delete")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .adaptiveFrame(width: 22, height: 22)
+                                        .adaptivePadding(.trailing, 8)
+                                    
+                                    Text("remove bulb")
+                                        .font( Font.custom("DMSans-Light", size: 16))
+                                        .kerning(2.72)
+                                        .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                        .textCase(.uppercase)
+                                }
+                                
+                                // Содержимое меню в зависимости от этапа
+                                VStack(spacing: 8) {
+                                    if menuStage == .selectAction {
+                                        // Первый этап: выбор типа удаления
+                                        deleteActionButtons
+                                    } else if menuStage == .confirmAction {
+                                        // Второй этап: подтверждение действия
+                                        confirmActionButtons
+                                    }
+                                }
+                                .textCase(.uppercase)
+                            }
+                        }
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                
                 // Список комнат - показывается только при showRoomsList = true
                 if showRoomsList {
                     // list of rooms
@@ -192,6 +259,8 @@ struct ReorganizeRoomCell: View {
                                         .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                                         .textCase(.uppercase)
                                 }
+                                
+                               
                                 
                                 // Список комнат из единого источника данных
                                 VStack(spacing: 8) {
@@ -369,6 +438,149 @@ struct ReorganizeRoomCell: View {
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    // MARK: - Delete Menu Components
+    
+    /// Кнопки первого этапа: выбор типа удаления
+    @ViewBuilder
+    private var deleteActionButtons: some View {
+        // Кнопка "Remove from Room"
+        Button {
+            // Сохраняем выбранное действие и переходим к подтверждению
+            selectedDeleteAction = .removeFromRoom
+            withAnimation(.easeInOut(duration: 0.3)) {
+                menuStage = .confirmAction
+            }
+        } label: {
+            ZStack {
+                Rectangle()
+                    .foregroundColor(.clear)
+                    .adaptiveFrame(width: 324, height: 64)
+                    .background(Color(red: 0.79, green: 1, blue: 1))
+                    .cornerRadius(12)
+                    .opacity(0.1)
+                Text("remove from room")
+                    .font(Font.custom("DM Sans", size: 14))
+                    .kerning(2.8)
+                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+            }
+        }
+        .buttonStyle(.plain)
+        
+        // Кнопка "Remove from Environment"
+        Button {
+            // Сохраняем выбранное действие и переходим к подтверждению
+            selectedDeleteAction = .removeFromEnvironment
+            withAnimation(.easeInOut(duration: 0.3)) {
+                menuStage = .confirmAction
+            }
+        } label: {
+            ZStack {
+                Rectangle()
+                    .foregroundColor(.clear)
+                    .adaptiveFrame(width: 324, height: 64)
+                    .background(Color(red: 0.79, green: 1, blue: 1))
+                    .cornerRadius(12)
+                    .opacity(0.1)
+                Text("remove from environment")
+                    .font(Font.custom("DM Sans", size: 14))
+                    .kerning(2.8)
+                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+            }
+        }
+        .buttonStyle(.plain)
+    }
+    
+    /// Кнопки второго этапа: подтверждение действия
+    @ViewBuilder
+    private var confirmActionButtons: some View {
+        // Кнопка "Confirm"
+        Button {
+            // Выполняем выбранное действие удаления
+            if let action = selectedDeleteAction {
+                performDeleteAction(action)
+            }
+            // Скрываем меню
+            withAnimation(.easeInOut(duration: 0.3)) {
+                resetDeleteMenu()
+            }
+        } label: {
+            ZStack {
+                Rectangle()
+                    .foregroundColor(.clear)
+                    .adaptiveFrame(width: 324, height: 64)
+                    .background(Color(red: 0.79, green: 1, blue: 1))
+                    .cornerRadius(12)
+                    .opacity(0.1)
+                Text("confirm")
+                    .font(Font.custom("DM Sans", size: 14))
+                    .kerning(2.8)
+                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+            }
+        }
+        .buttonStyle(.plain)
+        
+        // Кнопка "Discard"
+        Button {
+            // Возвращаемся к первому этапу или скрываем меню
+            withAnimation(.easeInOut(duration: 0.3)) {
+                resetDeleteMenu()
+            }
+        } label: {
+            ZStack {
+                Rectangle()
+                    .foregroundColor(.clear)
+                    .adaptiveFrame(width: 324, height: 64)
+                    .background(Color(red: 0.79, green: 1, blue: 1))
+                    .cornerRadius(12)
+                    .opacity(0.1)
+                Text("discard")
+                    .font(Font.custom("DM Sans", size: 14))
+                    .kerning(2.8)
+                    .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+            }
+        }
+        .buttonStyle(.plain)
+    }
+    
+    // MARK: - Delete Menu Methods
+    
+    /// Сбрасывает состояние меню удаления к начальному
+    private func resetDeleteMenu() {
+        menuStage = .hidden
+        selectedDeleteAction = nil
+    }
+    
+    /// Выполняет выбранное действие удаления
+    /// - Parameter action: Тип действия удаления
+    private func performDeleteAction(_ action: DeleteAction) {
+        guard let light = light else {
+            print("❌ Ошибка: Нет данных лампы для удаления")
+            return
+        }
+        
+        switch action {
+        case .removeFromRoom:
+            // Логика удаления лампы из текущей комнаты
+            removeLightFromCurrentRoom()
+            
+        case .removeFromEnvironment:
+            // Логика полного удаления лампы из окружения
+            removeLightFromEnvironment()
+        }
+    }
+    
+    /// Удаляет лампу из текущей комнаты (оставляет в окружении)
+    private func removeLightFromCurrentRoom() {
+        // TODO: Реализовать логику удаления из комнаты
+        print("🔄 Удаление лампы из комнаты: \(light?.metadata.name ?? "Unknown")")
+    }
+    
+    /// Полностью удаляет лампу из окружения
+    private func removeLightFromEnvironment() {
+        // TODO: Реализовать логику полного удаления
+        print("🗑️ Полное удаление лампы из окружения: \(light?.metadata.name ?? "Unknown")")
     }
 }
 
