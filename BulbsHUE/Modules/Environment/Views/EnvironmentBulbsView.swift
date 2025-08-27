@@ -22,26 +22,24 @@ struct EnvironmentBulbsView: View {
     var body: some View {
         ZStack {
             // Основной градиентный фон
-            backgroundGradient
+           BG()
             
-            // Shadows overlay из Figma
-            shadowsOverlay
             
             // Верхняя навигационная панель
             navigationHeader
-                .adaptiveOffset(y: -370)
+                .adaptiveOffset(y: -320)
             
             // Blur панель с табами фильтров
             filterTabs
-                .adaptiveOffset(y: -287)
+                .adaptiveOffset(y: -237)
             
             // Секционные табы
             sectionTabs
-                .adaptiveOffset(y: -222)
+                .adaptiveOffset(y: -182)
             
             // Сетка изображений сцен
             sceneGrid
-                .adaptiveOffset(y: 80)
+                .adaptiveOffset(y: 260)
         }
         .ignoresSafeArea(.all)
     }
@@ -385,6 +383,7 @@ struct EnvironmentBulbsView: View {
     
     /// Сетка с круглыми изображениями природных сцен
     private var sceneGrid: some View {
+        ScrollView{
         LazyVGrid(columns: [
             GridItem(.flexible()),
             GridItem(.flexible())
@@ -396,6 +395,7 @@ struct EnvironmentBulbsView: View {
             }
         }
         .padding(.horizontal, 23)
+    }
     }
 }
 
@@ -533,48 +533,48 @@ class EnvironmentBulbsViewModel: ObservableObject {
             ),
             EnvironmentScene(
                 id: "scene3",
-                name: "Kitchen",
-                imageURL: "Liv3", 
+                name: "Whispering Sands",
+                imageURL: "Whispering Sands", 
                 section: .section1,
                 filterType: .pastel,
                 isFavorite: true
             ),
             EnvironmentScene(
                 id: "scene4",
-                name: "Bathroom",
-                imageURL: "Liv4",
+                name: "Echoed Patterns",
+                imageURL: "Echoed Patterns",
                 section: .section1,
                 filterType: .pastel,
                 isFavorite: false
             ),
             EnvironmentScene(
                 id: "scene5",
-                name: "Office",
-                imageURL: "Liv5",
+                name: "Fading Blossoms",
+                imageURL: "Fading Blossoms",
                 section: .section1,
                 filterType: .pastel,
                 isFavorite: true
             ),
             EnvironmentScene(
                 id: "scene6",
-                name: "Dining Room",
-                imageURL: "pr1",
+                name: "Luminous Drift",
+                imageURL: "Luminous Drift",
                 section: .section1,
                 filterType: .pastel,
                 isFavorite: false
             ),
             EnvironmentScene(
                 id: "scene7",
-                name: "Study",
-                imageURL: "pr2",
+                name: "Skybound Serenity",
+                imageURL: "Skybound Serenity",
                 section: .section1,
                 filterType: .pastel,
                 isFavorite: true
             ),
             EnvironmentScene(
                 id: "scene8",
-                name: "Hall",
-                imageURL: "pr3",
+                name: "Horizon Glow",
+                imageURL: "Horizon Glow",
                 section: .section1,
                 filterType: .pastel,
                 isFavorite: false
@@ -583,20 +583,185 @@ class EnvironmentBulbsViewModel: ObservableObject {
             // Section 1 - Color Picker
             EnvironmentScene(
                 id: "scene9",
-                name: "Bright Red",
-                imageURL: "re1",
+                name: "Ethereal Metropolis",
+                imageURL: "Ethereal Metropolis",
                 section: .section1,
-                filterType: .colorPicker,
+                filterType: .pastel,
                 isFavorite: true
             ),
             EnvironmentScene(
                 id: "scene10",
-                name: "Ocean Blue", 
-                imageURL: "re2",
+                name: "Verdant Mist", 
+                imageURL: "Verdant Mist",
                 section: .section1,
-                filterType: .colorPicker,
+                filterType: .pastel,
                 isFavorite: false
             ),
+            
+            // Section 2 - Pastel
+            EnvironmentScene(
+                id: "scene17",
+                name: "Celestial Whispers",
+                imageURL: "Celestial Whispers",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene18",
+                name: "Silent Ridges",
+                imageURL: "Silent Ridges",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene19",
+                name: "Soaring Shadows",
+                imageURL: "Soaring Shadows",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene20",
+                name: "Tranquil Shoreline",
+                imageURL: "Tranquil Shoreline",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene21",
+                name: "Gilded Glow",
+                imageURL: "Gilded Glow",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene22",
+                name: "Midnight Echo",
+                imageURL: "Midnight Echo",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene23",
+                name: "Evergreen Veil",
+                imageURL: "Evergreen Veil",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene24",
+                name: "Mirror Lake",
+                imageURL: "Mirror Lake",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene25",
+                name: "Aurora Pulse",
+                imageURL: "Aurora Pulse",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene26",
+                name: "Whispering Wilds",
+                imageURL: "Whispering Wilds",
+                section: .section2,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            
+            // Section 3 - Pastel
+            EnvironmentScene(
+                id: "scene27",
+                name: "Violet Mist",
+                imageURL: "Violet Mist",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene28",
+                name: "Lavender Horizon",
+                imageURL: "Lavender Horizon",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene29",
+                name: "Azure Peaks",
+                imageURL: "Azure Peaks",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene30",
+                name: "Frozen Veins",
+                imageURL: "Frozen Veins",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene31",
+                name: "Crystal Drift",
+                imageURL: "Crystal Drift",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene32",
+                name: "Eclipsed Glow",
+                imageURL: "Eclipsed Glow",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene33",
+                name: "Twilight Pines",
+                imageURL: "Twilight Pines",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene34",
+                name: "Phantom Summits",
+                imageURL: "Phantom Summits",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene35",
+                name: "Layered Tranquility",
+                imageURL: "Layered Tranquility",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene36",
+                name: "Echoed Fog",
+                imageURL: "Echoed Fog",
+                section: .section3,
+                filterType: .pastel,
+                isFavorite: false
+            ),
+            
             EnvironmentScene(
                 id: "scene11",
                 name: "Forest Green",
