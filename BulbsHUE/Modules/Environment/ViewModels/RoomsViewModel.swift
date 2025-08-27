@@ -107,9 +107,9 @@ final class RoomsViewModel: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] _ in
-                    // Удаляем из локального массива
-                    self?.rooms.removeAll { $0.id == roomId }
-                    print("✅ Комната \(room.name) удалена")
+                    print("✅ Комната '\(room.name)' успешно удалена")
+                    // Комнаты обновятся автоматически через реактивный стрим
+                    // setupReactiveStreams() уже подписан на roomRepository.roomsStream
                 }
             )
             .store(in: &cancellables)

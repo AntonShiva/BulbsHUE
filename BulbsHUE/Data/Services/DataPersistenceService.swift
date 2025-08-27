@@ -268,10 +268,17 @@ final class DataPersistenceService: ObservableObject {
     /// - Parameter lightId: ID лампы
     func deleteLightData(_ lightId: String) {
         Task { @MainActor in
+            isUpdating = true
+            
             if let lightData = fetchLightData(by: lightId) {
                 modelContext.delete(lightData)
                 saveContext()
+                
+                // Обновляем @Published свойства для UI
+                loadAssignedLights()
             }
+            
+            isUpdating = false
         }
     }
     

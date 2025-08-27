@@ -108,6 +108,10 @@ final class DIContainer {
         return UpdateRoomNameUseCase(roomRepository: roomRepository)
     }()
     
+    private lazy var _deleteLightUseCase: DeleteLightUseCase = {
+        return DeleteLightUseCase(lightRepository: lightRepository, dataPersistenceService: _dataPersistenceService)
+    }()
+    
     /// DataPersistenceService для Use Cases
     private var _dataPersistenceService: DataPersistenceService = DataPersistenceService()
     
@@ -151,6 +155,7 @@ final class DIContainer {
     var updateRoomUseCase: UpdateRoomUseCase { _updateRoomUseCase }
     var updateLightNameUseCase: UpdateLightNameUseCase { _updateLightNameUseCase }
     var updateRoomNameUseCase: UpdateRoomNameUseCase { _updateRoomNameUseCase }
+    var deleteLightUseCase: DeleteLightUseCase { _deleteLightUseCase }
     
     // Services
     var appStore: AppStore { _appStore }
@@ -186,6 +191,7 @@ final class DIContainer {
             dataPersistenceService: _dataPersistenceService,
             hueAPIClient: appViewModel.apiClient
         )
+        _deleteLightUseCase = DeleteLightUseCase(lightRepository: _lightRepository, dataPersistenceService: _dataPersistenceService)
     }
     
     /// Настройка реального RoomRepository с зависимостями

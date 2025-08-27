@@ -106,7 +106,44 @@ struct MenuView: View {
                 },
                 onDelete: {
                     print("🗑️ Delete bulb pressed")
-                    // TODO: Реализовать удаление лампы
+                    
+                    // Получаем текущую выбранную лампу из NavigationManager
+                    guard let currentLight = NavigationManager.shared.selectedLightForMenu else {
+                        print("❌ Ошибка: Нет выбранной лампы для удаления")
+                        return
+                    }
+                    
+                    // Используем DeleteLightUseCase для удаления лампы
+                    let deleteLightUseCase = DIContainer.shared.deleteLightUseCase
+                    let input = DeleteLightUseCase.Input(
+                        lightId: currentLight.id,
+                        roomId: nil // nil означает полное удаление из Environment
+                    )
+                    
+                    // Выполняем удаление через Combine
+                    deleteLightUseCase.execute(input)
+                        .receive(on: DispatchQueue.main)
+                        .sink(
+                            receiveCompletion: { completion in
+                                switch completion {
+                                case .finished:
+                                    print("✅ Лампа '\(currentLight.metadata.name)' успешно удалена из Environment")
+                                    
+                                    // Очищаем selectedLightForMenu
+                                    NavigationManager.shared.selectedLightForMenu = nil
+                                    
+                                    // Закрываем меню
+                                    NavigationManager.shared.hideMenuView()
+                                    
+                                case .failure(let error):
+                                    print("❌ Ошибка при удалении лампы: \(error.localizedDescription)")
+                                }
+                            },
+                            receiveValue: { _ in
+                                // Операция завершена успешно
+                            }
+                        )
+                        .store(in: &Self.cancellables)
                 }
             )
         )

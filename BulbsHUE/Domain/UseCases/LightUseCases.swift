@@ -279,6 +279,70 @@ struct UpdateLightNameUseCase: UseCase {
     }
 }
 
+// MARK: - Delete Light Use Case
+struct DeleteLightUseCase: UseCase {
+    private let lightRepository: LightRepositoryProtocol
+    private let dataPersistenceService: DataPersistenceService
+    
+    init(lightRepository: LightRepositoryProtocol, dataPersistenceService: DataPersistenceService) {
+        self.lightRepository = lightRepository
+        self.dataPersistenceService = dataPersistenceService
+    }
+    
+    struct Input {
+        let lightId: String
+        /// Опциональный roomId - если указан, то удаляем лампу из комнаты
+        /// Если nil, то полностью удаляем лампу из Environment
+        let roomId: String?
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<Void, Error> {
+        if let roomId = input.roomId {
+            // Удаляем лампу только из комнаты, оставляем в Environment
+            return lightRepository.getLight(by: input.lightId)
+                .flatMap { light -> AnyPublisher<Void, Error> in
+                    guard light != nil else {
+                        return Fail(error: LightError.lightNotFound)
+                            .eraseToAnyPublisher()
+                    }
+                    
+                    // Удаляем из комнаты через LightRepository 
+                    return self.lightRepository.removeLightFromEnvironment(id: input.lightId)
+                }
+                .eraseToAnyPublisher()
+        } else {
+            // Полностью удаляем лампу из Environment
+            return Future<Void, Error> { promise in
+                Task { @MainActor in
+                    // Сначала проверяем, что лампа существует
+                    guard let lightData = self.dataPersistenceService.fetchLightData(by: input.lightId) else {
+                        promise(.failure(LightError.lightNotFound))
+                        return
+                    }
+                    
+                    // Удаляем из локальной базы данных
+                    self.dataPersistenceService.deleteLightData(input.lightId)
+                    
+                    // Отправляем уведомление об обновлении
+                    NotificationCenter.default.post(
+                        name: Notification.Name("LightDataDeleted"),
+                        object: nil,
+                        userInfo: ["lightId": input.lightId]
+                    )
+                    
+                    print("✅ Лампа '\(lightData.name ?? input.lightId)' полностью удалена из Environment")
+                    promise(.success(()))
+                }
+            }
+            .flatMap { _ -> AnyPublisher<Void, Error> in
+                // После успешного удаления из локальной базы, удаляем из repository
+                return self.lightRepository.removeLightFromEnvironment(id: input.lightId)
+            }
+            .eraseToAnyPublisher()
+        }
+    }
+}
+
 // MARK: - Light Errors
 enum LightError: Error, LocalizedError {
     case lightNotFound

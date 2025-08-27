@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 /// Меню настроек для комнаты (обновленная версия, использующая универсальные компоненты)
 /// Использует UniversalMenuView для единообразного интерфейса с меню ламп
@@ -20,6 +21,9 @@ struct MenuItemRooms: View {
     let baseColor: Color
     
     @EnvironmentObject var nav: NavigationManager
+    
+    /// Набор cancellables для хранения подписок Combine
+    @State private var cancellables = Set<AnyCancellable>()
     
     /// Инициализатор для создания меню комнаты
     /// - Parameters:
@@ -76,7 +80,40 @@ struct MenuItemRooms: View {
                 },
                 onDelete: {
                     print("🗑️ Delete room pressed")
-                    // TODO: Реализовать удаление комнаты
+                    
+                    // Получаем текущую выбранную комнату из NavigationManager
+                    guard let currentRoom = self.nav.selectedRoomForMenu else {
+                        print("❌ Ошибка: Нет выбранной комнаты для удаления")
+                        return
+                    }
+                    
+                    // Используем DeleteRoomUseCase для удаления комнаты
+                    let deleteRoomUseCase = DIContainer.shared.deleteRoomUseCase
+                    
+                    // Выполняем удаление через Combine
+                    deleteRoomUseCase.execute(currentRoom.id)
+                        .receive(on: DispatchQueue.main)
+                        .sink(
+                            receiveCompletion: { completion in
+                                switch completion {
+                                case .finished:
+                                    print("✅ Комната '\(currentRoom.subtypeName)' успешно удалена")
+                                    
+                                    // Очищаем selectedRoomForMenu
+                                    self.nav.selectedRoomForMenu = nil
+                                    
+                                    // Закрываем меню
+                                    self.nav.hideMenuView()
+                                    
+                                case .failure(let error):
+                                    print("❌ Ошибка при удалении комнаты: \(error.localizedDescription)")
+                                }
+                            },
+                            receiveValue: { _ in
+                                // Операция завершена успешно
+                            }
+                        )
+                        .store(in: &cancellables)
                 }
             )
         )
