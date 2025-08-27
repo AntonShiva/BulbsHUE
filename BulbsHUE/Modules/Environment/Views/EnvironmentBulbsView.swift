@@ -412,25 +412,13 @@ private struct SceneCard: View {
             Button(action: onTap) {
                 ZStack {
                     // Создаем красивый градиентный фон для SVG иконок
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.6, green: 0.8, blue: 0.9).opacity(0.3),
-                                    Color(red: 0.3, green: 0.5, blue: 0.7).opacity(0.6),
-                                    Color(red: 0.2, green: 0.3, blue: 0.5).opacity(0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 156, height: 156)
+                 
                     
                     // SVG иконка в центре
                     Image(scene.imageURL)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 80, height: 80)
+                        .frame(width: 156, height: 156)
                         .foregroundColor(.primColor.opacity(0.9))
                     
                     // Overlay для эффекта нажатия
@@ -529,16 +517,16 @@ class EnvironmentBulbsViewModel: ObservableObject {
             // Section 1 - Pastel (используем локальные SVG иконки)
             EnvironmentScene(
                 id: "scene1",
-                name: "Living Room",
-                imageURL: "Liv1", // Используем локальные ассеты
+                name: "Golden Haze",
+                imageURL: "Golden Haze", // Используем локальные ассеты
                 section: .section1,
                 filterType: .pastel,
                 isFavorite: true
             ),
             EnvironmentScene(
                 id: "scene2", 
-                name: "Bedroom",
-                imageURL: "Liv2",
+                name: "Dawn Dunes",
+                imageURL: "Dawn Dunes",
                 section: .section1,
                 filterType: .pastel,
                 isFavorite: false
