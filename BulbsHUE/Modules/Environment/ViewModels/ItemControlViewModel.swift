@@ -295,6 +295,28 @@ class ItemControlViewModel: ObservableObject {
                 self?.syncWithUpdatedLights(updatedLights)
             }
             .store(in: &cancellables)
+        
+        // Подписываемся на изменения selectedLightForMenu в NavigationManager
+        NavigationManager.shared.$selectedLightForMenu
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] updatedLight in
+                self?.handleNavigationManagerLightUpdate(updatedLight)
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// Обработка обновления лампы из NavigationManager
+    /// - Parameter updatedLight: Обновленная лампа из NavigationManager
+    private func handleNavigationManagerLightUpdate(_ updatedLight: Light?) {
+        guard let updatedLight = updatedLight,
+              let currentLight = currentLight,
+              currentLight.id == updatedLight.id else {
+            return
+        }
+        
+        // Обновляем текущую лампу с новыми данными
+        self.currentLight = updatedLight
+        print("✅ ItemControlViewModel: Обновлена лампа из NavigationManager: \(updatedLight.metadata.name)")
     }
     
     /// Синхронизация с обновлённым списком ламп

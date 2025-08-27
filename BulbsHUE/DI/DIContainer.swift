@@ -95,6 +95,19 @@ final class DIContainer {
         return UpdateRoomUseCase(roomRepository: roomRepository)
     }()
     
+    private lazy var _updateLightNameUseCase: UpdateLightNameUseCase = {
+        // По умолчанию используем заглушку, будет переинициализирован в configureLightRepository
+        let dummyClient = HueAPIClient(bridgeIP: "")
+        return UpdateLightNameUseCase(
+            dataPersistenceService: _dataPersistenceService, 
+            hueAPIClient: dummyClient
+        )
+    }()
+    
+    private lazy var _updateRoomNameUseCase: UpdateRoomNameUseCase = {
+        return UpdateRoomNameUseCase(roomRepository: roomRepository)
+    }()
+    
     /// DataPersistenceService для Use Cases
     private var _dataPersistenceService: DataPersistenceService = DataPersistenceService()
     
@@ -136,6 +149,8 @@ final class DIContainer {
     var removeLightFromRoomUseCase: RemoveLightFromRoomUseCase { _removeLightFromRoomUseCase }
     var updateLightTypeUseCase: UpdateLightTypeUseCase { _updateLightTypeUseCase }
     var updateRoomUseCase: UpdateRoomUseCase { _updateRoomUseCase }
+    var updateLightNameUseCase: UpdateLightNameUseCase { _updateLightNameUseCase }
+    var updateRoomNameUseCase: UpdateRoomNameUseCase { _updateRoomNameUseCase }
     
     // Services
     var appStore: AppStore { _appStore }
@@ -167,6 +182,10 @@ final class DIContainer {
         _getEnvironmentLightsUseCase = GetEnvironmentLightsUseCase(lightRepository: _lightRepository)
         _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: _lightRepository)
         _updateLightTypeUseCase = UpdateLightTypeUseCase(dataPersistenceService: _dataPersistenceService)
+        _updateLightNameUseCase = UpdateLightNameUseCase(
+            dataPersistenceService: _dataPersistenceService,
+            hueAPIClient: appViewModel.apiClient
+        )
     }
     
     /// Настройка реального RoomRepository с зависимостями
@@ -184,6 +203,7 @@ final class DIContainer {
         _moveLightBetweenRoomsUseCase = MoveLightBetweenRoomsUseCase(roomRepository: _roomRepository, lightRepository: lightRepository)
         _removeLightFromRoomUseCase = RemoveLightFromRoomUseCase(roomRepository: _roomRepository)
         _updateRoomUseCase = UpdateRoomUseCase(roomRepository: _roomRepository)
+        _updateRoomNameUseCase = UpdateRoomNameUseCase(roomRepository: _roomRepository)
     }
 }
 

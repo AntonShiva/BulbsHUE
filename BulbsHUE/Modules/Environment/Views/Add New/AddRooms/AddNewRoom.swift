@@ -147,6 +147,7 @@ struct AddNewRoom: View {
                 .background(Color(red: 0.79, green: 1, blue: 1).opacity(0.05))
                 .cornerRadius(15)
                 .transition(.opacity.combined(with: .scale))
+                .adaptiveOffset(y: 100)
             }
             
             // Список ламп

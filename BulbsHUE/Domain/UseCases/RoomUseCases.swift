@@ -351,6 +351,53 @@ struct UpdateRoomUseCase: UseCase {
     }
 }
 
+// MARK: - Update Room Name Use Case
+struct UpdateRoomNameUseCase: UseCase {
+    private let roomRepository: RoomRepositoryProtocol
+    
+    init(roomRepository: RoomRepositoryProtocol) {
+        self.roomRepository = roomRepository
+    }
+    
+    struct Input {
+        let roomId: String
+        let newName: String
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<Void, Error> {
+        // Валидация входных данных
+        guard !input.newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return Fail(error: RoomError.invalidName)
+                .eraseToAnyPublisher()
+        }
+        
+        // Получаем текущую комнату и обновляем её имя
+        return roomRepository.getRoom(by: input.roomId)
+            .flatMap { room -> AnyPublisher<Void, Error> in
+                guard let existingRoom = room else {
+                    return Fail(error: RoomError.roomNotFound)
+                        .eraseToAnyPublisher()
+                }
+                
+                // Создаем обновленную комнату с новым именем
+                let updatedRoom = RoomEntity(
+                    id: existingRoom.id,
+                    name: input.newName,
+                    type: existingRoom.type,
+                    subtypeName: existingRoom.subtypeName,
+                    iconName: existingRoom.iconName,
+                    lightIds: existingRoom.lightIds,
+                    isActive: existingRoom.isActive,
+                    createdAt: existingRoom.createdAt,
+                    updatedAt: Date()
+                )
+                
+                return self.roomRepository.updateRoom(updatedRoom)
+            }
+            .eraseToAnyPublisher()
+    }
+}
+
 // MARK: - Room Errors
 enum RoomError: Error, LocalizedError {
     case roomNotFound

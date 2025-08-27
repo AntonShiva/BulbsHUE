@@ -221,10 +221,69 @@ struct UpdateLightTypeUseCase: UseCase {
     }
 }
 
+// MARK: - Update Light Name Use Case
+struct UpdateLightNameUseCase: UseCase {
+    private let dataPersistenceService: DataPersistenceService
+    private let hueAPIClient: HueAPIClient
+    
+    init(dataPersistenceService: DataPersistenceService, hueAPIClient: HueAPIClient) {
+        self.dataPersistenceService = dataPersistenceService
+        self.hueAPIClient = hueAPIClient
+    }
+    
+    struct Input {
+        let lightId: String
+        let newName: String
+    }
+    
+    func execute(_ input: Input) -> AnyPublisher<Void, Error> {
+        // Сначала отправляем в Hue API, потом обновляем локальную базу
+        let metadata = LightMetadata(name: input.newName)
+        
+        return hueAPIClient.updateLightMetadata(id: input.lightId, metadata: metadata)
+            .flatMap { success -> AnyPublisher<Void, Error> in
+                if success {
+                    // API успешно обновлен, теперь обновляем локальную базу
+                    return self.updateLocalDatabase(lightId: input.lightId, newName: input.newName)
+                } else {
+                    // Если API не удался, возвращаем ошибку
+                    return Fail(error: LightError.apiUpdateFailed)
+                        .eraseToAnyPublisher()
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    /// Обновляет локальную базу данных после успешного обновления API
+    private func updateLocalDatabase(lightId: String, newName: String) -> AnyPublisher<Void, Error> {
+        return Future<Void, Error> { promise in
+            Task { @MainActor in
+                // Получаем текущие данные лампы
+                guard let lightData = self.dataPersistenceService.fetchLightData(by: lightId) else {
+                    promise(.failure(LightError.lightNotFound))
+                    return
+                }
+                
+                // Обновляем имя лампы в локальной базе
+                lightData.name = newName
+                lightData.lastUpdated = Date()
+                
+                // Сохраняем изменения
+                self.dataPersistenceService.saveContext()
+                
+                print("✅ Имя лампы обновлено в локальной базе: \(newName)")
+                promise(.success(()))
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+}
+
 // MARK: - Light Errors
 enum LightError: Error, LocalizedError {
     case lightNotFound
     case invalidBrightness
+    case apiUpdateFailed
     case invalidColorCoordinates
     case invalidUserSubtype
     case networkError
@@ -235,11 +294,13 @@ enum LightError: Error, LocalizedError {
         case .lightNotFound:
             return "Лампа не найдена"
         case .invalidBrightness:
-            return "Неверное значение яркости (должно быть от 0 до 100)"
+            return "Недопустимое значение яркости"
+        case .apiUpdateFailed:
+            return "Не удалось обновить данные в Hue Bridge"
         case .invalidColorCoordinates:
-            return "Неверные цветовые координаты"
+            return "Недопустимые цветовые координаты"
         case .invalidUserSubtype:
-            return "Не указан тип лампы"
+            return "Недопустимый пользовательский тип"
         case .networkError:
             return "Ошибка сети"
         case .deviceNotReachable:

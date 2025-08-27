@@ -191,4 +191,47 @@ class NavigationManager: ObservableObject {
             togleTabBarVisible() // Обновляем видимость TabBar
         }
     }
+    
+    // MARK: - Методы для обновления имен (вместо NotificationCenter)
+    
+    /// Обновляет имя лампы в selectedLightForMenu и уведомляет всех подписчиков
+    func updateLightName(lightId: String, newName: String) {
+        // Обновляем selectedLightForMenu если это нужная лампа
+        if let currentLight = selectedLightForMenu, currentLight.id == lightId {
+            var updatedLight = currentLight
+            updatedLight.metadata.name = newName
+            selectedLightForMenu = updatedLight
+        }
+        
+        // Обновляем AppViewModel.lightsViewModel для синхронизации везде
+        if let appViewModel = dataPersistenceService?.appViewModel {
+            if let index = appViewModel.lightsViewModel.lights.firstIndex(where: { $0.id == lightId }) {
+                appViewModel.lightsViewModel.lights[index].metadata.name = newName
+            }
+            
+            // Используем встроенный метод если есть
+            if let light = appViewModel.lightsViewModel.lights.first(where: { $0.id == lightId }) {
+                appViewModel.lightsViewModel.renameLight(light, newName: newName)
+            }
+        }
+    }
+    
+    /// Обновляет имя комнаты в selectedRoomForMenu и уведомляет всех подписчиков  
+    func updateRoomName(roomId: String, newName: String) {
+        // Обновляем selectedRoomForMenu если это нужная комната
+        if let currentRoom = selectedRoomForMenu, currentRoom.id == roomId {
+            let updatedRoom = RoomEntity(
+                id: currentRoom.id,
+                name: newName,
+                type: currentRoom.type,
+                subtypeName: currentRoom.subtypeName,
+                iconName: currentRoom.iconName,
+                lightIds: currentRoom.lightIds,
+                isActive: currentRoom.isActive,
+                createdAt: currentRoom.createdAt,
+                updatedAt: Date()
+            )
+            selectedRoomForMenu = updatedRoom
+        }
+    }
 }

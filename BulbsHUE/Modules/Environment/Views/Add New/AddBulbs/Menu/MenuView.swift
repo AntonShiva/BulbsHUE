@@ -98,7 +98,7 @@ struct MenuView: View {
                 },
                 onRename: { newName in
                     print("✏️ Rename bulb to: \(newName)")
-                    // TODO: Реализовать переименование лампы
+                    // Переименование реализовано в UniversalMenuView через Use Cases
                 },
                 onReorganize: {
                     print("📋 Reorganize bulb pressed")

@@ -68,7 +68,7 @@ struct MenuItemRooms: View {
                 },
                 onRename: { newName in
                     print("✏️ Rename room to: \(newName)")
-                    // TODO: Реализовать переименование комнаты
+                    // Переименование реализовано в UniversalMenuView через Use Cases
                 },
                 onReorganize: {
                     print("📋 Reorganize room pressed")

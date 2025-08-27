@@ -122,9 +122,7 @@ struct ControlView: View {
              .adaptiveOffset(x: -3, y: -3)
             
             HStack {
-            // Подтип лампы (подзаголовок)
-            // Значение bulbType получается из ItemControlViewModel.getBulbType() 
-            // → LightControlService.getBulbType() → возвращает userSubtypeName (наш UI выбор)
+            
             Text(bulbType)
                 .font(Font.custom("DMSans-Light", size: 14))
                 .kerning(2.8)

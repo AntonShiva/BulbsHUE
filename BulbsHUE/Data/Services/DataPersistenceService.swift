@@ -24,13 +24,16 @@ final class DataPersistenceService: ObservableObject {
     
     // MARK: - Properties
     
-    /// Модель контейнер SwiftData
+    /// Модель контайнер SwiftData
     private let modelContainer: ModelContainer
     
     /// Контекст модели для операций с данными
     private var modelContext: ModelContext {
         modelContainer.mainContext
     }
+    
+    /// Ссылка на основной AppViewModel для доступа к LightsViewModel
+    weak var appViewModel: AppViewModel?
     
     // MARK: - Initialization
     

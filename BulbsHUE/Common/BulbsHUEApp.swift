@@ -36,6 +36,9 @@ struct BulbsHUEApp: App {
         let appVM = AppViewModel(dataPersistenceService: dataService)
         self._appViewModel = StateObject(wrappedValue: appVM)
         
+        // ✅ Устанавливаем обратную связь для обновления ламп
+        dataService.appViewModel = appVM
+        
         // ✅ НАСТРОЙКА РЕАЛЬНЫХ REPOSITORIES
         // Конфигурируем DIContainer с реальными зависимостями
         DIContainer.shared.configureLightRepository(

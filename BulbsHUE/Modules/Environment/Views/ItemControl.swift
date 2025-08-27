@@ -46,7 +46,7 @@ struct ItemControl: View {
                 ControlView(
                     isOn: $itemControlViewModel.isOn,
                     baseColor: itemControlViewModel.defaultWarmColor,
-                    bulbName: light.metadata.name,
+                    bulbName: itemControlViewModel.currentLight?.metadata.name ?? light.metadata.name,
                     bulbType: itemControlViewModel.getBulbType(),
                     roomName: itemControlViewModel.getRoomName(),
                     bulbIcon: itemControlViewModel.getBulbIcon(),
@@ -56,8 +56,12 @@ struct ItemControl: View {
                         itemControlViewModel.setPower(newState)
                     },
                     onMenuTap: {
-                        // Показываем MenuView для этой лампы
-                        nav.showMenuView(for: light)
+                        // Показываем MenuView для этой лампы (используем актуальную лампу из ViewModel)
+                        if let currentLight = itemControlViewModel.currentLight {
+                            nav.showMenuView(for: currentLight)
+                        } else {
+                            nav.showMenuView(for: light)
+                        }
                     }
                 )
                 
@@ -243,7 +247,7 @@ struct MockItemControl: View {
                     Text(itemControlViewModel.getRoomName())
                         .font(Font.custom("DMSans-Regular", size: 12))
                         .foregroundStyle(Color.white.opacity(0.75))
-                    Text(light.metadata.name)
+                    Text(itemControlViewModel.currentLight?.metadata.name ?? light.metadata.name)
                         .font(Font.custom("DMSans-Medium", size: 14))
                         .foregroundStyle(Color.white)
                 }

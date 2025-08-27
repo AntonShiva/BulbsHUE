@@ -43,9 +43,9 @@ struct RoomControl: View {
                 ControlView(
                     isOn: $roomControlViewModel.isOn,
                     baseColor: roomControlViewModel.defaultWarmColor,
-                    bulbName: roomControlViewModel.getRoomSubtype(), // ✅ Показываем подтип (BEDROOM)
-                    bulbType: roomControlViewModel.getRoomType(), // ✅ Показываем тип (TRADITIONAL)
-                    roomName: "\(roomControlViewModel.getLightCount())",
+                    bulbName: roomControlViewModel.getRoomName(), // ✅ Показываем имя комнаты
+                    bulbType: roomControlViewModel.getRoomType(), // ✅ Показываем ТИП комнаты (TRADITIONAL, MODERN и т.д.) 
+                    roomName: "\(roomControlViewModel.getLightCount()) bulbs",
                     bulbIcon: roomControlViewModel.getRoomIcon(),
                     roomIcon: "bulb",
                     onToggle: { newState in
@@ -53,8 +53,12 @@ struct RoomControl: View {
                         roomControlViewModel.setPower(newState)
                     },
                     onMenuTap: {
-                        // Показываем MenuView для этой комнаты
-                        nav.showMenuView(for: room)
+                        // Показываем MenuView для этой комнаты (используем актуальную комнату из ViewModel)
+                        if let currentRoom = roomControlViewModel.currentRoom {
+                            nav.showMenuView(for: currentRoom)
+                        } else {
+                            nav.showMenuView(for: room)
+                        }
                     }
                 )
                 

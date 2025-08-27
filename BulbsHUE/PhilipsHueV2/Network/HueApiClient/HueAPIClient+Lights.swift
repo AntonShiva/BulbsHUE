@@ -114,6 +114,60 @@ extension HueAPIClient {
         .eraseToAnyPublisher()
     }
     
+    /// Обновляет метаданные лампы (имя, архетип и т.д.) через Hue API v2
+    /// - Parameters:
+    ///   - id: Уникальный идентификатор лампы
+    ///   - metadata: Новые метаданные лампы
+    /// - Returns: Combine Publisher с результатом операции
+    func updateLightMetadata(id: String, metadata: LightMetadata) -> AnyPublisher<Bool, Error> {
+        return Future<Bool, Error> { [weak self] promise in
+            self?.throttleQueue.async {
+                guard let self = self else {
+                    promise(.failure(HueAPIError.invalidResponse))
+                    return
+                }
+                
+                let endpoint = "/clip/v2/resource/light/\(id)"
+                
+                // Создаем JSON только с полями, которые поддерживает API
+                let metadataUpdate: [String: Any] = [
+                    "metadata": [
+                        "name": metadata.name
+                        // Архетип обычно не изменяется пользователем через API
+                    ]
+                ]
+                
+                do {
+                    let jsonData = try JSONSerialization.data(withJSONObject: metadataUpdate)
+                    
+                    print("🔧 API v2 HTTPS обновление метаданных: PUT \(endpoint)")
+                    print("📝 Новое имя лампы: \(metadata.name)")
+                    
+                    self.performRequestHTTPS<GenericResponse>(endpoint: endpoint, method: "PUT", body: jsonData)
+                        .sink(
+                            receiveCompletion: { (completion: Subscribers.Completion<Error>) in
+                                if case .failure(let error) = completion {
+                                    print("❌ Ошибка обновления метаданных лампы: \(error)")
+                                    promise(.success(false))
+                                } else {
+                                    print("✅ Метаданные лампы успешно обновлены через API v2")
+                                    promise(.success(true))
+                                }
+                            },
+                            receiveValue: { (response: GenericResponse) in
+                                promise(.success(true))
+                            }
+                        )
+                        .store(in: &self.cancellables)
+                } catch {
+                    print("❌ Ошибка сериализации JSON для обновления метаданных: \(error)")
+                    promise(.failure(error))
+                }
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
     /// Мигает лампой для визуального подтверждения (если лампа подключена и включена в сеть)
     /// Использует кратковременное изменение яркости для имитации 1-2 вспышек
     /// - Parameter id: Уникальный идентификатор лампы

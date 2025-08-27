@@ -307,6 +307,28 @@ final class RoomControlViewModel: ObservableObject {
                 self?.updateStateFromLights(lights)
             }
             .store(in: &cancellables)
+        
+        // Подписываемся на изменения selectedRoomForMenu в NavigationManager
+        NavigationManager.shared.$selectedRoomForMenu
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] updatedRoom in
+                self?.handleNavigationManagerRoomUpdate(updatedRoom)
+            }
+            .store(in: &cancellables)
+    }
+    
+    /// Обработка обновления комнаты из NavigationManager
+    /// - Parameter updatedRoom: Обновленная комната из NavigationManager
+    private func handleNavigationManagerRoomUpdate(_ updatedRoom: RoomEntity?) {
+        guard let updatedRoom = updatedRoom,
+              let currentRoom = currentRoom,
+              currentRoom.id == updatedRoom.id else {
+            return
+        }
+        
+        // Обновляем текущую комнату с новыми данными
+        self.currentRoom = updatedRoom
+        print("✅ RoomControlViewModel: Обновлена комната из NavigationManager: \(updatedRoom.name)")
     }
     
     /// Настройка подписки на изменения конкретной комнаты

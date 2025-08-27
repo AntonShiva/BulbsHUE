@@ -24,6 +24,7 @@ struct UniversalMenuView: View {
     @State private var newName: String = ""
     /// Лампочки текущей комнаты для режима реорганизации
     @State private var roomLights: [Light] = []
+
     
     /// Статическая переменная для хранения подписок Combine
     private static var cancellables = Set<AnyCancellable>()
@@ -32,6 +33,8 @@ struct UniversalMenuView: View {
     let itemData: MenuItemData
     /// Конфигурация меню (какие кнопки показывать и их действия)
     let menuConfig: MenuConfiguration
+    
+
     
     var body: some View {
         ZStack {
@@ -91,18 +94,23 @@ struct UniversalMenuView: View {
     /// Создает карточку элемента (лампы или комнаты)
     @ViewBuilder
     private func createItemCard() -> some View {
+        // Используем реактивные данные из NavigationManager
         switch itemData {
-        case .bulb(let title, let subtitle, let icon, let baseColor, let bottomText):
+        case .bulb(_, let subtitle, let icon, let baseColor, let bottomText):
+            // Для лампы берем актуальное имя из selectedLightForMenu
+            let currentTitle = nav.selectedLightForMenu?.metadata.name ?? "Unknown Light"
             MenuItemCard(
-                bulbTitle: title,
+                bulbTitle: currentTitle,
                 subtitle: subtitle,
                 icon: icon,
                 baseColor: baseColor,
                 bottomText: bottomText
             )
-        case .room(let title, let subtitle, let bulbCount, let baseColor, _):
+        case .room(_, let subtitle, let bulbCount, let baseColor, _):
+            // Для комнаты берем актуальное имя из selectedRoomForMenu
+            let currentTitle = nav.selectedRoomForMenu?.name ?? "Unknown Room"
             MenuItemCard(
-                roomTitle: title,
+                roomTitle: currentTitle,
                 subtitle: subtitle,
                 bulbCount: bulbCount,
                 baseColor: baseColor
@@ -134,6 +142,8 @@ struct UniversalMenuView: View {
                 icon: "Rename",
                 title: "Rename",
                 action: {
+                    // Инициализируем поле ввода текущим именем перед показом
+                    initializeCurrentName()
                     withAnimation(.easeInOut(duration: 0.3)) {
                         showRenameView = true
                     }
@@ -180,7 +190,7 @@ struct UniversalMenuView: View {
                 .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                 .adaptiveOffset(y: -20)
             
-            // Поле ввода (пока текстовое поле, в реальной реализации будет TextField)
+            // Поле ввода с TextField
             ZStack {
                 Rectangle()
                     .foregroundColor(.clear)
@@ -189,10 +199,15 @@ struct UniversalMenuView: View {
                     .cornerRadius(15)
                     .opacity(0.1)
                 
-                Text(newName.isEmpty ? "\(menuConfig.itemTypeName) name" : newName)
+                TextField("\(menuConfig.itemTypeName) name", text: $newName)
                     .font(Font.custom("DMSans-Regular", size: 14))
                     .kerning(2.8)
                     .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .multilineTextAlignment(.center)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.words)
+                    .padding(.horizontal, 16)
             }
             .adaptiveOffset(y: 34)
             
@@ -205,7 +220,7 @@ struct UniversalMenuView: View {
                 offsetX: 0,
                 offsetY: 17
             ) {
-                menuConfig.renameAction?(newName)
+                saveNewName()
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showRenameView = false
                 }
@@ -214,6 +229,102 @@ struct UniversalMenuView: View {
         }
         .textCase(.uppercase)
     }
+    
+    /// Инициализирует поле ввода текущим именем элемента
+    private func initializeCurrentName() {
+        switch itemData {
+        case .bulb(let title, _, _, _, _):
+            newName = title
+        case .room(let title, _, _, _, _):
+            newName = title
+        }
+    }
+    
+    /// Сохраняет новое имя через соответствующий Use Case
+    private func saveNewName() {
+        // Проверяем, что имя не пустое
+        guard !newName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("❌ Пустое имя, сохранение отменено")
+            return
+        }
+        
+        switch itemData {
+        case .bulb(_, _, _, _, _):
+            saveNewLightName()
+        case .room(_, _, _, _, let roomId):
+            saveNewRoomName(roomId: roomId)
+        }
+    }
+    
+    /// Сохраняет новое имя лампы
+    private func saveNewLightName() {
+        guard let currentLight = nav.selectedLightForMenu else {
+            print("❌ Не найдена текущая лампа для переименования")
+            return
+        }
+        
+        let updateUseCase = DIContainer.shared.updateLightNameUseCase
+        let input = UpdateLightNameUseCase.Input(
+            lightId: currentLight.id,
+            newName: newName
+        )
+        
+        updateUseCase.execute(input)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .finished:
+                        print("✅ Имя лампы успешно обновлено в базе данных: \(self.newName)")
+                        
+                        // Обновляем через NavigationManager (следуя современным SwiftUI паттернам)
+                        self.nav.updateLightName(lightId: currentLight.id, newName: self.newName)
+                        
+                    case .failure(let error):
+                        print("❌ Ошибка при обновлении имени лампы: \(error.localizedDescription)")
+                    }
+                },
+                receiveValue: { _ in
+                    // Операция завершена успешно
+                }
+            )
+            .store(in: &Self.cancellables)
+    }
+    
+    /// Сохраняет новое имя комнаты
+    private func saveNewRoomName(roomId: String) {
+        let updateUseCase = DIContainer.shared.updateRoomNameUseCase
+        let input = UpdateRoomNameUseCase.Input(
+            roomId: roomId,
+            newName: newName
+        )
+        
+        updateUseCase.execute(input)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .finished:
+                        print("✅ Имя комнаты успешно обновлено в базе данных: \(self.newName)")
+                        
+                        // Обновляем через NavigationManager (следуя современным SwiftUI паттернам)
+                        self.nav.updateRoomName(roomId: roomId, newName: self.newName)
+                        
+                        // 3. Принудительно обновляем реактивные стримы в DataPersistenceService
+                        // Repository автоматически обновит стримы после изменения данных
+                        
+                    case .failure(let error):
+                        print("❌ Ошибка при обновлении имени комнаты: \(error.localizedDescription)")
+                    }
+                },
+                receiveValue: { _ in
+                    // Операция завершена успешно
+                }
+            )
+            .store(in: &Self.cancellables)
+    }
+    
+
     
     /// Создает экран выбора типа
     @ViewBuilder
