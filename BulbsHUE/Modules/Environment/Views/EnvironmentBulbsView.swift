@@ -579,8 +579,6 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 filterType: .pastel,
                 isFavorite: false
             ),
-            
-            // Section 1 - Color Picker
             EnvironmentScene(
                 id: "scene9",
                 name: "Ethereal Metropolis",
@@ -762,8 +760,25 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: false
             ),
             
+            // Section 1 - Color Picker
             EnvironmentScene(
-                id: "scene11",
+                id: "scene53",
+                name: "Bright Red",
+                imageURL: "re1",
+                section: .section1,
+                filterType: .colorPicker,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene54",
+                name: "Ocean Blue", 
+                imageURL: "re2",
+                section: .section1,
+                filterType: .colorPicker,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene55",
                 name: "Forest Green",
                 imageURL: "re3",
                 section: .section1,
@@ -771,7 +786,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: true
             ),
             EnvironmentScene(
-                id: "scene12",
+                id: "scene56",
                 name: "Sunset Orange",
                 imageURL: "re4",
                 section: .section1,
@@ -781,7 +796,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
             
             // Section 1 - Bright
             EnvironmentScene(
-                id: "scene13",
+                id: "scene57",
                 name: "Golden Horizon",
                 imageURL: "Golden Horizon",
                 section: .section1,
@@ -789,7 +804,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: true
             ),
             EnvironmentScene(
-                id: "scene14",
+                id: "scene58",
                 name: "Velvet Glow",
                 imageURL: "Velvet Glow",
                 section: .section1,
@@ -797,7 +812,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: false
             ),
             EnvironmentScene(
-                id: "scene15",
+                id: "scene59",
                 name: "Rosé Quartz",
                 imageURL: "Rosé Quartz",
                 section: .section1,
@@ -805,7 +820,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: true
             ),
             EnvironmentScene(
-                id: "scene16",
+                id: "scene60",
                 name: "Crimson Lanterns",
                 imageURL: "Crimson Lanterns",
                 section: .section1,
@@ -813,7 +828,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: false
             ),
             EnvironmentScene(
-                id: "scene37",
+                id: "scene61",
                 name: "Molten Ember",
                 imageURL: "Molten Ember",
                 section: .section1,
@@ -821,7 +836,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: true
             ),
             EnvironmentScene(
-                id: "scene38",
+                id: "scene62",
                 name: "Canyon Echo",
                 imageURL: "Canyon Echo",
                 section: .section1,
@@ -829,7 +844,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: false
             ),
             EnvironmentScene(
-                id: "scene39",
+                id: "scene63",
                 name: "Lemon Mirage",
                 imageURL: "Lemon Mirage",
                 section: .section1,
@@ -837,7 +852,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: true
             ),
             EnvironmentScene(
-                id: "scene40",
+                id: "scene64",
                 name: "Wild Bloom",
                 imageURL: "Wild Bloom",
                 section: .section1,
@@ -845,7 +860,7 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: false
             ),
             EnvironmentScene(
-                id: "scene41",
+                id: "scene65",
                 name: "Solar Flare",
                 imageURL: "Solar Flare",
                 section: .section1,
@@ -853,10 +868,174 @@ class EnvironmentBulbsViewModel: ObservableObject {
                 isFavorite: true
             ),
             EnvironmentScene(
-                id: "scene42",
+                id: "scene66",
                 name: "Honey Drip",
                 imageURL: "Honey Drip",
                 section: .section1,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            
+            // Section 2 - Bright
+            EnvironmentScene(
+                id: "scene67",
+                name: "Emerald Veil",
+                imageURL: "Emerald Veil",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene68",
+                name: "Jade Fracture",
+                imageURL: "Jade Fracture",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene69",
+                name: "Lucky Charm",
+                imageURL: "Lucky Charm",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene70",
+                name: "Verdant Passage",
+                imageURL: "Verdant Passage",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene71",
+                name: "Geometric Mirage",
+                imageURL: "Geometric Mirage",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene72",
+                name: "Lego Labyrinth",
+                imageURL: "Lego Labyrinth",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene73",
+                name: "Citrus Harvest",
+                imageURL: "Citrus Harvest",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene74",
+                name: "Neon Zest",
+                imageURL: "Neon Zest",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene75",
+                name: "Aurora Echo",
+                imageURL: "Aurora Echo",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene76",
+                name: "Celestial Glow",
+                imageURL: "Celestial Glow",
+                section: .section2,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            
+            // Section 3 - Bright
+            EnvironmentScene(
+                id: "scene77",
+                name: "Neon Abyss",
+                imageURL: "Neon Abyss",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene78",
+                name: "Blooming Depths",
+                imageURL: "Blooming Depths",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene79",
+                name: "Serene Waves",
+                imageURL: "Serene Waves",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene80",
+                name: "Crystal Tide",
+                imageURL: "Crystal Tide",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene81",
+                name: "Twilight Bloom",
+                imageURL: "Twilight Bloom",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene82",
+                name: "Phantom Drift",
+                imageURL: "Phantom Drift",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene83",
+                name: "Nebula Mirage",
+                imageURL: "Nebula Mirage",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene84",
+                name: "Lunar Medusa",
+                imageURL: "Lunar Medusa",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene85",
+                name: "Sapphire Glow",
+                imageURL: "Sapphire Glow",
+                section: .section3,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene86",
+                name: "Frozen Whispers",
+                imageURL: "Frozen Whispers",
+                section: .section3,
                 filterType: .bright,
                 isFavorite: false
             )
