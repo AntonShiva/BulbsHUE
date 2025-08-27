@@ -782,32 +782,80 @@ class EnvironmentBulbsViewModel: ObservableObject {
             // Section 1 - Bright
             EnvironmentScene(
                 id: "scene13",
-                name: "Pure White",
-                imageURL: "tr1",
+                name: "Golden Horizon",
+                imageURL: "Golden Horizon",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: true
             ),
             EnvironmentScene(
                 id: "scene14",
-                name: "Cool Blue",
-                imageURL: "tr2",
+                name: "Velvet Glow",
+                imageURL: "Velvet Glow",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: false
             ),
             EnvironmentScene(
                 id: "scene15",
-                name: "Warm Yellow",
-                imageURL: "tr3",
+                name: "Rosé Quartz",
+                imageURL: "Rosé Quartz",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: true
             ),
             EnvironmentScene(
                 id: "scene16",
-                name: "Daylight",
-                imageURL: "tr4",
+                name: "Crimson Lanterns",
+                imageURL: "Crimson Lanterns",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene37",
+                name: "Molten Ember",
+                imageURL: "Molten Ember",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene38",
+                name: "Canyon Echo",
+                imageURL: "Canyon Echo",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene39",
+                name: "Lemon Mirage",
+                imageURL: "Lemon Mirage",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene40",
+                name: "Wild Bloom",
+                imageURL: "Wild Bloom",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: false
+            ),
+            EnvironmentScene(
+                id: "scene41",
+                name: "Solar Flare",
+                imageURL: "Solar Flare",
+                section: .section1,
+                filterType: .bright,
+                isFavorite: true
+            ),
+            EnvironmentScene(
+                id: "scene42",
+                name: "Honey Drip",
+                imageURL: "Honey Drip",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: false
