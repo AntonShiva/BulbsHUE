@@ -243,28 +243,29 @@ struct ColorPickerTabsView: View {
     
     // MARK: - Pallet Content
     
-    /// Палитра цветов в виде сетки
+    /// Палитра цветов в виде сетки (точно как в Figma)
     private var palletContent: some View {
         VStack(spacing: 32) {
-            // Сетка цветов
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 4), count: 9), spacing: 4) {
-                ForEach(viewModel.palletColors, id: \.id) { colorItem in
-                    Rectangle()
-                        .fill(colorItem.color)
-                        .frame(width: 36, height: 36)
-                        .cornerRadius(6)
-                        .overlay(
-                            Rectangle()
-                                .stroke(colorItem.isSelected ? .white : .clear, lineWidth: 2)
-                                .cornerRadius(6)
-                        )
-                        .onTapGesture {
-                            viewModel.selectPalletColor(colorItem.id)
-                        }
+            // Сетка цветов точно как в Figma 9x16 (356 width)
+            ScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(36), spacing: 4), count: 9), spacing: 4) {
+                    ForEach(viewModel.palletColors, id: \.id) { colorItem in
+                        Rectangle()
+                            .fill(colorItem.color)
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                            .overlay(
+                                Rectangle()
+                                    .stroke(colorItem.isSelected ? .white : .clear, lineWidth: 2)
+                                    .cornerRadius(6)
+                            )
+                            .onTapGesture {
+                                viewModel.selectPalletColor(colorItem.id)
+                            }
+                    }
                 }
+                .frame(width: 356)
             }
-            .frame(width: 356)
-            .opacity(0.8)
             
             // Выбранный цветовой маркер
             if let selectedColorItem = viewModel.selectedPalletColorItem {
@@ -287,9 +288,6 @@ struct ColorPickerTabsView: View {
                     }
                 }
             }
-            
-            // Контроллеры яркости для каждой лампы
-            multiLampBrightnessControls
             
             // Кнопка SAVE
             saveButton
@@ -570,47 +568,56 @@ class ColorPickerTabsViewModel: ObservableObject {
     }
     
     private func setupPalletColors() {
-        // Создаем упрощенную палитру цветов (9x10 сетка)
-        let baseColors: [Color] = [
-            // Красные оттенки
-            .red, Color(red: 0.8, green: 0.2, blue: 0.2), Color(red: 0.9, green: 0.4, blue: 0.4),
-            // Оранжевые оттенки  
-            .orange, Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 1.0, green: 0.8, blue: 0.4),
-            // Желтые оттенки
-            .yellow, Color(red: 0.9, green: 0.9, blue: 0.2), Color(red: 1.0, green: 1.0, blue: 0.6),
-            // Зеленые оттенки
-            .green, Color(red: 0.2, green: 0.8, blue: 0.2), Color(red: 0.4, green: 0.9, blue: 0.4),
-            // Синие оттенки
-            .blue, Color(red: 0.2, green: 0.4, blue: 0.8), Color(red: 0.4, green: 0.6, blue: 0.9),
-            // Фиолетовые оттенки
-            .purple, Color(red: 0.6, green: 0.2, blue: 0.8), Color(red: 0.8, green: 0.4, blue: 0.9),
-            // Розовые оттенки  
-            .pink, Color(red: 1.0, green: 0.4, blue: 0.7), Color(red: 1.0, green: 0.7, blue: 0.9),
-            // Коричневые и серые
-            .brown, .gray, .black
+        // Точные цвета из Figma (16 рядов по 9 цветов)
+        let figmaColors: [String] = [
+            // Ряд 1 - Красные тона
+            "#991B1B", "#B91C1C", "#DC2626", "#EF4444", "#F87171", "#FCA5A5", "#FECACA", "#FEE2E2", "#FEF2F2",
+            // Ряд 2 - Оранжевые тона
+            "#9A3412", "#C2410C", "#EA580C", "#F97316", "#FB923C", "#FDBA74", "#FED7AA", "#FFEDD5", "#FFF7ED",
+            // Ряд 3 - Янтарные тона
+            "#92400E", "#B45309", "#D97706", "#F59E0B", "#FBBF24", "#FCD34D", "#FDE68A", "#FEF3C7", "#FFFBEB",
+            // Ряд 4 - Желтые тона
+            "#854D0E", "#A16207", "#CA8A04", "#EAB308", "#FACC15", "#FDE047", "#FEF08A", "#FEF9C3", "#FEFCE8",
+            // Ряд 5 - Лаймовые тона
+            "#3F6212", "#4D7C0F", "#65A30D", "#84CC16", "#A3E635", "#BEF264", "#D9F99D", "#ECFCCB", "#F7FEE7",
+            // Ряд 6 - Зеленые тона
+            "#166534", "#15803D", "#16A34A", "#22C55E", "#4ADE80", "#86EFAC", "#BBF7D0", "#DCFCE7", "#F0FDF4",
+            // Ряд 7 - Изумрудные тона
+            "#065F46", "#047857", "#059669", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#D1FAE5", "#ECFDF5",
+            // Ряд 8 - Бирюзовые тона
+            "#115E59", "#0F766E", "#0D9488", "#14B8A6", "#2DD4BF", "#5EEAD4", "#99F6E4", "#CCFBF1", "#F0FDFA",
+            // Ряд 9 - Голубые тона
+            "#155E75", "#0E7490", "#0891B2", "#06B6D4", "#22D3EE", "#67E8F9", "#A5F3FC", "#CFFAFE", "#ECFEFF",
+            // Ряд 10 - Синие тона
+            "#075985", "#0369A1", "#0284C7", "#0EA5E9", "#38BDF8", "#7DD3FC", "#BAE6FD", "#E0F2FE", "#F0F9FF",
+            // Ряд 11 - Индиго тона
+            "#1E40AF", "#1D4ED8", "#2563EB", "#3B82F6", "#60A5FA", "#93C5FD", "#BFDBFE", "#DBEAFE", "#EFF6FF",
+            // Ряд 12 - Фиолетовые тона
+            "#3730A3", "#4338CA", "#4F46E5", "#6366F1", "#818CF8", "#A5B4FC", "#C7D2FE", "#E0E7FF", "#EEF2FF",
+            // Ряд 13 - Пурпурные тона
+            "#5B21B6", "#6D28D9", "#7C3AED", "#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE", "#EDE9FE", "#F5F3FF",
+            // Ряд 14 - Фуксия тона
+            "#6B21A8", "#7E22CE", "#9333EA", "#A855F7", "#C084FC", "#D8B4FE", "#E9D5FF", "#F3E8FF", "#FAF5FF",
+            // Ряд 15 - Розовые тона
+            "#86198F", "#A21CAF", "#C026D3", "#D946EF", "#E879F9", "#F0ABFC", "#F5D0FE", "#FAE8FF", "#FDF4FF",
+            // Ряд 16 - Алые тона
+            "#9D174D", "#BE185D", "#DB2777", "#EC4899", "#F472B6", "#F9A8D4", "#FBCFE8", "#FCE7F3", "#FDF2F8",
+            // Ряд 17 - Последний ряд
+            "#9F1239", "#BE123C", "#E11D48", "#F43F5E", "#FB7185", "#FDA4AF", "#FECDD3", "#FFE4E6", "#FFF1F2",
         ]
         
-        // Создаем расширенную палитру с вариациями яркости
         var colors: [PalletColorItem] = []
-        var colorIndex = 0
         
-        // Создаем около 80 цветов для заполнения сетки
-        for row in 0..<9 {
-            for col in 0..<9 {
-                let baseColor = baseColors[colorIndex % baseColors.count]
-                let brightness = 1.0 - (Double(col) * 0.1) // Уменьшаем яркость слева направо
-                _ = 0.5 + (Double(row) * 0.05) // Увеличиваем насыщенность сверху вниз (не используется)
-                
-                let adjustedColor = baseColor.opacity(brightness)
-                
-                colors.append(PalletColorItem(
-                    id: "color_\(row)_\(col)",
-                    color: adjustedColor,
-                    isSelected: row == 1 && col == 3 // Выделяем оранжевый цвет по умолчанию
-                ))
-                
-                if col % 3 == 2 { colorIndex += 1 } // Переходим к следующему базовому цвету каждые 3 колонки
-            }
+        // Создаем элементы палитры
+        for (index, hexColor) in figmaColors.enumerated() {
+            let row = index / 9
+            let col = index % 9
+            
+            colors.append(PalletColorItem(
+                id: "figma_color_\(row)_\(col)",
+                color: Color(hex: hexColor),
+                isSelected: row == 1 && col == 3 // Выбираем оранжевый цвет по умолчанию
+            ))
         }
         
         palletColors = colors
@@ -647,6 +654,34 @@ struct PalletColorItem: Identifiable {
 extension Array {
     subscript(safe index: Index) -> Element? {
         return indices.contains(index) ? self[index] : nil
+    }
+}
+
+extension Color {
+    /// Создание Color из HEX строки
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }
 
