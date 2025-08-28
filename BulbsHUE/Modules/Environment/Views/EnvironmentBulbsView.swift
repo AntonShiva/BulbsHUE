@@ -32,11 +32,11 @@ struct EnvironmentBulbsView: View {
             
             // Секционные табы
             sectionTabs
-                .adaptiveOffset(y: -182)
+                .adaptiveOffset(y: -179)
             
             // Сетка изображений сцен
             sceneGrid
-                .adaptiveOffset(y: 260)
+                .adaptiveOffset(y: 262)
         }
         .ignoresSafeArea(.all)
     }
@@ -229,7 +229,7 @@ struct EnvironmentBulbsView: View {
     
     /// Секционные табы (Section 1, 2, 3)
     private var sectionTabs: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 9) {
             HStack(spacing: 0) {
                 // Section 1
                 Button {
@@ -313,7 +313,7 @@ struct EnvironmentBulbsView: View {
         LazyVGrid(columns: [
             GridItem(.flexible()),
             GridItem(.flexible())
-        ], spacing: 40) {
+        ], spacing: 19) {
             ForEach(viewModel.currentScenes) { scene in
                 SceneCard(scene: scene) {
                     viewModel.selectScene(scene)
@@ -333,7 +333,7 @@ private struct SceneCard: View {
     let onTap: () -> Void
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             // Круглое изображение сцены
             Button(action: onTap) {
                 ZStack {

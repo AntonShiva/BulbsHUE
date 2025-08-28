@@ -24,7 +24,9 @@ struct EnvironmentView: View {
                 Header(title: "ENVIRONMENT") {
                     
                     // Левая кнопка - ваше меню
-                    MenuButton {}
+                    MenuButton {
+                        
+                    }
                 } leftView2: {
                     EmptyView()
                 
