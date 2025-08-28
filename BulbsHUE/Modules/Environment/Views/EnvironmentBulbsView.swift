@@ -23,72 +23,12 @@ struct EnvironmentBulbsView: View {
         ZStack {
             // Основной градиентный фон
            BG()
-            
-            Header(title: "BULB") {
-                ChevronButton {
-                   
-                }
-                .rotationEffect(.degrees(180))
-            } leftView2: {
-                // Центральная кнопка - FAV
-                Button {
-                    viewModel.toggleFavoriteFilter()
-                } label: {
-                    ZStack {
-                        BGCircle()
-                            .adaptiveFrame(width: 48, height: 48)
-                        
-                        // Heart icon
-                        Image(systemName: viewModel.isFavoriteFilterActive ? "heart.fill" : "heart")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.primColor)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-            
-        } rightView1: {
-            // Правая кнопка - Brightness/On
-            Button {
-                viewModel.toggleMainLight()
-            } label: {
-                ZStack {
-                    BGCircle()
-                        .adaptiveFrame(width: 48, height: 48)
-                    
-                    // Bulb icon
-                    Image(systemName: viewModel.isMainLightOn ? "lightbulb.fill" : "lightbulb")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primColor)
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-        } rightView2: {
-          
-            // Дальняя правая кнопка - Sun/Settings
-            Button {
-                viewModel.toggleSunMode()
-            } label: {
-                ZStack {
-                    BGCircle()
-                        .adaptiveFrame(width: 48, height: 48)
-                    
-                    // Sun icon
-                    Image(systemName: viewModel.isSunModeActive ? "sun.max.fill" : "sun.max")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primColor)
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
-                .adaptiveOffset(x: 6)
-        }
-         
-
-                .adaptiveOffset(y: -327)
+             navigationHeader
+                .adaptiveOffset(y: -329)
             
             // Blur панель с табами фильтров
             filterTabs
-                .adaptiveOffset(y: -237)
+                .adaptiveOffset(y: -240)
             
             // Секционные табы
             sectionTabs
@@ -101,222 +41,151 @@ struct EnvironmentBulbsView: View {
         .ignoresSafeArea(.all)
     }
     
-    // MARK: - Background
-    
-    /// Градиентный фон в стиле дизайна
-    private var backgroundGradient: some View {
-        ZStack {
-            // Основной темный фон
-            Color(red: 0.024, green: 0.027, blue: 0.027) // #060707
-            
-            // Размытые эллипсы для создания градиента как в дизайне
-            Group {
-                // Бирюзовый эллипс слева сверху
-                Ellipse()
-                    .fill(Color(red: 0, green: 0.8, blue: 0.82))
-                    .frame(width: 300, height: 400)
-                    .offset(x: -120, y: -300)
-                    .blur(radius: 150)
-                
-                // Синий эллипс справа сверху  
-                Ellipse()
-                    .fill(Color(red: 0.2, green: 0.3, blue: 0.8))
-                    .frame(width: 280, height: 350)
-                    .offset(x: 150, y: -250)
-                    .blur(radius: 180)
-                
-                // Фиолетовый эллипс снизу
-                Ellipse()
-                    .fill(Color(red: 0.4, green: 0.2, blue: 0.9))
-                    .frame(width: 350, height: 200)
-                    .offset(x: 50, y: 400)
-                    .blur(radius: 200)
-            }
-        }
-        .ignoresSafeArea(.all)
-    }
-    
-    /// Тени из дизайна Figma для создания атмосферы
-    private var shadowsOverlay: some View {
-        // Используем существующий компонент с shadows или создаем аналогичный эффект
-        Rectangle()
-            .fill(
-                RadialGradient(
-                    colors: [Color.clear, Color.black.opacity(0.3)],
-                    center: .center,
-                    startRadius: 100,
-                    endRadius: 400
-                )
-            )
-            .ignoresSafeArea(.all)
-    }
+
     
     // MARK: - Navigation Header
     
     /// Верхняя навигационная панель с кнопками и заголовком
     private var navigationHeader: some View {
-        VStack(spacing: 12) {
-            // Основная панель с кнопками
-            HStack {
-                // Левая кнопка - Назад
-                Button {
-                    nav.back()
-                } label: {
-                    ZStack {
-                        BGCircle()
-                            .adaptiveFrame(width: 48, height: 48)
-                        
-                        // Стрелка назад
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.primColor)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Spacer()
-                
-                // Центральная кнопка - FAV
-                Button {
-                    viewModel.toggleFavoriteFilter()
-                } label: {
-                    ZStack {
-                        BGCircle()
-                            .adaptiveFrame(width: 48, height: 48)
-                        
-                        // Heart icon
-                        Image(systemName: viewModel.isFavoriteFilterActive ? "heart.fill" : "heart")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.primColor)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Spacer()
-                
-                // Правая кнопка - Brightness/On
-                Button {
-                    viewModel.toggleMainLight()
-                } label: {
-                    ZStack {
-                        BGCircle()
-                            .adaptiveFrame(width: 48, height: 48)
-                        
-                        // Bulb icon
-                        Image(systemName: viewModel.isMainLightOn ? "lightbulb.fill" : "lightbulb")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.primColor)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Spacer()
-                
-                // Дальняя правая кнопка - Sun/Settings
-                Button {
-                    viewModel.toggleSunMode()
-                } label: {
-                    ZStack {
-                        BGCircle()
-                            .adaptiveFrame(width: 48, height: 48)
-                        
-                        // Sun icon
-                        Image(systemName: viewModel.isSunModeActive ? "sun.max.fill" : "sun.max")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.primColor)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
+        Header(title: "BULB") {
+            ChevronButton {
+               
             }
-            .padding(.horizontal, 24)
-            
-            // Заголовок BULB и статусы
-            HStack {
-                VStack(spacing: 4) {
+            .rotationEffect(.degrees(180))
+        } leftView2: {
+            // Центральная кнопка - FAV
+            Button {
+                viewModel.toggleFavoriteFilter()
+            } label: {
+                ZStack {
+                    BGCircle()
+                        .adaptiveFrame(width: 48, height: 48)
+                    
+                    // Heart icon
+                    Image(systemName: !viewModel.isFavoriteFilterActive ? "heart.fill" : "heart")
+                        .font(.system(size: 23, weight: .medium))
+                        .foregroundColor(.primColor)
+                    
                     Text("FAV")
                         .font(Font.custom("DMSans-Regular", size: 12))
                         .kerning(2.04)
                         .foregroundColor(.primColor)
                         .textCase(.uppercase)
-                }
-                
-                Spacer()
-                
-                VStack(spacing: 4) {
-                    Text("BULB")
-                        .font(Font.custom("DMSans-Light", size: 16))
-                        .kerning(4)
-                        .foregroundColor(.primColor)
-                        .textCase(.uppercase)
-                }
-                
-                Spacer()
-                
-                VStack(spacing: 4) {
-                    Text("ON")
-                        .font(Font.custom("DMSans-Regular", size: 12))
-                        .kerning(2.04)
-                        .foregroundColor(.primColor)
-                        .textCase(.uppercase)
-                }
-                
-                Spacer()
-                
-                VStack(spacing: 4) {
-                    Text("50%")
-                        .font(Font.custom("DMSans-Regular", size: 12))
-                        .kerning(2.04)
-                        .foregroundColor(.primColor)
-                        .textCase(.uppercase)
+                        .adaptiveOffset(y: 40)
                 }
             }
-            .padding(.horizontal, 24)
+            .buttonStyle(PlainButtonStyle())
+        
+    } rightView1: {
+        // Правая кнопка - Brightness/On
+        Button {
+            viewModel.toggleMainLight()
+        } label: {
+            ZStack {
+                BGCircle()
+                    .adaptiveFrame(width: 48, height: 48)
+               
+                Image("BulbFill")
+                    .resizable()
+                    .scaledToFit()
+                    .adaptiveFrame(width: 30, height: 30)
+                
+                Text("ON")
+                    .font(Font.custom("DMSans-Regular", size: 12))
+                    .kerning(2.04)
+                    .foregroundColor(.primColor)
+                    .textCase(.uppercase)
+                    .adaptiveOffset(y: 40)
+               
+            }
         }
+        .buttonStyle(PlainButtonStyle())
+        
+    } rightView2: {
+      
+        // Дальняя правая кнопка - Sun/Settings
+        Button {
+            viewModel.toggleSunMode()
+        } label: {
+            ZStack {
+                BGCircle()
+                    .adaptiveFrame(width: 48, height: 48)
+                
+                Image("sun")
+                    .resizable()
+                    .scaledToFit()
+                    .adaptiveFrame(width: 30, height: 30)
+                
+                Text("50%")
+                    .font(Font.custom("DMSans-Regular", size: 12))
+                    .kerning(2.04)
+                    .foregroundColor(.primColor)
+                    .textCase(.uppercase)
+                    .adaptiveOffset(y: 40)
+                    .adaptiveOffset(x: 4)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+            .adaptiveOffset(x: 6)
+    }
     }
     
     // MARK: - Filter Tabs
     
-    /// Blur панель с табами фильтров (Color Picker, Pastel, Bright)
+    ///  панель с табами фильтров (Color Picker, Pastel, Bright)
     private var filterTabs: some View {
         ZStack {
             // Background blur panel
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color.black.opacity(0.2))
-                .frame(height: 48)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(Color.primColor.opacity(0.2), lineWidth: 2)
-                )
-                .padding(.horizontal, 8)
+           Image("BGColorPicker")
+                .resizable()
+                .scaledToFit()
+                
             
             // Активный индикатор под выбранным табом
             HStack {
                 if viewModel.selectedFilterTab == .colorPicker {
-                    Rectangle()
-                        .fill(.primColor)
-                        .frame(height: 2)
-                        .frame(width: 88)
-                    Spacer()
+                    DugaPath()
+                           .stroke(.primColor, style: StrokeStyle(
+                            lineWidth: 2,
+                            lineCap: .round,
+                            lineJoin: .round
+                        ))
+                           .adaptiveFrame(width: 130, height: 46.1)
+                           .adaptiveOffset(x: -113)
+                    
                 } else if viewModel.selectedFilterTab == .pastel {
                     Spacer()
-                    Rectangle()
-                        .fill(.primColor)
-                        .frame(height: 2)
-                        .frame(width: 88)
+                    VStack(spacing: 46.1) {
+                        Rectangle()
+                            .fill(.primColor)
+                            .adaptiveFrame(height: 2)
+                            .adaptiveFrame(width: 88)
+                           
+                        Rectangle()
+                            .fill(.primColor)
+                            .adaptiveFrame(height: 2)
+                            .adaptiveFrame(width: 88)
+                            
+                    }
                     Spacer()
                 } else {
-                    Spacer()
-                    Rectangle()
-                        .fill(.primColor)
-                        .frame(height: 2)
-                        .frame(width: 88)
+                    DugaPath()
+                           .stroke(.primColor, style: StrokeStyle(
+                            lineWidth: 2,
+                            lineCap: .round,
+                            lineJoin: .round
+                        ))
+                           .adaptiveFrame(width: 130, height: 46.1)
+                           .rotationEffect(.degrees(180))
+                           .adaptiveOffset(x: 113)
+                       
                 }
             }
             .padding(.horizontal, 36)
-            .offset(y: 23)
+            
             
             // Filter tabs
-            HStack(spacing: 44) {
+          
                 // Color Picker tab
                 Button {
                     viewModel.selectFilterTab(.colorPicker)
@@ -328,7 +197,7 @@ struct EnvironmentBulbsView: View {
                         .textCase(.uppercase)
                 }
                 .buttonStyle(PlainButtonStyle())
-                
+                .adaptiveOffset(x: -100)
                 // Pastel tab
                 Button {
                     viewModel.selectFilterTab(.pastel)
@@ -352,7 +221,7 @@ struct EnvironmentBulbsView: View {
                         .textCase(.uppercase)
                 }
                 .buttonStyle(PlainButtonStyle())
-            }
+                .adaptiveOffset(x: 100)
         }
     }
     
@@ -371,7 +240,7 @@ struct EnvironmentBulbsView: View {
                         .kerning(2.04)
                         .foregroundColor(viewModel.selectedSection == .section1 ? .primColor : .primColor.opacity(0.6))
                         .textCase(.uppercase)
-                        .frame(width: 120)
+                        .adaptiveFrame(width: 120)
                 }
                 .buttonStyle(PlainButtonStyle())
                 
@@ -384,7 +253,7 @@ struct EnvironmentBulbsView: View {
                         .kerning(2.04)
                         .foregroundColor(viewModel.selectedSection == .section2 ? .primColor : .primColor.opacity(0.6))
                         .textCase(.uppercase)
-                        .frame(width: 120)
+                        .adaptiveFrame(width: 120)
                 }
                 .buttonStyle(PlainButtonStyle())
                 
@@ -397,7 +266,7 @@ struct EnvironmentBulbsView: View {
                         .kerning(2.04)
                         .foregroundColor(viewModel.selectedSection == .section3 ? .primColor : .primColor.opacity(0.6))
                         .textCase(.uppercase)
-                        .frame(width: 120)
+                        .adaptiveFrame(width: 120)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -409,27 +278,27 @@ struct EnvironmentBulbsView: View {
                     if viewModel.selectedSection == .section1 {
                         Rectangle()
                             .fill(.primColor)
-                            .frame(width: 120, height: 1)
+                            .adaptiveFrame(width: 120, height: 1)
                         Rectangle()
                             .fill(.primColor.opacity(0.3))
-                            .frame(width: 255, height: 1)
+                            .adaptiveFrame(width: 255, height: 1)
                     } else if viewModel.selectedSection == .section2 {
                         Rectangle()
                             .fill(.primColor.opacity(0.3))
-                            .frame(width: 120, height: 1)
+                            .adaptiveFrame(width: 120, height: 1)
                         Rectangle()
                             .fill(.primColor)
-                            .frame(width: 120, height: 1)
+                            .adaptiveFrame(width: 120, height: 1)
                         Rectangle()
                             .fill(.primColor.opacity(0.3))
-                            .frame(width: 120, height: 1)
+                            .adaptiveFrame(width: 120, height: 1)
                     } else {
                         Rectangle()
                             .fill(.primColor.opacity(0.3))
-                            .frame(width: 240, height: 1)
+                            .adaptiveFrame(width: 240, height: 1)
                         Rectangle()
                             .fill(.primColor)
-                            .frame(width: 120, height: 1)
+                            .adaptiveFrame(width: 120, height: 1)
                     }
                 }
             }
@@ -475,14 +344,14 @@ private struct SceneCard: View {
                     Image(scene.imageURL)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 156, height: 156)
+                        .adaptiveFrame(width: 156, height: 156)
                         .foregroundColor(.primColor.opacity(0.9))
                     
                     // Overlay для эффекта нажатия
                     if scene.isSelected {
                         Circle()
                             .stroke(.primColor, lineWidth: 3)
-                            .frame(width: 156, height: 156)
+                            .adaptiveFrame(width: 156, height: 156)
                     }
                 }
             }
