@@ -7,6 +7,9 @@
 
 import SwiftUI
 import Combine
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // MARK: - ColorPickerTabsView
 
@@ -134,41 +137,42 @@ struct ColorPickerTabsView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 320, height: 320)
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                viewModel.handleColorSelection(at: value.location, in: CGSize(width: 320, height: 320))
+                            }
+                    )
                 
-                // Маркер текущего выбранного цвета с "+3"
-                if let position = viewModel.selectedColorPosition {
-                    VStack(spacing: 4) {
-                        // Круглый маркер с иконкой лампочки
-                        ZStack {
-                            // Фон маркера
-                            Circle()
-                                .fill(viewModel.selectedColor)
-                                .frame(width: 44, height: 44)
-                                .overlay(
-                                    Circle()
-                                        .stroke(.white, lineWidth: 2)
-                                )
-                            
-                            // Иконка лампочки
-                            Image("BulbFill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20)
-                                .foregroundColor(.black)
-                        }
+                // ЕДИНСТВЕННЫЙ маркер - цель/лампа которую можно перетаскивать
+                VStack(spacing: 4) {
+                    ZStack {
+                        // Белая обводка
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 46, height: 46)
                         
-                        // Счетчик "+3"
-                        Text("+3")
-                            .font(Font.custom("DMSans-SemiBold", size: 16))
-                            .kerning(2.04)
-                            .foregroundColor(.black)
-                            .textCase(.uppercase)
+                        // Черная обводка
+                        Circle()
+                            .fill(Color.black)
+                            .frame(width: 44, height: 44)
+                        
+                        // Цвет маркера (такой же как под ним на колесе)
+                        Circle()
+                            .fill(viewModel.selectedColor)
+                            .frame(width: 40, height: 40)
+                        
+                        // Иконка лампочки в центре
+                        Image("BulbFill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                            .foregroundColor(.black.opacity(0.8))
                     }
-                    .position(position)
+                    
+                   
                 }
-            }
-            .onTapGesture { location in
-                viewModel.handleColorSelection(at: location, in: CGSize(width: 320, height: 320))
+                .position(viewModel.selectedColorPosition ?? CGPoint(x: 180, y: 160))
             }
             
             // Контроллеры яркости
@@ -427,16 +431,26 @@ class ColorPickerTabsViewModel: ObservableObject {
     @Published var selectedTab: ColorPickerTab = .hexPicker
     @Published var selectedColor: Color = .orange
     @Published var selectedColorPosition: CGPoint?
+    @Published var dragLocation: CGPoint?
     @Published var warmColdLamps: [WarmColdLamp] = []
     @Published var palletColors: [PalletColorItem] = []
     @Published var selectedPalletColorItem: PalletColorItem?
+    
+    #if canImport(UIKit)
+    @Published var pickerImage: UIImage? = nil
+    #endif
     
     // MARK: - Initialization
     
     init() {
         setupWarmColdLamps()
         setupPalletColors()
-        selectedColorPosition = CGPoint(x: 221, y: 287) // Начальная позиция как в Figma
+        selectedColorPosition = CGPoint(x: 201, y: 287) // Начальная позиция как в Figma
+        
+        // Загружаем изображение для получения реальных цветов
+        #if canImport(UIKit)
+        pickerImage = UIImage(named: "ColorCircl")
+        #endif
     }
     
     // MARK: - Public Methods
@@ -446,20 +460,61 @@ class ColorPickerTabsViewModel: ObservableObject {
     }
     
     func handleColorSelection(at location: CGPoint, in size: CGSize) {
-        // Вычисляем цвет на основе позиции в круге
+        // Вычисляем центр и радиус колеса
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let angle = atan2(location.y - center.y, location.x - center.x)
-        let distance = sqrt(pow(location.x - center.x, 2) + pow(location.y - center.y, 2))
+        let radius = size.width / 2
         
-        // Ограничиваем выбор в пределах круга
-        guard distance <= size.width / 2 else { return }
+        // Расстояние от центра колеса
+        let dx = location.x - center.x
+        let dy = location.y - center.y
+        let distance = sqrt(dx*dx + dy*dy)
         
-        // Преобразуем угол в цвет
+        // Проверяем, находится ли указатель внутри колеса
+        guard distance <= radius else { return }
+        
+        // Корректируем позицию маркера с учетом offset (примерно +20 вправо, +40 вниз)
+        let correctedPosition = CGPoint(x: location.x + 35, y: location.y + 70)
+        
+        // Сохраняем скорректированную позицию для отображения маркера
+        dragLocation = location
+        
+        #if canImport(UIKit)
+        if let image = pickerImage {
+            // Вычисляем нормализованные координаты от 0 до 1
+            // Преобразуем из координат относительно центра в нормализованные координаты
+            let normalizedX = (dx / radius + 1.0) * 0.5
+            let normalizedY = (dy / radius + 1.0) * 0.5
+            
+            // Используем расширение для получения цвета
+            if let pixelColor = image.getPixelColorNormalized(at: CGPoint(x: normalizedX, y: normalizedY)) {
+                var red: CGFloat = 0
+                var green: CGFloat = 0
+                var blue: CGFloat = 0
+                var alpha: CGFloat = 0
+                
+                pixelColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+                selectedColor = Color(red: Double(red), green: Double(green), blue: Double(blue), opacity: Double(alpha))
+                selectedColorPosition = correctedPosition
+                return
+            }
+        }
+        #endif
+        
+        // Запасной вариант, если не удалось получить цвет из изображения
+        // Это моделирование HSV цветового колеса
+        let angle = atan2(dy, dx)
         let hue = (angle + .pi) / (2 * .pi)
-        let saturation = min(distance / (size.width / 2), 1.0)
         
-        selectedColor = Color(hue: hue, saturation: saturation, brightness: 1.0)
-        selectedColorPosition = location
+        // Настройка цветов, чтобы красный был сверху (как на скриншоте)
+        // а не справа (как в стандартной HSV модели)
+        let adjustedHue = (hue + 0.75) > 1.0 ? hue - 0.25 : hue + 0.75
+        
+        // Вычисляем насыщенность на основе расстояния от центра
+        let saturation = min(distance / radius, 1.0)
+        
+        // Создаем цвет из HSV компонентов
+        selectedColor = Color(hue: Double(adjustedHue), saturation: Double(saturation), brightness: 1.0)
+        selectedColorPosition = correctedPosition
     }
     
     func selectWarmColdLamp(_ lampId: String) {
@@ -603,3 +658,57 @@ extension Array {
         ColorPickerTabsView()
     }
 }
+
+// MARK: - UIImage Extension
+
+#if canImport(UIKit)
+/// Расширение UIImage для получения цвета пикселя
+extension UIImage {
+    /// Получает цвет пикселя изображения в указанной позиции
+    /// - Parameter pos: Позиция пикселя в координатах изображения (от 0 до размера изображения)
+    /// - Returns: UIColor цвет пикселя или nil, если позиция находится вне границ изображения
+    func getPixelColor(at pos: CGPoint) -> UIColor? {
+        // Проверяем, что точка находится в пределах изображения
+        guard let cgImage = self.cgImage,
+              pos.x >= 0, pos.y >= 0,
+              pos.x < size.width * scale, pos.y < size.height * scale else {
+            return nil
+        }
+        
+        // Преобразуем координаты в целочисленный индекс пикселя
+        let x = Int(pos.x * scale)
+        let y = Int(pos.y * scale)
+        
+        // Создаем контекст для доступа к данным пикселя
+        let dataProvider = cgImage.dataProvider
+        guard let data = dataProvider?.data,
+              let bytes = CFDataGetBytePtr(data) else {
+            return nil
+        }
+        
+        // Получаем информацию о формате пикселей
+        let bytesPerRow = cgImage.bytesPerRow
+        let bytesPerPixel = cgImage.bitsPerPixel / 8
+        
+        // Вычисляем индекс начала данных пикселя
+        let pixelIndex = y * bytesPerRow + x * bytesPerPixel
+        
+        // Получаем компоненты цвета из данных пикселя
+        let r = CGFloat(bytes[pixelIndex]) / 255.0
+        let g = CGFloat(bytes[pixelIndex + 1]) / 255.0
+        let b = CGFloat(bytes[pixelIndex + 2]) / 255.0
+        let a = bytesPerPixel > 3 ? CGFloat(bytes[pixelIndex + 3]) / 255.0 : 1.0
+        
+        return UIColor(red: r, green: g, blue: b, alpha: a)
+    }
+    
+    /// Получает цвет пикселя изображения в указанной нормализованной позиции
+    /// - Parameter normalizedPos: Нормализованная позиция (от 0 до 1)
+    /// - Returns: UIColor цвет пикселя или nil, если позиция находится вне границ изображения
+    func getPixelColorNormalized(at normalizedPos: CGPoint) -> UIColor? {
+        let x = normalizedPos.x * size.width
+        let y = normalizedPos.y * size.height
+        return getPixelColor(at: CGPoint(x: x, y: y))
+    }
+}
+#endif
