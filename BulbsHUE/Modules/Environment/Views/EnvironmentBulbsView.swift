@@ -30,13 +30,20 @@ struct EnvironmentBulbsView: View {
             filterTabs
                 .adaptiveOffset(y: -240)
             
-            // Секционные табы
-            sectionTabs
-                .adaptiveOffset(y: -179)
-            
-            // Сетка изображений сцен
-            sceneGrid
-                .adaptiveOffset(y: 262)
+            // Контент в зависимости от выбранного фильтра
+            if viewModel.selectedFilterTab == .colorPicker {
+                // Показываем цветовые вкладки вместо секций
+                ColorPickerTabsView()
+                    .adaptiveOffset(y: -100)
+            } else {
+                // Секционные табы для других фильтров
+                sectionTabs
+                    .adaptiveOffset(y: -179)
+                
+                // Сетка изображений сцен
+                sceneGrid
+                    .adaptiveOffset(y: 262)
+            }
         }
         .ignoresSafeArea(.all)
     }
