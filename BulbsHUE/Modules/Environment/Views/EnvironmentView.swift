@@ -25,7 +25,7 @@ struct EnvironmentView: View {
                     
                     // Левая кнопка - ваше меню
                     MenuButton {
-                        
+                        nav.go(.environmentBulbs)
                     }
                 } leftView2: {
                     EmptyView()

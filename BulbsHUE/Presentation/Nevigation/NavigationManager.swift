@@ -26,6 +26,9 @@ enum Router: Equatable {
     // Меню настроек лампы
     case menuView                 // Меню настроек конкретной лампы
     
+    // Environment Bulbs
+    case environmentBulbs         // Экран выбора окружающих сцен освещения
+    
     // Development
     case development              // Development dashboard
     case migrationDashboard       // Migration progress dashboard
@@ -102,6 +105,8 @@ class NavigationManager: ObservableObject {
             // Логика возврата в зависимости от текущего маршрута
             switch currentRoute {
             case .addNewBulb, .searchResults, .selectCategories:
+                currentRoute = .environment
+            case .environmentBulbs:
                 currentRoute = .environment
             case .menuView:
                 currentRoute = .environment

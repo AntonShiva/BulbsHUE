@@ -49,7 +49,7 @@ struct EnvironmentBulbsView: View {
     private var navigationHeader: some View {
         Header(title: "BULB") {
             ChevronButton {
-               
+                nav.go(.environment)
             }
             .rotationEffect(.degrees(180))
         } leftView2: {

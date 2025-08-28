@@ -21,6 +21,8 @@ struct MainContainer: View {
                 MusicView()
             case .addNewBulb:
                 AddNewBulb()
+            case .environmentBulbs:
+                EnvironmentBulbsView()
             case .searchResults:
                 // Этот экран больше не нужен как отдельный, так как состояние отслеживается в AddNewBulb
                 AddNewBulb()
