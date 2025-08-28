@@ -21,17 +21,23 @@ struct EnvironmentView: View {
         } else {
             ZStack {
                 BG()
-                
                 Header(title: "ENVIRONMENT") {
+                    
                     // Левая кнопка - ваше меню
-                    MenuButton { }
-                } rightView: {
-                    // Правая кнопка - плюс
-                    // ✅ Логика в зависимости от активной вкладки (SOLID: Single Responsibility)
-                    AddHeaderButton {
-                        handleAddButtonAction()
-                    }
+                    MenuButton {}
+                } leftView2: {
+                    EmptyView()
+                
+            } rightView1: {
+                EmptyView()
+            } rightView2: {
+                // Правая кнопка - плюс
+                // ✅ Логика в зависимости от активной вкладки (SOLID: Single Responsibility)
+                AddHeaderButton {
+                    handleAddButtonAction()
                 }
+            }
+                
                 .adaptiveOffset(y: -330)
                 .onTapGesture(count: 3) {
                     // Секретный triple-tap для доступа к Development меню
@@ -287,10 +293,18 @@ private struct MockAssignedLightsListView: View {
         BG()
         
         Header(title: "ENVIRONMENT") {
-            MenuButton { }
-        } rightView: {
-            AddHeaderButton { }
-        }
+            
+            // Левая кнопка - ваше меню
+            MenuButton {}
+        } leftView2: {
+            EmptyView()
+        
+    } rightView1: {
+        EmptyView()
+    } rightView2: {
+        // Правая кнопка - плюс
+        AddHeaderButton{}
+    }
         .adaptiveOffset(y: -330)
         
         SelectorTabEnviromentView()

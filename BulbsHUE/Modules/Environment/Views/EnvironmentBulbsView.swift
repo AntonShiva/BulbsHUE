@@ -24,10 +24,67 @@ struct EnvironmentBulbsView: View {
             // Основной градиентный фон
            BG()
             
+            Header(title: "BULB") {
+                ChevronButton {
+                   
+                }
+                .rotationEffect(.degrees(180))
+            } leftView2: {
+                // Центральная кнопка - FAV
+                Button {
+                    viewModel.toggleFavoriteFilter()
+                } label: {
+                    ZStack {
+                        BGCircle()
+                            .adaptiveFrame(width: 48, height: 48)
+                        
+                        // Heart icon
+                        Image(systemName: viewModel.isFavoriteFilterActive ? "heart.fill" : "heart")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.primColor)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
             
-            // Верхняя навигационная панель
-            navigationHeader
-                .adaptiveOffset(y: -320)
+        } rightView1: {
+            // Правая кнопка - Brightness/On
+            Button {
+                viewModel.toggleMainLight()
+            } label: {
+                ZStack {
+                    BGCircle()
+                        .adaptiveFrame(width: 48, height: 48)
+                    
+                    // Bulb icon
+                    Image(systemName: viewModel.isMainLightOn ? "lightbulb.fill" : "lightbulb")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primColor)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+        } rightView2: {
+          
+            // Дальняя правая кнопка - Sun/Settings
+            Button {
+                viewModel.toggleSunMode()
+            } label: {
+                ZStack {
+                    BGCircle()
+                        .adaptiveFrame(width: 48, height: 48)
+                    
+                    // Sun icon
+                    Image(systemName: viewModel.isSunModeActive ? "sun.max.fill" : "sun.max")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primColor)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+                .adaptiveOffset(x: 6)
+        }
+         
+
+                .adaptiveOffset(y: -327)
             
             // Blur панель с табами фильтров
             filterTabs
@@ -365,14 +422,14 @@ struct EnvironmentBulbsView: View {
                             .frame(width: 120, height: 1)
                         Rectangle()
                             .fill(.primColor.opacity(0.3))
-                            .frame(width: 135, height: 1)
+                            .frame(width: 120, height: 1)
                     } else {
                         Rectangle()
                             .fill(.primColor.opacity(0.3))
                             .frame(width: 240, height: 1)
                         Rectangle()
                             .fill(.primColor)
-                            .frame(width: 135, height: 1)
+                            .frame(width: 120, height: 1)
                     }
                 }
             }
