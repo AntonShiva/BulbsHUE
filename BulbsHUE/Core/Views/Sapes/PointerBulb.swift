@@ -13,7 +13,7 @@ struct PointerBulb: View {
         ZStack {
             PointerBulbPath()
                 .fill(color)
-                .adaptiveFrame(width: 43, height: 57)
+                .adaptiveFrame(width: 44, height: 58)
                 .opacity(0.9)
                 .shadow(color: Color.black.opacity(0.4), radius: 10)
             
@@ -21,7 +21,7 @@ struct PointerBulb: View {
                 .stroke(Color(red: 0.79, green: 0.78, blue: 0.67), style: StrokeStyle(
                  lineWidth: 2
                 )).opacity(0.5)
-                .adaptiveFrame(width: 43, height: 57)
+                .adaptiveFrame(width: 44, height: 58)
         }
     }
 }
