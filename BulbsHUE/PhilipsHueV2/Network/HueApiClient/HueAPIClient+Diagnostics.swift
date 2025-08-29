@@ -47,46 +47,22 @@ extension HueAPIClient {
                 }
                 diagnosticInfo += "\n"
                 
-                // 3. Проверка всех ламп через v1 API
-                return self.getLightsV1()
-                    .flatMap { v1Lights -> AnyPublisher<String, Error> in
-                        diagnosticInfo += "💡 ЛАМПЫ V1 API (HTTP):\n"
-                        diagnosticInfo += "  • Всего найдено: \(v1Lights.count)\n"
-                        
-                        if !v1Lights.isEmpty {
-                            diagnosticInfo += "  • Список:\n"
-                            var sortedV1 = Array(v1Lights)
-                            sortedV1.sort { Int($0.key) ?? 0 < Int($1.key) ?? 0 }
-                            
-                            for (v1Id, light) in sortedV1 {
-                                let status = light.state.on ? "🟢" : "🔴"
-                                diagnosticInfo += "    - V1 ID #\(v1Id): \"\(light.name)\" \(status)\n"
-                                diagnosticInfo += "      UniqueID: \(light.uniqueid ?? "нет")\n"
-                            }
-                        }
-                        diagnosticInfo += "\n"
-                        
-                        // 4. Завершение диагностики
-                        diagnosticInfo += "🔍 ДИАГНОСТИКА ЗАВЕРШЕНА\n"
-                        diagnosticInfo += "  • Все основные компоненты API проверены\n"
-                        diagnosticInfo += "\n"
-                        
-                        return Just([] as [String])
-                            .setFailureType(to: Error.self)
-                            .map { _ in
-                                
-                                // 5. Анализ проблем и рекомендации (убираем Zigbee проверку)
-                                diagnosticInfo += self.generateRecommendations(
-                                    v2Count: v2Lights.count,
-                                    v1Count: v1Lights.count,
-                                    newIds: [], // Больше не проверяем статус поиска
-                                    zigbeeCount: 0
-                                )
-                                
-                                return diagnosticInfo
-                            }
-                            .eraseToAnyPublisher()
-                    }
+                // 3. Завершение диагностики (убрана проверка v1 API)
+                diagnosticInfo += "🔍 ДИАГНОСТИКА ЗАВЕРШЕНА\n"
+                diagnosticInfo += "  • API v2 HTTPS проверен\n"
+                diagnosticInfo += "  • Лампы загружены успешно\n"
+                diagnosticInfo += "\n"
+                
+                // 4. Анализ проблем и рекомендации (упрощено)
+                diagnosticInfo += self.generateRecommendations(
+                    v2Count: v2Lights.count,
+                    v1Count: 0, // v1 API больше не используется
+                    newIds: [], // Больше не проверяем статус поиска
+                    zigbeeCount: 0
+                )
+                
+                return Just(diagnosticInfo)
+                    .setFailureType(to: Error.self)
                     .eraseToAnyPublisher()
             }
             .eraseToAnyPublisher()

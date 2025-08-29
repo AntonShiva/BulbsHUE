@@ -27,11 +27,18 @@ extension HueAPIClient {
         let endpoint = "/clip/v2/resource/light"
         
         return performRequestHTTPS<LightsResponse>(endpoint: endpoint, method: "GET")
-            .flatMap { (response: LightsResponse) -> AnyPublisher<[Light], Error> in
+            .map { (response: LightsResponse) -> [Light] in
                 print("✅ API v2 HTTPS: получено \(response.data.count) ламп")
                 
-                // Получаем reachable статус через API v1 и объединяем с данными v2
-                return self.enrichLightsWithReachableStatus(response.data)
+                // ИСПРАВЛЕНИЕ: Убираем сложную логику сравнения v1/v2
+                // Если лампа отвечает в API v2, значит она подключена и доступна
+                var lightsWithStatus = response.data
+                for i in 0..<lightsWithStatus.count {
+                    lightsWithStatus[i].communicationStatus = .online
+                    print("✅ Лампа '\(lightsWithStatus[i].metadata.name)': статус online (доступна в API v2)")
+                }
+                
+                return lightsWithStatus
             }
             .eraseToAnyPublisher()
     }

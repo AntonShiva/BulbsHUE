@@ -202,14 +202,27 @@ class AppViewModel: ObservableObject {
     
     private func setupAppStateObservation() {
         #if canImport(UIKit)
+        // При возврате из фона - делаем мягкое обновление состояния
         NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
             .sink { [weak self] _ in
                 if self?.connectionStatus == .connected {
-                    print("🔄 Приложение стало активным - обновляем данные ламп")
-                    self?.lightsViewModel.loadLights()
+                    print("🔄 Приложение стало активным - обновляем состояние ламп")
+                    // ИСПРАВЛЕНИЕ: используем refreshLightsWithStatus вместо loadLights
+                    // для сохранения пользовательского состояния при обновлении
+                    Task { @MainActor in
+                        await self?.lightsViewModel.refreshLightsWithStatus()
+                    }
                 } else {
                     print("⚠️ Приложение стало активным - нет подключения, пропускаем обновление")
                 }
+            }
+            .store(in: &cancellables)
+        
+        // При уходе в фон - сохраняем текущее состояние
+        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+            .sink { [weak self] _ in
+                print("💾 Приложение ушло в фон - состояние ламп сохранено автоматически")
+                // DataPersistenceService автоматически сохранит изменения через SwiftData
             }
             .store(in: &cancellables)
         #endif

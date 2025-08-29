@@ -153,36 +153,11 @@ extension LightsViewModel {
         }
         
         if isUpdated {
-            print("🔄 Обновляем статус reachable для лампы \(lightId)...")
-            Task {
-                await updateLightReachableStatus(lightId: lightId)
+            // УПРОЩЕНИЕ: Если лампа обновляется через Event Stream, значит она доступна
+            if let index = lights.firstIndex(where: { $0.id == lightId }) {
+                lights[index].communicationStatus = .online
+                print("   📡 Лампа доступна (получены обновления через Event Stream)")
             }
-        }
-    }
-    
-    /// Обновляет статус reachable для конкретной лампы
-    @MainActor
-    private func updateLightReachableStatus(lightId: String) async {
-        do {
-            let lightsV1 = try await apiClient.getLightsV1WithReachableStatus()
-                .eraseToAnyPublisher()
-                .asyncValue()
-            
-            if let index = lights.firstIndex(where: { $0.id == lightId }),
-               let lightV1 = apiClient.findMatchingV1Light(v2Light: lights[index], v1Lights: lightsV1) {
-                
-                let wasReachable = lights[index].isReachable
-                let newReachable = lightV1.state?.reachable ?? false
-                
-                if wasReachable != newReachable {
-                    lights[index].communicationStatus = newReachable ? .online : .offline
-                    print("   📡 Обновлен статус reachable: \(newReachable ? "доступна" : "недоступна")")
-                } else {
-                    print("   📡 Статус reachable не изменился: \(newReachable ? "доступна" : "недоступна")")
-                }
-            }
-        } catch {
-            print("❌ Ошибка обновления статуса reachable: \(error.localizedDescription)")
         }
     }
     

@@ -111,15 +111,13 @@ struct EnvironmentView: View {
                 environmentCoordinator?.refreshAll()
             }
             .onChange(of: nav.еnvironmentTab) { newTab in
-                // ✅ При переключении вкладок принудительно обновляем состояние
+                // ✅ При переключении вкладок синхронизируем состояние без лишних API запросов
                 
-                // Принудительная синхронизация состояния без запроса к API
+                // Принудительная синхронизация состояния использует уже загруженные данные
                 environmentCoordinator?.forceStateSync()
                 
-                // Дополнительно обновляем данные из API для получения актуального состояния (если подключены)
-                if appViewModel.connectionStatus == .connected {
-                    appViewModel.lightsViewModel.loadLights()
-                }
+                // ИСПРАВЛЕНИЕ: убираем избыточный loadLights() который сбрасывает состояние ламп
+                // loadLights() уже вызывается в onAppear и через подписки на изменения
             }
         }
     }
