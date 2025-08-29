@@ -147,27 +147,15 @@ struct ColorPickerTabsView: View {
                 // ЕДИНСТВЕННЫЙ маркер - цель/лампа которую можно перетаскивать
                 VStack(spacing: 4) {
                     ZStack {
-                        // Белая обводка
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 46, height: 46)
-                        
-                        // Черная обводка
-                        Circle()
-                            .fill(Color.black)
-                            .frame(width: 44, height: 44)
-                        
-                        // Цвет маркера (такой же как под ним на колесе)
-                        Circle()
-                            .fill(viewModel.selectedColor)
-                            .frame(width: 40, height: 40)
+                        PointerBulb(color: viewModel.selectedColor)
                         
                         // Иконка лампочки в центре
                         Image("BulbFill")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
+                            .frame(width: 24, height: 24)
                             .foregroundColor(.black.opacity(0.8))
+                            .adaptiveOffset(y: -3)
                     }
                     
                    
@@ -747,3 +735,4 @@ extension UIImage {
     }
 }
 #endif
+
