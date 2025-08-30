@@ -19,12 +19,19 @@ struct ColorPickerTabsView: View {
     @StateObject private var viewModel = ColorPickerTabsViewModel()
     
     var body: some View {
-        VStack(spacing: 9) {
+       ZStack {
             // Табы (HEX PICKER, WARM/COLD, PALLET)
             colorPickerTabs
+               .adaptiveOffset(y: -250)
             
             // Основной контент в зависимости от выбранной вкладки
             selectedTabContent
+               .adaptiveOffset(y: -60)
+           
+           SaveButtonRec {
+               
+           }
+           .adaptiveOffset(y: 225)
         }
     }
     
@@ -131,43 +138,46 @@ struct ColorPickerTabsView: View {
     private var hexPickerContent: some View {
         VStack(spacing: 32) {
             // Основная круглая цветовая панель (радуга)
-            ZStack {
-                // Используем существующее изображение ColorCircl.png
-                Image("ColorCircl")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 320, height: 320)
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                viewModel.handleColorSelection(at: value.location, in: CGSize(width: 320, height: 320))
-                            }
-                    )
-                
-                // ЕДИНСТВЕННЫЙ маркер - цель/лампа которую можно перетаскивать
-                VStack(spacing: 4) {
-                    ZStack {
-                        PointerBulb(color: viewModel.selectedColor)
-                        
-                        // Иконка лампочки в центре
-                        Image("BulbFill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 24, height: 24)
-                            .foregroundColor(.black.opacity(0.8))
-                            .adaptiveOffset(y: -3)
-                    }
+            GeometryReader { geometry in
+                ZStack {
+                    // Используем существующее изображение ColorCircl.png
+                    Image("ColorCircl")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 320, height: 320)
+                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    viewModel.handleColorSelection(
+                                        at: value.location, 
+                                        in: geometry.size,
+                                        imageSize: CGSize(width: 320, height: 320)
+                                    )
+                                }
+                        )
                     
-                   
+                    // ЕДИНСТВЕННЫЙ маркер - цель/лампа которую можно перетаскивать
+                    VStack(spacing: 4) {
+                        ZStack {
+                            PointerBulb(color: viewModel.selectedColor)
+                            
+                            // Иконка лампочки в центре
+                            Image("BulbFill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 24, height: 24)
+                                .foregroundColor(.black.opacity(0.8))
+                                .adaptiveOffset(y: -3)
+                        }
+                    }
+                    .position(viewModel.getMarkerPosition(in: geometry.size, imageSize: CGSize(width: 320, height: 320)))
                 }
-                .position(viewModel.selectedColorPosition ?? CGPoint(x: 180, y: 160))
             }
+            .frame(height: 320)
             
-//            // Контроллеры яркости
-//            brightnessControls
-//            
-//            // Кнопка SAVE
-//            saveButton
+          
+
         }
     }
     
@@ -221,11 +231,6 @@ struct ColorPickerTabsView: View {
                 }
             }
             
-            // Контроллеры яркости
-            brightnessControls
-            
-            // Кнопка SAVE
-            saveButton
         }
     }
     
@@ -252,91 +257,39 @@ struct ColorPickerTabsView: View {
                             }
                     }
                 }
-                .frame(width: 356)
+                .adaptiveFrame(width: 356)
+               
             }
-            
-            // Выбранный цветовой маркер
-            if let selectedColorItem = viewModel.selectedPalletColorItem {
-                VStack(spacing: 8) {
-                    // Большой круг с выбранным цветом и лампочкой
-                    ZStack {
-                        Circle()
-                            .fill(selectedColorItem.color)
-                            .frame(width: 56, height: 56)
-                            .overlay(
-                                Circle()
-                                    .stroke(.black.opacity(0.5), lineWidth: 2)
-                            )
-                        
-                        Image("BulbFill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 24, height: 24)
-                            .foregroundColor(.black)
-                    }
-                }
-            }
-            
-            // Кнопка SAVE
-            saveButton
+           Spacer()
+                .adaptiveFrame(height: 380)
+//            // Выбранный цветовой маркер
+//            if let selectedColorItem = viewModel.selectedPalletColorItem {
+//                VStack(spacing: 8) {
+//                    // Большой круг с выбранным цветом и лампочкой
+//                    ZStack {
+//                        Circle()
+//                            .fill(selectedColorItem.color)
+//                            .frame(width: 56, height: 56)
+//                            .overlay(
+//                                Circle()
+//                                    .stroke(.black.opacity(0.5), lineWidth: 2)
+//                            )
+//                        
+//                        Image("BulbFill")
+//                            .resizable()
+//                            .aspectRatio(contentMode: .fit)
+//                            .frame(width: 24, height: 24)
+//                            .foregroundColor(.black)
+//                    }
+//                }
+//            }
+           
         }
+        .adaptiveOffset(y: 250)
     }
     
-    // MARK: - Common UI Components
-    
-    /// Контроллеры яркости (общие для первых двух вкладок)
-    private var brightnessControls: some View {
-        BrightnessSlider(
-            brightness: $viewModel.brightness,
-            color: .white,
-            title: "BRIGHTNESS, %"
-        )
-    }
-    
-    /// Контроллеры яркости для нескольких ламп (для палитры)
-    private var multiLampBrightnessControls: some View {
-        MultipleBrightnessSliders()
-    }
-    
+
  
-    /// Кнопка сохранения
-    private var saveButton: some View {
-        Button {
-            viewModel.saveColorSettings()
-        } label: {
-            ZStack {
-                // Фон кнопки
-                Rectangle()
-                    .fill(Color(red: 0.4, green: 0.75, blue: 0.55).opacity(0.05))
-                    .frame(width: 254, height: 122)
-                    .cornerRadius(18)
-                    .overlay(
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: 200, height: 64)
-                            .cornerRadius(14)
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color(red: 0.4, green: 0.75, blue: 0.5).opacity(0.3),
-                                        Color(red: 0.3, green: 0.65, blue: 0.7).opacity(0.3)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .cornerRadius(14)
-                    )
-                
-                Text("SAVE")
-                    .font(Font.custom("DMSans-Bold", size: 16))
-                    .kerning(3.2)
-                    .foregroundColor(.white)
-                    .textCase(.uppercase)
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
 }
 
 // MARK: - ViewModel
@@ -349,8 +302,7 @@ class ColorPickerTabsViewModel: ObservableObject {
     
     @Published var selectedTab: ColorPickerTab = .hexPicker
     @Published var selectedColor: Color = .orange
-    @Published var selectedColorPosition: CGPoint?
-    @Published var dragLocation: CGPoint?
+    @Published var selectedColorRelativePosition: CGPoint = CGPoint(x: 0.63, y: 0.9) // Относительные координаты от 0 до 1
     @Published var brightness: Double = 24.0
     @Published var warmColdLamps: [WarmColdLamp] = []
     @Published var palletColors: [PalletColorItem] = []
@@ -365,7 +317,6 @@ class ColorPickerTabsViewModel: ObservableObject {
     init() {
         setupWarmColdLamps()
         setupPalletColors()
-        selectedColorPosition = CGPoint(x: 201, y: 287) // Начальная позиция как в Figma
         
         // Загружаем изображение для получения реальных цветов
         #if canImport(UIKit)
@@ -379,34 +330,49 @@ class ColorPickerTabsViewModel: ObservableObject {
         selectedTab = tab
     }
     
-    func handleColorSelection(at location: CGPoint, in size: CGSize) {
-        // Вычисляем центр и радиус колеса
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let radius = size.width / 2
+    /// Получает позицию маркера в контейнере на основе относительных координат
+    func getMarkerPosition(in containerSize: CGSize, imageSize: CGSize) -> CGPoint {
+        let centerX = containerSize.width / 2
+        let centerY = containerSize.height / 2
         
-        // Расстояние от центра колеса
-        let dx = location.x - center.x
-        let dy = location.y - center.y
-        let distance = sqrt(dx*dx + dy*dy)
+        // Вычисляем смещение от центра на основе относительных координат
+        let offsetX = (selectedColorRelativePosition.x - 0.5) * imageSize.width
+        let offsetY = (selectedColorRelativePosition.y - 0.5) * imageSize.height
         
-        // Проверяем, находится ли указатель внутри колеса
+        return CGPoint(
+            x: centerX + offsetX,
+            y: centerY + offsetY
+        )
+    }
+    
+    func handleColorSelection(at location: CGPoint, in containerSize: CGSize, imageSize: CGSize) {
+        // Вычисляем центр контейнера
+        let centerX = containerSize.width / 2
+        let centerY = containerSize.height / 2
+        
+        // Вычисляем смещение от центра
+        let offsetX = location.x - centerX
+        let offsetY = location.y - centerY
+        
+        // Проверяем, что точка находится в пределах круга
+        let radius = imageSize.width / 2
+        let distance = sqrt(offsetX * offsetX + offsetY * offsetY)
+        
         guard distance <= radius else { return }
         
-        // Корректируем позицию маркера с учетом offset (примерно +20 вправо, +40 вниз)
-        let correctedPosition = CGPoint(x: location.x + 35, y: location.y + 70)
-        
-        // Сохраняем скорректированную позицию для отображения маркера
-        dragLocation = location
+        // Преобразуем в относительные координаты (от 0 до 1)
+        selectedColorRelativePosition = CGPoint(
+            x: 0.5 + offsetX / imageSize.width,
+            y: 0.5 + offsetY / imageSize.height
+        )
         
         #if canImport(UIKit)
         if let image = pickerImage {
-            // Вычисляем нормализованные координаты от 0 до 1
-            // Преобразуем из координат относительно центра в нормализованные координаты
-            let normalizedX = (dx / radius + 1.0) * 0.5
-            let normalizedY = (dy / radius + 1.0) * 0.5
+            // Вычисляем позицию в изображении для получения цвета
+            let imageX = (offsetX / radius + 1.0) * 0.5
+            let imageY = (offsetY / radius + 1.0) * 0.5
             
-            // Используем расширение для получения цвета
-            if let pixelColor = image.getPixelColorNormalized(at: CGPoint(x: normalizedX, y: normalizedY)) {
+            if let pixelColor = image.getPixelColorNormalized(at: CGPoint(x: imageX, y: imageY)) {
                 var red: CGFloat = 0
                 var green: CGFloat = 0
                 var blue: CGFloat = 0
@@ -414,27 +380,18 @@ class ColorPickerTabsViewModel: ObservableObject {
                 
                 pixelColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
                 selectedColor = Color(red: Double(red), green: Double(green), blue: Double(blue), opacity: Double(alpha))
-                selectedColorPosition = correctedPosition
                 return
             }
         }
         #endif
         
-        // Запасной вариант, если не удалось получить цвет из изображения
-        // Это моделирование HSV цветового колеса
-        let angle = atan2(dy, dx)
+        // Запасной вариант - HSV цветовое колесо
+        let angle = atan2(offsetY, offsetX)
         let hue = (angle + .pi) / (2 * .pi)
-        
-        // Настройка цветов, чтобы красный был сверху (как на скриншоте)
-        // а не справа (как в стандартной HSV модели)
         let adjustedHue = (hue + 0.75) > 1.0 ? hue - 0.25 : hue + 0.75
-        
-        // Вычисляем насыщенность на основе расстояния от центра
         let saturation = min(distance / radius, 1.0)
         
-        // Создаем цвет из HSV компонентов
         selectedColor = Color(hue: Double(adjustedHue), saturation: Double(saturation), brightness: 1.0)
-        selectedColorPosition = correctedPosition
     }
     
     func selectWarmColdLamp(_ lampId: String) {
@@ -661,3 +618,9 @@ extension UIImage {
 }
 #endif
 
+
+#Preview("Environment Bulbs View") {
+    EnvironmentBulbsView()
+        .environmentObject(NavigationManager.shared)
+        .environmentObject(AppViewModel())
+}

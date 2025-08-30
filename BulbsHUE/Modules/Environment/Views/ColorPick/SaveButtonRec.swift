@@ -19,7 +19,7 @@ struct SaveButtonRec: View {
                   Image("BGSaveRecButton")
                       .resizable()
                       .scaledToFit()
-                      .adaptiveFrame(width: 375, height: 2340)
+                      .adaptiveFrame(width: 375, height: 240)
                   
                   Text("SAVE")
                       .font(Font.custom("DMSans-Bold", size: 16.5))
