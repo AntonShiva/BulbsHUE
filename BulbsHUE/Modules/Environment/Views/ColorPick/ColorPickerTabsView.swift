@@ -163,11 +163,11 @@ struct ColorPickerTabsView: View {
                 .position(viewModel.selectedColorPosition ?? CGPoint(x: 180, y: 160))
             }
             
-            // Контроллеры яркости
-            brightnessControls
-            
-            // Кнопка SAVE
-            saveButton
+//            // Контроллеры яркости
+//            brightnessControls
+//            
+//            // Кнопка SAVE
+//            saveButton
         }
     }
     
@@ -298,6 +298,7 @@ struct ColorPickerTabsView: View {
         MultipleBrightnessSliders()
     }
     
+ 
     /// Кнопка сохранения
     private var saveButton: some View {
         Button {

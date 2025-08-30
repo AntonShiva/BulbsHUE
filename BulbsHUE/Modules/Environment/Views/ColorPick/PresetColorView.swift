@@ -164,8 +164,7 @@ struct PresetColorView: View {
                 title: "BRIGHTNESS, %"
             )
             
-            // Кнопка SAVE
-            saveButton
+           
         }
     }
     
@@ -177,51 +176,11 @@ struct PresetColorView: View {
             // Множественные слайдеры яркости для разных ламп
             MultipleBrightnessSliders()
             
-            // Кнопка SAVE
-            saveButton
+           
         }
     }
     
-    // MARK: - Save Button
-    
-    /// Кнопка сохранения
-    private var saveButton: some View {
-        Button {
-            viewModel.savePresetColor()
-        } label: {
-            ZStack {
-                // Фон кнопки
-                Rectangle()
-                    .fill(Color(red: 0.4, green: 0.75, blue: 0.55).opacity(0.05))
-                    .frame(width: 254, height: 122)
-                    .cornerRadius(18)
-                    .overlay(
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: 200, height: 64)
-                            .cornerRadius(14)
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color(red: 0.4, green: 0.75, blue: 0.5).opacity(0.3),
-                                        Color(red: 0.3, green: 0.65, blue: 0.7).opacity(0.3)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .cornerRadius(14)
-                    )
-                
-                Text("SAVE")
-                    .font(Font.custom("DMSans-Bold", size: 16))
-                    .kerning(3.2)
-                    .foregroundColor(.white)
-                    .textCase(.uppercase)
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
+ 
 }
 
 enum PresetColor: CaseIterable {
