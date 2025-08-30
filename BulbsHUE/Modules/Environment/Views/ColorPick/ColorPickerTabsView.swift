@@ -286,84 +286,16 @@ struct ColorPickerTabsView: View {
     
     /// Контроллеры яркости (общие для первых двух вкладок)
     private var brightnessControls: some View {
-        VStack(spacing: 12) {
-            Text("BRIGHTNESS, %")
-                .font(Font.custom("DMSans-ExtraLight", size: 12))
-                .kerning(2.04)
-                .foregroundColor(.white)
-                .textCase(.uppercase)
-            
-            // Слайдер яркости
-            HStack {
-                Rectangle()
-                    .fill(.white.opacity(0.1))
-                    .frame(width: 312, height: 56)
-                    .cornerRadius(12)
-                    .overlay(
-                        HStack {
-                            Rectangle()
-                                .fill(.white)
-                                .frame(width: 140, height: 56)
-                                .cornerRadius(12)
-                            Spacer()
-                        }
-                    )
-                    .overlay(
-                        HStack {
-                            Spacer()
-                            Text("24%")
-                                .font(Font.custom("DMSans-ExtraLight", size: 12))
-                                .kerning(2.04)
-                                .foregroundColor(.white)
-                                .textCase(.uppercase)
-                                .padding(.trailing, 24)
-                        }
-                    )
-            }
-        }
+        BrightnessSlider(
+            brightness: $viewModel.brightness,
+            color: .white,
+            title: "BRIGHTNESS, %"
+        )
     }
     
     /// Контроллеры яркости для нескольких ламп (для палитры)
     private var multiLampBrightnessControls: some View {
-        VStack(spacing: 16) {
-            ForEach(0..<3) { index in
-                VStack(spacing: 8) {
-                    Text("BRIGHTNESS, %")
-                        .font(Font.custom("DMSans-ExtraLight", size: 12))
-                        .kerning(2.04)
-                        .foregroundColor(.white)
-                        .textCase(.uppercase)
-                    
-                    // Слайдер яркости с разными цветами
-                    HStack {
-                        Rectangle()
-                            .fill(.white.opacity(0.1))
-                            .frame(width: 312, height: 56)
-                            .cornerRadius(12)
-                            .overlay(
-                                HStack {
-                                    Rectangle()
-                                        .fill(viewModel.getLampBrightnessColor(for: index))
-                                        .frame(width: 140, height: 56)
-                                        .cornerRadius(12)
-                                    Spacer()
-                                }
-                            )
-                            .overlay(
-                                HStack {
-                                    Spacer()
-                                    Text("24%")
-                                        .font(Font.custom("DMSans-ExtraLight", size: 12))
-                                        .kerning(2.04)
-                                        .foregroundColor(.white)
-                                        .textCase(.uppercase)
-                                        .padding(.trailing, 24)
-                                }
-                            )
-                    }
-                }
-            }
-        }
+        MultipleBrightnessSliders()
     }
     
     /// Кнопка сохранения
@@ -418,6 +350,7 @@ class ColorPickerTabsViewModel: ObservableObject {
     @Published var selectedColor: Color = .orange
     @Published var selectedColorPosition: CGPoint?
     @Published var dragLocation: CGPoint?
+    @Published var brightness: Double = 24.0
     @Published var warmColdLamps: [WarmColdLamp] = []
     @Published var palletColors: [PalletColorItem] = []
     @Published var selectedPalletColorItem: PalletColorItem?
@@ -514,15 +447,6 @@ class ColorPickerTabsViewModel: ObservableObject {
             palletColors[index].isSelected = palletColors[index].id == colorId
         }
         selectedPalletColorItem = palletColors.first { $0.id == colorId }
-    }
-    
-    func getLampBrightnessColor(for index: Int) -> Color {
-        let colors: [Color] = [
-            Color(red: 0.976, green: 0.451, blue: 0.188), // Оранжевый
-            Color(red: 0.984, green: 0.792, blue: 0.475), // Желтоватый  
-            Color(red: 0.984, green: 0.941, blue: 0.541)  // Желтый
-        ]
-        return colors[safe: index] ?? .orange
     }
     
     func saveColorSettings() {
