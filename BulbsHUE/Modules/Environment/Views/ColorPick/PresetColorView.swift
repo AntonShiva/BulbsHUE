@@ -163,7 +163,7 @@ struct PresetColorView: View {
                 color: Color(red: 0.99, green: 0.98, blue: 0.84),
                 title: "BRIGHTNESS, %"
             )
-            StyleSettingView_Bindable(selectedStyle: .constant(.classic))
+            StyleSettingView(selectedStyle: .constant(.classic) )
            
         }
     }

@@ -17,7 +17,7 @@ enum StyleType: String, CaseIterable {
 
 
 // Версия с биндингом для использования в родительских View
-struct StyleSettingView_Bindable: View {
+struct StyleSettingView: View {
     @Binding var selectedStyle: StyleType
     @State private var isExpanded: Bool = false
     
@@ -26,38 +26,40 @@ struct StyleSettingView_Bindable: View {
         ZStack {
             Rectangle()
                 .foregroundColor(.clear)
-                .frame(width: 332, height: 64)
+                .adaptiveFrame(width: 332, height: 64)
                 .background(Color(red: 0.99, green: 0.98, blue: 0.84))
                 .cornerRadius(12)
                 .opacity(isExpanded ? 0 : 0.1)
             
-            HStack {
+            ZStack {
                 // Icon placeholder
-                ZStack {
-                    // Здесь можно добавить иконку
-                }
-                .frame(width: 32, height: 32)
-                
-                Spacer()
+              Image("Stule")
+                    .resizable()
+                    .scaledToFit()
+                .adaptiveFrame(width: 22, height: 22)
+                .adaptiveOffset(x: -134)
+                .opacity(isExpanded ? 0 : 1)
                 
                 // Title
                 Text(String(localized: "STYLE"))
-                    .font(Font.custom("DM Sans", size: 14))
+                    .font(Font.custom("DMSans-Regular", size: 14.3))
                     .tracking(2.80)
                     .foregroundColor(Color(red: 0.99, green: 0.98, blue: 0.84))
-                
-                Spacer()
+                    .adaptiveOffset(x: isExpanded ? 0 : -67 )
+               
                 
                 // Current value
                 Text(selectedStyle.displayName)
-                    .font(Font.custom("DM Sans", size: 14).weight(.black))
+                    .font(Font.custom("DMSans-Black", size: 14))
                     .tracking(2.80)
                     .foregroundColor(Color(red: 0.99, green: 0.98, blue: 0.84))
                     .opacity(isExpanded ? 0 : 1)
+                    .adaptiveOffset(x: 96)
             }
-            .padding(.horizontal, 24)
+           
         }
-        .frame(width: 332, height: 64)
+        .adaptiveFrame(width: 332, height: 64)
+        
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.3)) {
                 isExpanded.toggle()
@@ -69,7 +71,7 @@ struct StyleSettingView_Bindable: View {
                 ZStack {
                     Rectangle()
                         .foregroundColor(.clear)
-                        .frame(width: 332, height: 64)
+                        .adaptiveFrame(width: 332, height: 64)
                         .background(Color(red: 0.99, green: 0.98, blue: 0.84))
                         .cornerRadius(12)
                         .opacity(0.1)
@@ -78,28 +80,55 @@ struct StyleSettingView_Bindable: View {
                         // Classic option
                         Button(action: {
                             selectedStyle = .classic
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                isExpanded = false
-                            }
+//                            withAnimation(.easeInOut(duration: 0.3)) {
+//                                isExpanded = false
+//                            }
                         }) {
-                            Text(StyleType.classic.displayName)
-                                .font(Font.custom("DM Sans", size: 14).weight(selectedStyle == .classic ? .black : .medium))
-                                .tracking(2.80)
-                                .foregroundColor(Color(red: 0.99, green: 0.98, blue: 0.84))
+                            ZStack {
+                               UnevenRoundedRectangle(
+                                    topLeadingRadius: 12,
+                                    bottomLeadingRadius: 12,
+                                    bottomTrailingRadius: 0,
+                                    topTrailingRadius: 0
+                                )
+                                .fill(Color(red: 0.99, green: 0.98, blue: 0.84))
+                              .adaptiveFrame(width: 166, height: 64)
+                              .opacity(selectedStyle == .classic ? 0.1 : 0)
+                            
+                               
+                                
+                                Text(StyleType.classic.displayName)
+                                    .font(Font.custom("DM Sans", size: 14).weight(selectedStyle == .classic ? .black : .medium))
+                                    .tracking(2.80)
+                                    .foregroundColor(Color(red: 0.99, green: 0.98, blue: 0.84))
+                                    
+                            }
                         }
-                        .frame(maxWidth: .infinity)
+                        
                         
                         // Pulse option
                         Button(action: {
                             selectedStyle = .pulse
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                isExpanded = false
-                            }
+//                            withAnimation(.easeInOut(duration: 0.3)) {
+//                                isExpanded = false
+//                            }
                         }) {
-                            Text(StyleType.pulse.displayName)
-                                .font(Font.custom("DM Sans", size: 14).weight(selectedStyle == .pulse ? .black : .medium))
-                                .tracking(2.80)
-                                .foregroundColor(Color(red: 0.99, green: 0.98, blue: 0.84))
+                            ZStack {
+                                UnevenRoundedRectangle(
+                                     topLeadingRadius: 0,
+                                     bottomLeadingRadius: 0,
+                                     bottomTrailingRadius: 12,
+                                     topTrailingRadius: 12
+                                 )
+                                 .fill(Color(red: 0.99, green: 0.98, blue: 0.84))
+                               .adaptiveFrame(width: 166, height: 64)
+                               .opacity(selectedStyle == .pulse ? 0.1 : 0)
+                                
+                                Text(StyleType.pulse.displayName)
+                                    .font(Font.custom("DM Sans", size: 14).weight(selectedStyle == .pulse ? .black : .medium))
+                                    .tracking(2.80)
+                                    .foregroundColor(Color(red: 0.99, green: 0.98, blue: 0.84))
+                            }
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -121,8 +150,10 @@ struct StyleSettingView_Bindable: View {
         BG()
         
         // Пример с биндингом
-        StyleSettingView_Bindable(selectedStyle: .constant(.classic))
+        StyleSettingView(selectedStyle: .constant(.classic) )
         
         
     }
+    .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2242-9&t=ecwoqnlqZqm7Kwrp-4")!)
+    .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
