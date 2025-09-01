@@ -19,7 +19,7 @@ enum StyleType: String, CaseIterable {
 // Версия с биндингом для использования в родительских View
 struct StyleSettingView: View {
     @Binding var selectedStyle: StyleType
-    @State private var isExpanded: Bool = false
+    @Binding var isExpanded: Bool
     
     var body: some View {
         // Основная ячейка (фиксированный размер)
@@ -150,7 +150,10 @@ struct StyleSettingView: View {
         BG()
         
         // Пример с биндингом
-        StyleSettingView(selectedStyle: .constant(.classic) )
+        StyleSettingView(
+            selectedStyle: .constant(.classic),
+            isExpanded: .constant(false)
+        )
         
         
     }

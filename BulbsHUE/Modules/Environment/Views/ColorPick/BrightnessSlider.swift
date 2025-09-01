@@ -28,6 +28,8 @@ struct BrightnessSlider: View {
                 .kerning(2.04)
                 .foregroundColor(.white)
                 .textCase(.uppercase)
+                .opacity(0.5)
+                .adaptiveOffset(x: -80)
             
             // Контейнер слайдера
             GeometryReader { geometry in
@@ -35,13 +37,13 @@ struct BrightnessSlider: View {
                     // Фон слайдера
                     Rectangle()
                         .fill(.white.opacity(0.1))
-                        .frame(width: 312, height: 56)
+                        .adaptiveFrame(width: 332, height: 56)
                         .cornerRadius(12)
                     
                     // Активная часть слайдера (заполнение)
                     Rectangle()
                         .fill(color)
-                        .frame(width: min(312 * CGFloat(brightness / 100), 312), height: 56)
+                        .adaptiveFrame(width: min(332 * CGFloat(brightness / 100), 332), height: 56)
                         .cornerRadius(12)
                         .animation(.easeInOut(duration: 0.2), value: brightness)
                     
@@ -53,74 +55,74 @@ struct BrightnessSlider: View {
                             .kerning(2.04)
                             .foregroundColor(.white)
                             .textCase(.uppercase)
-                            .padding(.trailing, 24)
+                            .padding(.trailing, 20)
                     }
                 }
                 .onTapGesture { tapLocation in
                     // Обработка тапа для изменения яркости
-                    let newBrightness = min(max((tapLocation.x / 312) * 100, 0), 100)
+                    let newBrightness = min(max((tapLocation.x / 332) * 100, 0), 100)
                     brightness = newBrightness
                 }
                 .gesture(
                     DragGesture()
                         .onChanged { value in
                             // Обработка перетаскивания для изменения яркости
-                            let newBrightness = min(max((value.location.x / 312) * 100, 0), 100)
+                            let newBrightness = min(max((value.location.x / 332) * 100, 0), 100)
                             brightness = newBrightness
                         }
                 )
             }
-            .frame(width: 312, height: 56)
+            .adaptiveFrame(width: 332, height: 56)
         }
     }
 }
 
-/// Множественные слайдеры яркости для разных ламп
-struct MultipleBrightnessSliders: View {
-    @StateObject private var viewModel = MultipleBrightnessSlidersViewModel()
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            ForEach(viewModel.lamps.indices, id: \.self) { index in
-                BrightnessSlider(
-                    brightness: $viewModel.lamps[index].brightness,
-                    color: viewModel.lamps[index].color
-                )
-            }
-        }
-    }
-}
-
-// MARK: - ViewModel для множественных слайдеров
-
-@MainActor
-class MultipleBrightnessSlidersViewModel: ObservableObject {
-    @Published var lamps: [LampBrightnessData] = []
-    
-    init() {
-        setupLamps()
-    }
-    
-    private func setupLamps() {
-        lamps = [
-            LampBrightnessData(
-                id: "lamp1",
-                brightness: 24.0,
-                color: Color(red: 0.976, green: 0.451, blue: 0.188) // Оранжевый
-            ),
-            LampBrightnessData(
-                id: "lamp2", 
-                brightness: 56.0,
-                color: Color(red: 0.984, green: 0.792, blue: 0.475) // Желтоватый
-            ),
-            LampBrightnessData(
-                id: "lamp3",
-                brightness: 78.0,
-                color: Color(red: 0.984, green: 0.941, blue: 0.541) // Желтый
-            )
-        ]
-    }
-}
+///// Множественные слайдеры яркости для разных ламп
+//struct MultipleBrightnessSliders: View {
+//    @StateObject private var viewModel = MultipleBrightnessSlidersViewModel()
+//    
+//    var body: some View {
+//        VStack(spacing: 16) {
+//            ForEach(viewModel.lamps.indices, id: \.self) { index in
+//                BrightnessSlider(
+//                    brightness: $viewModel.lamps[index].brightness,
+//                    color: viewModel.lamps[index].color
+//                )
+//            }
+//        }
+//    }
+//}
+//
+//// MARK: - ViewModel для множественных слайдеров
+//
+//@MainActor
+//class MultipleBrightnessSlidersViewModel: ObservableObject {
+//    @Published var lamps: [LampBrightnessData] = []
+//    
+//    init() {
+//        setupLamps()
+//    }
+//    
+//    private func setupLamps() {
+//        lamps = [
+//            LampBrightnessData(
+//                id: "lamp1",
+//                brightness: 24.0,
+//                color: Color(red: 0.976, green: 0.451, blue: 0.188) // Оранжевый
+//            ),
+//            LampBrightnessData(
+//                id: "lamp2", 
+//                brightness: 56.0,
+//                color: Color(red: 0.984, green: 0.792, blue: 0.475) // Желтоватый
+//            ),
+//            LampBrightnessData(
+//                id: "lamp3",
+//                brightness: 78.0,
+//                color: Color(red: 0.984, green: 0.941, blue: 0.541) // Желтый
+//            )
+//        ]
+//    }
+//}
 
 // MARK: - Модель данных для лампы
 
@@ -146,12 +148,4 @@ struct LampBrightnessData: Identifiable {
     }
 }
 
-#Preview("Multiple Brightness Sliders") {
-    ZStack {
-        Color.black.ignoresSafeArea()
-        VStack {
-            MultipleBrightnessSliders()
-        }
-        .padding()
-    }
-}
+

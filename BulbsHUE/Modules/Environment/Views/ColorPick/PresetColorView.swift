@@ -20,7 +20,7 @@ struct PresetColorView: View {
             
             // Добавляем табы
             presetColorTabs
-                .adaptiveOffset(y: -250)
+                .adaptiveOffset(y: -262)
             
             ZStack{
                 Image("Neon Abyss")
@@ -32,13 +32,13 @@ struct PresetColorView: View {
                 Circle()
                     .inset(by: 1)
                     .stroke(Color(red: 0.99, green: 0.98, blue: 0.84), lineWidth: 2)
-                    .frame(width: 334, height: 334)
+                    .adaptiveFrame(width: 334, height: 334)
             }
-            .adaptiveOffset(y: -37)
+            .adaptiveOffset(y: -39)
             
             // Контент в зависимости от выбранного таба
             selectedTabContent
-                .adaptiveOffset(y: 250)
+                .adaptiveOffset(y: viewModel.selectedTab == .statics ? 247 : 258)
         }
     }
     /// Верхняя навигационная панель с кнопками и заголовком
@@ -163,7 +163,7 @@ struct PresetColorView: View {
                 color: Color(red: 0.99, green: 0.98, blue: 0.84),
                 title: "BRIGHTNESS, %"
             )
-            StyleSettingView(selectedStyle: .constant(.classic) )
+           
            
         }
     }
@@ -172,11 +172,27 @@ struct PresetColorView: View {
     
     /// Контент для динамических цветов
     private var dynamicContent: some View {
-        VStack(spacing: 20) {
-            // Множественные слайдеры яркости для разных ламп
-            MultipleBrightnessSliders()
+        VStack {
+            BrightnessSlider(
+                brightness: $viewModel.dynamicBrightness,
+                color: Color(red: 0.99, green: 0.98, blue: 0.84),
+                title: "BRIGHTNESS, %"
+            )
+            .opacity(viewModel.dynamicBrightnessOpacity)
             
-           
+            StyleSettingView(
+                selectedStyle: $viewModel.selectedStyle,
+                isExpanded: $viewModel.isStyleExpanded
+            )
+            .opacity(viewModel.styleOpacity)
+            
+            IntensitySettingView(
+                intensityType: $viewModel.selectedIntensity,
+                isExpanded: $viewModel.isIntensityExpanded
+            )
+            .opacity(viewModel.intensityOpacity)
+            .adaptiveOffset(y: viewModel.isIntensityExpanded ? -70 : 0)
+            
         }
     }
     
@@ -194,17 +210,48 @@ class PresetColorViewModel: ObservableObject {
     @Published var selectedTab: PresetColor = .statics
     @Published var brightness: Double = 50.0
     
+    // Dynamic settings
+    @Published var dynamicBrightness: Double = 50.0
+    @Published var selectedStyle: StyleType = .classic
+    @Published var selectedIntensity: IntensityType = .middle
+    @Published var isStyleExpanded: Bool = false
+    @Published var isIntensityExpanded: Bool = false
+    
+    // MARK: - Computed Properties
+    
+    /// Прозрачность для BrightnessSlider в динамическом режиме
+    var dynamicBrightnessOpacity: Double {
+        return (isStyleExpanded || isIntensityExpanded) ? 0.02 : 1.0
+    }
+    
+    /// Прозрачность для StyleSettingView
+    var styleOpacity: Double {
+        return isIntensityExpanded ? 0.02 : 1.0
+    }
+    
+    /// Прозрачность для IntensitySettingView
+    var intensityOpacity: Double {
+        return isStyleExpanded ? 0.02 : 1.0
+    }
+    
     // MARK: - Public Methods
     
     func savePresetColor() {
-        // Здесь будет логика сохранения настроек пресетного цвета
-        print("Saving preset color settings for tab: \(selectedTab), brightness: \(brightness)%")
+        switch selectedTab {
+        case .statics:
+            print("Saving static preset color settings - brightness: \(brightness)%")
+        case .dynamic:
+            print("Saving dynamic preset color settings:")
+            print("- Brightness: \(dynamicBrightness)%")
+            print("- Style: \(selectedStyle.displayName)")
+            print("- Intensity: \(selectedIntensity.displayName)")
+        }
     }
 }
 
 
 #Preview {
     PresetColorView()
-        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=123-2559&t=2MO1qF5YMTp0ngJy-4")!)
+        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=123-3818&t=gFp2PiVIXvPVfHoZ-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }

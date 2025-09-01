@@ -31,7 +31,7 @@ struct EnvironmentBulbsView: View {
                 .adaptiveOffset(y: -240)
             
             // Контент в зависимости от выбранного фильтра
-            if viewModel.selectedFilterTab != .colorPicker {
+            if viewModel.selectedFilterTab == .colorPicker {
                 // Показываем цветовые вкладки вместо секций
                 ColorPickerTabsView()
                     .adaptiveOffset(y: 70)

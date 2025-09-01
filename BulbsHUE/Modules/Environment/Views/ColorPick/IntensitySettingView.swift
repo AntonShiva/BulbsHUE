@@ -30,7 +30,7 @@ import SwiftUI
     // Версия с биндингом для использования в родительских View
 struct IntensitySettingView: View {
         @Binding var intensityType: IntensityType
-        @State private var isExpanded: Bool = false
+        @Binding var isExpanded: Bool
         
         var body: some View {
             // Основная ячейка (фиксированный размер)
@@ -185,7 +185,10 @@ struct IntensitySettingView: View {
         BG()
         
         // Пример с биндингом
-        IntensitySettingView(intensityType: .constant(.middle))
+        IntensitySettingView(
+            intensityType: .constant(.middle),
+            isExpanded: .constant(false)
+        )
         
         
     }
