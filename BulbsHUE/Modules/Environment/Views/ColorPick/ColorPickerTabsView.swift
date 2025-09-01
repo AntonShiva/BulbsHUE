@@ -164,27 +164,45 @@ struct ColorPickerTabsView: View {
                                 }
                         )
                     
-                    // ЕДИНСТВЕННЫЙ маркер - цель/лампа которую можно перетаскивать
-                    VStack(spacing: 4) {
-                        ZStack {
-                            PointerBulb(color: viewModel.selectedColor)
-                            
-                            // Иконка лампочки в центре
-                            Image("BulbFill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 24, height: 24)
-                                .foregroundColor(.black.opacity(0.8))
-                                .adaptiveOffset(y: -3)
+                    // Отображаем маркеры в зависимости от режима
+                    if viewModel.isTargetingSingleLight {
+                        // Для одной лампы - один маркер
+                        VStack(spacing: 4) {
+                            ZStack {
+                                PointerBulb(color: viewModel.selectedColor)
+                                
+                                // Иконка целевой лампы
+                                Image(viewModel.getTargetLightIcon())
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.black.opacity(0.8))
+                                    .adaptiveOffset(y: -3)
+                            }
+                        }
+                        .position(viewModel.getMarkerPosition(in: geometry.size, imageSize: CGSize(width: 320, height: 320)))
+                    } else {
+                        // Для комнаты - маркеры всех ламп
+                        ForEach(viewModel.roomLightMarkers, id: \.id) { marker in
+                            VStack(spacing: 4) {
+                                ZStack {
+                                    PointerBulb(color: marker.color)
+                                    
+                                    // Иконка лампы из комнаты
+                                    Image(marker.iconName)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 20, height: 20)
+                                        .foregroundColor(.black.opacity(0.8))
+                                        .adaptiveOffset(y: -2)
+                                }
+                            }
+                            .position(marker.position)
                         }
                     }
-                    .position(viewModel.getMarkerPosition(in: geometry.size, imageSize: CGSize(width: 320, height: 320)))
                 }
             }
             .frame(height: 320)
-            
-          
-
         }
     }
     
@@ -193,51 +211,83 @@ struct ColorPickerTabsView: View {
     /// Градиентный круг с лампочками для теплых/холодных тонов
     private var warmColdContent: some View {
         VStack(spacing: 32) {
-            // Градиентный круг (от оранжевого к холодному)
-            ZStack {
-                // Градиентный фон от теплого к холодному
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color(red: 1.0, green: 0.5, blue: 0.0), // Теплый оранжевый
-                                Color(red: 1.0, green: 0.85, blue: 0.7), // Нейтральный
-                                Color(red: 0.7, green: 0.85, blue: 1.0)  // Холодный синеватый
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
+            // Градиентный круг (от теплого к холодному)
+            GeometryReader { geometry in
+                ZStack {
+                    // Градиентный фон от теплого к холодному (2700K-6500K)
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color(red: 1.0, green: 0.7, blue: 0.4), // Теплый 2700K (желтый/оранжевый)
+                                    Color(red: 1.0, green: 0.9, blue: 0.8), // Нейтральный 4000K
+                                    Color(red: 0.8, green: 0.9, blue: 1.0)  // Холодный 6500K (синеватый)
+                                ]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .frame(width: 320, height: 320)
-                
-                // Маркеры ламп на градиенте
-                ForEach(viewModel.warmColdLamps, id: \.id) { lamp in
-                    VStack(spacing: 4) {
-                        // Круглый маркер с иконкой
-                        ZStack {
-                            Circle()
-                                .fill(lamp.isSelected ? .white : Color.white.opacity(0.8))
-                                .frame(width: 44, height: 44)
-                                .overlay(
-                                    Circle()
-                                        .stroke(.black.opacity(0.2), lineWidth: 2)
-                                )
-                            
-                            // Иконка лампочки или торшера
-                            Image(lamp.iconName)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20)
-                                .foregroundColor(.black)
+                        .frame(width: 320, height: 320)
+                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    viewModel.handleWarmColdColorSelection(
+                                        at: value.location,
+                                        in: geometry.size,
+                                        circleSize: CGSize(width: 320, height: 320)
+                                    )
+                                }
+                        )
+                    
+                    // Отображаем маркеры в зависимости от режима
+                    if viewModel.isTargetingSingleLight {
+                        // Для одной лампы - один маркер как в hex picker
+                        VStack(spacing: 4) {
+                            ZStack {
+                                PointerBulb(color: viewModel.warmColdSelectedColor)
+                                
+                                // Иконка целевой лампы
+                                Image(viewModel.getTargetLightIcon())
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 24, height: 24)
+                                    .foregroundColor(.black.opacity(0.8))
+                                    .adaptiveOffset(y: -3)
+                            }
                         }
-                        .onTapGesture {
-                            viewModel.selectWarmColdLamp(lamp.id)
+                        .position(viewModel.getWarmColdMarkerPosition(in: geometry.size, circleSize: CGSize(width: 320, height: 320)))
+                    } else {
+                        // Для комнаты - маркеры всех ламп
+                        ForEach(viewModel.warmColdLamps, id: \.id) { lamp in
+                            VStack(spacing: 4) {
+                                // Круглый маркер с иконкой лампы
+                                ZStack {
+                                    Circle()
+                                        .fill(lamp.isSelected ? .white : Color.white.opacity(0.8))
+                                        .frame(width: 44, height: 44)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(.black.opacity(0.2), lineWidth: 2)
+                                        )
+                                    
+                                    // Иконка лампы из комнаты
+                                    Image(lamp.iconName)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 20, height: 20)
+                                        .foregroundColor(.black)
+                                }
+                                .onTapGesture {
+                                    viewModel.selectWarmColdLamp(lamp.id)
+                                }
+                            }
+                            .position(lamp.position)
                         }
                     }
-                    .position(lamp.position)
                 }
             }
-            
+            .frame(height: 320)
         }
     }
     
@@ -308,12 +358,8 @@ struct ColorPickerTabsView: View {
             case .hexPicker:
                 colorToApply = viewModel.selectedColor
             case .warmCold:
-                // Для теплого/холодного используем цвет из выбранной лампы
-                if let selectedLamp = viewModel.warmColdLamps.first(where: { $0.isSelected }) {
-                    colorToApply = selectedLamp.color
-                } else {
-                    colorToApply = viewModel.selectedColor
-                }
+                // Для теплого/холодного используем выбранный warm/cold цвет
+                colorToApply = viewModel.warmColdSelectedColor
             case .pallet:
                 // Для палитры используем цвет из выбранного элемента
                 if let selectedPalletItem = viewModel.selectedPalletColorItem {
@@ -336,7 +382,8 @@ struct ColorPickerTabsView: View {
                 try await updatedService.setColor(for: targetLight, color: colorToApply)
                 
                 // ✅ ИСПРАВЛЕНИЕ: Сохраняем состояние цвета в LightColorStateService
-                let colorPosition = viewModel.selectedTab == .hexPicker ? viewModel.selectedColorRelativePosition : nil
+                let colorPosition = viewModel.selectedTab == .hexPicker ? viewModel.selectedColorRelativePosition : 
+                                  viewModel.selectedTab == .warmCold ? viewModel.warmColdRelativePosition : nil
                 LightColorStateService.shared.setLightColor(
                     targetLight.id, 
                     color: colorToApply, 
@@ -356,7 +403,8 @@ struct ColorPickerTabsView: View {
                         targetRoom.lightIds.contains(light.id)
                     }
                     
-                    let colorPosition = viewModel.selectedTab == .hexPicker ? viewModel.selectedColorRelativePosition : nil
+                    let colorPosition = viewModel.selectedTab == .hexPicker ? viewModel.selectedColorRelativePosition : 
+                                      viewModel.selectedTab == .warmCold ? viewModel.warmColdRelativePosition : nil
                     for light in roomLights {
                         LightColorStateService.shared.setLightColor(
                             light.id, 
@@ -401,15 +449,30 @@ class ColorPickerTabsViewModel: ObservableObject {
     @Published var palletColors: [PalletColorItem] = []
     @Published var selectedPalletColorItem: PalletColorItem?
     
+    // MARK: - Warm/Cold Properties
+    @Published var warmColdSelectedColor: Color = Color(red: 1.0, green: 0.9, blue: 0.8) // Нейтральный белый по умолчанию
+    @Published var warmColdRelativePosition: CGPoint = CGPoint(x: 0.5, y: 0.5) // Позиция в warm/cold круге
+    
+    // MARK: - Room Light Markers for HEX Picker
+    @Published var roomLightMarkers: [RoomLightMarker] = []
+    
     #if canImport(UIKit)
     @Published var pickerImage: UIImage? = nil
     #endif
+    
+    // MARK: - Computed Properties
+    
+    /// Определяем, настраиваем ли одну лампу или комнату
+    var isTargetingSingleLight: Bool {
+        return NavigationManager.shared.targetLightForColorChange != nil
+    }
     
     // MARK: - Initialization
     
     init() {
         setupWarmColdLamps()
         setupPalletColors()
+        setupRoomLightMarkers()
         
         // Загружаем изображение для получения реальных цветов
         #if canImport(UIKit)
@@ -439,7 +502,7 @@ class ColorPickerTabsViewModel: ObservableObject {
         
         guard let lightId = targetLightId else { return }
         
-        // Восстанавливаем сохраненный цвет и позицию
+        // Восстанавливаем сохраненный цвет и позицию для hex picker
         if let savedColor = LightColorStateService.shared.getLightColor(lightId) {
             selectedColor = savedColor
             print("🔄 Восстановлен цвет для лампы \(lightId)")
@@ -449,12 +512,137 @@ class ColorPickerTabsViewModel: ObservableObject {
             selectedColorRelativePosition = savedPosition
             print("🔄 Восстановлена позиция color picker для лампы \(lightId)")
         }
+        
+        // ✅ УЛУЧШЕННАЯ ЛОГИКА: Восстановление warm/cold позиции
+        restoreWarmColdPosition(for: lightId)
+    }
+    
+    /// Восстанавливает позицию указателя в warm/cold режиме на основе текущего цвета лампы
+    private func restoreWarmColdPosition(for lightId: String) {
+        let currentColor: Color
+        
+        // Получаем текущий цвет лампы (сохраненный или базовый из лампы)
+        if let savedColor = LightColorStateService.shared.getLightColor(lightId) {
+            currentColor = savedColor
+            warmColdSelectedColor = savedColor
+        } else {
+            // Попробуем получить объект лампы для базового цвета
+            let targetLight: Light?
+            
+            if let light = NavigationManager.shared.targetLightForColorChange {
+                targetLight = light
+            } else if let room = NavigationManager.shared.targetRoomForColorChange,
+                      let firstLightId = room.lightIds.first {
+                // Для комнаты нам нужно найти объект лампы по ID
+                // Пока используем дефолтный цвет, так как у нас нет прямого доступа к объекту лампы по ID
+                targetLight = nil
+            } else {
+                targetLight = nil
+            }
+            
+            if let light = targetLight {
+                let baseColor = LightColorStateService.shared.getBaseColor(for: light)
+                currentColor = baseColor
+                warmColdSelectedColor = baseColor
+            } else {
+                // Дефолтный нейтральный белый
+                currentColor = Color(red: 1.0, green: 0.9, blue: 0.8)
+                warmColdSelectedColor = currentColor
+                warmColdRelativePosition = CGPoint(x: 0.5, y: 0.5)
+                return
+            }
+        }
+        
+        // Проверяем, является ли цвет теплым/холодным (близким к температурной шкале)
+        if let temperatureRatio = analyzeColorTemperature(currentColor) {
+            // ✅ Цвет является теплым/холодным - показываем указатель на соответствующей позиции
+            warmColdRelativePosition = CGPoint(x: temperatureRatio, y: 0.5)
+            print("🌡️ Цвет лампы является температурным, позиция: \(temperatureRatio)")
+        } else {
+            // ✅ Цвет цветной (зеленый, синий и т.д.) - показываем указатель в центре
+            warmColdRelativePosition = CGPoint(x: 0.5, y: 0.5)
+            print("🎨 Цвет лампы цветной, указатель в центре")
+        }
+    }
+    
+    /// Анализирует цвет и определяет, является ли он теплым/холодным (возвращает позицию на температурной шкале)
+    /// - Parameter color: Анализируемый цвет
+    /// - Returns: Соотношение температуры (0.0 = теплый, 1.0 = холодный) или nil если цвет цветной
+    private func analyzeColorTemperature(_ color: Color) -> Double? {
+        // Конвертируем Color в RGB компоненты
+        #if canImport(UIKit)
+        let uiColor = UIColor(color)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        guard uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return nil
+        }
+        
+        // Проверяем, является ли цвет близким к температурной шкале
+        // Температурные цвета имеют характеристики:
+        // - Теплые: больше красного, меньше синего
+        // - Холодные: больше синего, меньше красного
+        // - Зеленая компонента должна быть между красной и синей
+        
+        let redValue = Double(red)
+        let greenValue = Double(green)
+        let blueValue = Double(blue)
+        
+        // Проверяем, что это не сильно насыщенный цвет
+        let maxComponent = max(redValue, greenValue, blueValue)
+        let minComponent = min(redValue, greenValue, blueValue)
+        let saturation = (maxComponent - minComponent) / maxComponent
+        
+        // Если насыщенность слишком высокая, это цветной цвет
+        if saturation > 0.3 {
+            return nil
+        }
+        
+        // Вычисляем соотношение синего к красному для определения температуры
+        let temperatureRatio = blueValue / (redValue + 0.001) // избегаем деления на ноль
+        
+        // Конвертируем в позицию на шкале (0.0 = теплый, 1.0 = холодный)
+        let normalizedRatio = min(max((temperatureRatio - 0.7) / (1.3 - 0.7), 0.0), 1.0)
+        
+        return normalizedRatio
+        #else
+        // Для других платформ возвращаем nil (будет использован центр)
+        return nil
+        #endif
     }
     
     // MARK: - Public Methods
     
     func selectTab(_ tab: ColorPickerTab) {
         selectedTab = tab
+        
+        // ✅ При переключении на warm/cold таб - обновляем позицию указателя
+        if tab == .warmCold {
+            updateWarmColdPositionForCurrentLamp()
+        }
+    }
+    
+    /// Обновляет позицию warm/cold указателя для текущей лампы
+    private func updateWarmColdPositionForCurrentLamp() {
+        // Получаем целевую лампу из NavigationManager
+        let targetLightId: String?
+        
+        if let targetLight = NavigationManager.shared.targetLightForColorChange {
+            targetLightId = targetLight.id
+        } else if let targetRoom = NavigationManager.shared.targetRoomForColorChange {
+            // Для комнаты берем первую лампу как представительную
+            targetLightId = targetRoom.lightIds.first
+        } else {
+            return
+        }
+        
+        guard let lightId = targetLightId else { return }
+        
+        // Восстанавливаем позицию для этой лампы
+        restoreWarmColdPosition(for: lightId)
     }
     
     /// Получает позицию маркера в контейнере на основе относительных координат
@@ -470,6 +658,36 @@ class ColorPickerTabsViewModel: ObservableObject {
             x: centerX + offsetX,
             y: centerY + offsetY
         )
+    }
+    
+    /// Получает позицию маркера для warm/cold круга
+    func getWarmColdMarkerPosition(in containerSize: CGSize, circleSize: CGSize) -> CGPoint {
+        let centerX = containerSize.width / 2
+        let centerY = containerSize.height / 2
+        
+        // Вычисляем смещение от центра на основе относительных координат warm/cold
+        let offsetX = (warmColdRelativePosition.x - 0.5) * circleSize.width
+        let offsetY = (warmColdRelativePosition.y - 0.5) * circleSize.height
+        
+        return CGPoint(
+            x: centerX + offsetX,
+            y: centerY + offsetY
+        )
+    }
+    
+    /// Получает иконку целевой лампы
+    func getTargetLightIcon() -> String {
+        if let targetLight = NavigationManager.shared.targetLightForColorChange {
+            return targetLight.metadata.userSubtypeIcon ?? "BulbFill"
+        } else if let targetRoom = NavigationManager.shared.targetRoomForColorChange,
+                  let firstLightId = targetRoom.lightIds.first {
+            // Ищем первую лампу в комнате для получения иконки
+            if let appViewModel = NavigationManager.shared.dataPersistenceService?.appViewModel {
+                let firstLight = appViewModel.lightsViewModel.lights.first { $0.id == firstLightId }
+                return firstLight?.metadata.userSubtypeIcon ?? "BulbFill"
+            }
+        }
+        return "BulbFill"
     }
     
     func handleColorSelection(at location: CGPoint, in containerSize: CGSize, imageSize: CGSize) {
@@ -507,6 +725,11 @@ class ColorPickerTabsViewModel: ObservableObject {
                 
                 pixelColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
                 selectedColor = Color(red: Double(red), green: Double(green), blue: Double(blue), opacity: Double(alpha))
+                
+                // ✅ ЖИВОЕ ОБНОВЛЕНИЕ: Применяем цвет к лампе сразу при перетягивании
+                Task {
+                    await applyLiveColorUpdate(selectedColor)
+                }
                 return
             }
         }
@@ -519,6 +742,116 @@ class ColorPickerTabsViewModel: ObservableObject {
         let saturation = min(distance / radius, 1.0)
         
         selectedColor = Color(hue: Double(adjustedHue), saturation: Double(saturation), brightness: 1.0)
+        
+        // ✅ ЖИВОЕ ОБНОВЛЕНИЕ: Применяем цвет к лампе сразу при перетягивании
+        Task {
+            await applyLiveColorUpdate(selectedColor)
+        }
+    }
+    
+    /// Обработка выбора цвета в warm/cold круге
+    func handleWarmColdColorSelection(at location: CGPoint, in containerSize: CGSize, circleSize: CGSize) {
+        // Вычисляем центр контейнера
+        let centerX = containerSize.width / 2
+        let centerY = containerSize.height / 2
+        
+        // Вычисляем смещение от центра
+        let offsetX = location.x - centerX
+        let offsetY = location.y - centerY
+        
+        // Проверяем, что точка находится в пределах круга
+        let radius = circleSize.width / 2
+        let distance = sqrt(offsetX * offsetX + offsetY * offsetY)
+        
+        guard distance <= radius else { return }
+        
+        // Преобразуем в относительные координаты (от 0 до 1) для warm/cold
+        warmColdRelativePosition = CGPoint(
+            x: 0.5 + offsetX / circleSize.width,
+            y: 0.5 + offsetY / circleSize.height
+        )
+        
+        // Вычисляем color temperature на основе горизонтальной позиции (X)
+        // Левая сторона = теплый (2700K), правая сторона = холодный (6500K)
+        let temperatureRatio = warmColdRelativePosition.x // 0.0 = теплый, 1.0 = холодный
+        
+        // Интерполируем между теплым и холодным цветом
+        let warmColor = Color(red: 1.0, green: 0.7, blue: 0.4) // 2700K
+        let neutralColor = Color(red: 1.0, green: 0.9, blue: 0.8) // 4000K
+        let coolColor = Color(red: 0.8, green: 0.9, blue: 1.0) // 6500K
+        
+        // Используем температурное смешивание цветов
+        if temperatureRatio <= 0.5 {
+            // Между теплым и нейтральным
+            let ratio = temperatureRatio * 2.0
+            warmColdSelectedColor = interpolateColor(from: warmColor, to: neutralColor, ratio: ratio)
+        } else {
+            // Между нейтральным и холодным
+            let ratio = (temperatureRatio - 0.5) * 2.0
+            warmColdSelectedColor = interpolateColor(from: neutralColor, to: coolColor, ratio: ratio)
+        }
+        
+        print("🌡️ Warm/Cold temperature ratio: \(temperatureRatio), color: \(warmColdSelectedColor)")
+        
+        // ✅ ЖИВОЕ ОБНОВЛЕНИЕ: Применяем цвет к лампе сразу при перетягивании
+        Task {
+            await applyLiveColorUpdate(warmColdSelectedColor)
+        }
+    }
+    
+    /// Применяет цвет к лампе в реальном времени (без сохранения состояния)
+    @MainActor
+    private func applyLiveColorUpdate(_ color: Color) async {
+        do {
+            // Создаем сервис с AppViewModel напрямую
+            guard let appViewModel = NavigationManager.shared.dataPersistenceService?.appViewModel else {
+                print("⚠️ Не удается получить AppViewModel для живого обновления")
+                return
+            }
+            
+            let lightControlService = LightControlService(appViewModel: appViewModel)
+            let updatedService = LightingColorService(
+                lightControlService: lightControlService,
+                appViewModel: appViewModel
+            )
+            
+            // Применяем цвет к целевому элементу БЕЗ сохранения в LightColorStateService
+            if let targetLight = NavigationManager.shared.targetLightForColorChange {
+                try await updatedService.setColor(for: targetLight, color: color)
+                print("🎨 Живое обновление цвета лампы '\(targetLight.metadata.name)'")
+                
+            } else if let targetRoom = NavigationManager.shared.targetRoomForColorChange {
+                try await updatedService.setColor(for: targetRoom, color: color)
+                print("🎨 Живое обновление цвета комнаты '\(targetRoom.name)'")
+            }
+            
+        } catch {
+            print("❌ Ошибка при живом обновлении цвета: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Интерполяция между двумя цветами
+    private func interpolateColor(from: Color, to: Color, ratio: Double) -> Color {
+        #if canImport(UIKit)
+        let fromUIColor = UIColor(from)
+        let toUIColor = UIColor(to)
+        
+        var fromRed: CGFloat = 0, fromGreen: CGFloat = 0, fromBlue: CGFloat = 0, fromAlpha: CGFloat = 0
+        var toRed: CGFloat = 0, toGreen: CGFloat = 0, toBlue: CGFloat = 0, toAlpha: CGFloat = 0
+        
+        fromUIColor.getRed(&fromRed, green: &fromGreen, blue: &fromBlue, alpha: &fromAlpha)
+        toUIColor.getRed(&toRed, green: &toGreen, blue: &toBlue, alpha: &toAlpha)
+        
+        let r = fromRed + (toRed - fromRed) * ratio
+        let g = fromGreen + (toGreen - fromGreen) * ratio
+        let b = fromBlue + (toBlue - fromBlue) * ratio
+        let a = fromAlpha + (toAlpha - fromAlpha) * ratio
+        
+        return Color(red: Double(r), green: Double(g), blue: Double(b), opacity: Double(a))
+        #else
+        // Fallback для других платформ
+        return ratio < 0.5 ? from : to
+        #endif
     }
     
     func selectWarmColdLamp(_ lampId: String) {
@@ -532,6 +865,13 @@ class ColorPickerTabsViewModel: ObservableObject {
             palletColors[index].isSelected = palletColors[index].id == colorId
         }
         selectedPalletColorItem = palletColors.first { $0.id == colorId }
+        
+        // ✅ ЖИВОЕ ОБНОВЛЕНИЕ: Применяем цвет к лампе сразу при выборе из палитры
+        if let selectedItem = selectedPalletColorItem {
+            Task {
+                await applyLiveColorUpdate(selectedItem.color)
+            }
+        }
     }
     
     func saveColorSettings() {
@@ -603,30 +943,106 @@ class ColorPickerTabsViewModel: ObservableObject {
         selectedColor = Color(hue: Double(adjustedHue), saturation: Double(saturation), brightness: 1.0)
     }
 
+    /// Настройка маркеров ламп для warm/cold режима (только для комнат)
     private func setupWarmColdLamps() {
-        warmColdLamps = [
-            WarmColdLamp(
-                id: "lamp1",
-                position: CGPoint(x: 177, y: 301),
-                iconName: "floor-lamp-2",
-                color: Color(red: 1.0, green: 0.9, blue: 0.7), // Теплый белый
-                isSelected: false
-            ),
-            WarmColdLamp(
-                id: "lamp2",
-                position: CGPoint(x: 187, y: 278),
-                iconName: "BulbFill",
-                color: Color(red: 1.0, green: 0.95, blue: 0.8), // Нейтральный белый
-                isSelected: true
-            ),
-            WarmColdLamp(
-                id: "lamp3",
-                position: CGPoint(x: 208, y: 406),
-                iconName: "BulbFill",
-                color: Color(red: 0.9, green: 0.95, blue: 1.0), // Холодный белый
-                isSelected: false
-            )
-        ]
+        // Если настраиваем одну лампу, не создаем дополнительные маркеры
+        guard !isTargetingSingleLight else {
+            warmColdLamps = []
+            return
+        }
+        
+        // Для комнаты создаем маркеры на основе ламп в комнате
+        guard let targetRoom = NavigationManager.shared.targetRoomForColorChange,
+              let appViewModel = NavigationManager.shared.dataPersistenceService?.appViewModel else {
+            warmColdLamps = []
+            return
+        }
+        
+        let roomLights = appViewModel.lightsViewModel.lights.filter { light in
+            targetRoom.lightIds.contains(light.id)
+        }
+        
+        var lamps: [WarmColdLamp] = []
+        
+        // Генерируем позиции для ламп по кругу
+        let positions = generateCirclePositions(count: roomLights.count, radius: 120, center: CGPoint(x: 160, y: 160))
+        
+        for (index, light) in roomLights.enumerated() {
+            let position = positions[safe: index] ?? CGPoint(x: 160, y: 160)
+            
+            lamps.append(WarmColdLamp(
+                id: light.id,
+                position: position,
+                iconName: light.metadata.userSubtypeIcon ?? "BulbFill",
+                color: LightColorStateService.shared.getBaseColor(for: light),
+                isSelected: index == 0 // Первая лампа выбрана по умолчанию
+            ))
+        }
+        
+        warmColdLamps = lamps
+    }
+    
+    /// Настройка маркеров ламп для hex picker режима (только для комнат)
+    private func setupRoomLightMarkers() {
+        // Если настраиваем одну лампу, не создаем дополнительные маркеры
+        guard !isTargetingSingleLight else {
+            roomLightMarkers = []
+            return
+        }
+        
+        // Для комнаты создаем маркеры на основе ламп в комнате
+        guard let targetRoom = NavigationManager.shared.targetRoomForColorChange,
+              let appViewModel = NavigationManager.shared.dataPersistenceService?.appViewModel else {
+            roomLightMarkers = []
+            return
+        }
+        
+        let roomLights = appViewModel.lightsViewModel.lights.filter { light in
+            targetRoom.lightIds.contains(light.id)
+        }
+        
+        var markers: [RoomLightMarker] = []
+        
+        // Генерируем позиции для ламп по кругу
+        let positions = generateCirclePositions(count: roomLights.count, radius: 120, center: CGPoint(x: 160, y: 160))
+        
+        for (index, light) in roomLights.enumerated() {
+            let position = positions[safe: index] ?? CGPoint(x: 160, y: 160)
+            
+            // Получаем сохраненный цвет или используем базовый
+            let lightColor = LightColorStateService.shared.getLightColor(light.id) ??
+                            LightColorStateService.shared.getBaseColor(for: light)
+            
+            markers.append(RoomLightMarker(
+                id: light.id,
+                position: position,
+                iconName: light.metadata.userSubtypeIcon ?? "BulbFill",
+                color: lightColor
+            ))
+        }
+        
+        roomLightMarkers = markers
+    }
+    
+    /// Генерирует позиции по кругу для маркеров ламп
+    private func generateCirclePositions(count: Int, radius: Double, center: CGPoint) -> [CGPoint] {
+        guard count > 0 else { return [] }
+        
+        if count == 1 {
+            return [center]
+        }
+        
+        var positions: [CGPoint] = []
+        let angleStep = 2 * Double.pi / Double(count)
+        
+        for i in 0..<count {
+            let angle = Double(i) * angleStep - Double.pi / 2 // Начинаем сверху
+            let x = center.x + radius * cos(angle)
+            let y = center.y + radius * sin(angle)
+            positions.append(CGPoint(x: x, y: y))
+        }
+        
+        return positions
     }
     
     private func setupPalletColors() {
@@ -710,6 +1126,14 @@ struct PalletColorItem: Identifiable {
     let id: String
     let color: Color
     var isSelected: Bool
+}
+
+/// Модель маркера лампы для hex picker (комнатный режим)
+struct RoomLightMarker: Identifiable {
+    let id: String
+    let position: CGPoint
+    let iconName: String
+    let color: Color
 }
 
 // MARK: - Extensions
