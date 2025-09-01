@@ -45,7 +45,7 @@ struct ItemControl: View {
                 // Основной контрол с динамическими данными из ViewModel
                 ControlView(
                     isOn: $itemControlViewModel.isOn,
-                    baseColor: itemControlViewModel.defaultWarmColor,
+                    baseColor: itemControlViewModel.dynamicColor, // ✅ Используем динамический цвет
                     bulbName: itemControlViewModel.currentLight?.metadata.name ?? light.metadata.name,
                     bulbType: itemControlViewModel.getBulbType(),
                     roomName: itemControlViewModel.getRoomName(),
@@ -89,7 +89,7 @@ struct ItemControl: View {
             // Слайдер яркости справа
             CustomSlider(
                 percent: $itemControlViewModel.brightness,
-                color: itemControlViewModel.defaultWarmColor,
+                color: itemControlViewModel.dynamicColor, // ✅ Используем динамический цвет
                 onChange: { value in
                     // Используем метод ViewModel для throttled обновлений
                     itemControlViewModel.setBrightnessThrottled(value)

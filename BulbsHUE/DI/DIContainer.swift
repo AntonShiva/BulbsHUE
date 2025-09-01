@@ -134,6 +134,10 @@ final class DIContainer {
         return AppStore(middlewares: middlewares)
     }()
     
+    private lazy var _lightColorStateService: LightColorStateService = {
+        return LightColorStateService.shared
+    }()
+    
     // MARK: - Navigation
     private lazy var _navigationManager: NavigationManager = {
         return NavigationManager.shared
@@ -172,6 +176,7 @@ final class DIContainer {
     // Services
     var appStore: AppStore { _appStore }
     var navigationManager: NavigationManager { _navigationManager }
+    var lightColorStateService: LightColorStateService { _lightColorStateService }
     
     // MARK: - Configuration
     

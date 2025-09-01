@@ -29,6 +29,9 @@ class ItemControlViewModel: ObservableObject {
     /// Цвет лампы по умолчанию (тёплый нейтрально-желтоватый ~2700–3000K)
     @Published var defaultWarmColor = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
     
+    /// Динамический цвет лампы на основе установленного пользователем цвета
+    @Published var dynamicColor: Color = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
+    
     /// Последняя отправленная яркость для предотвращения дублирования запросов
     @Published private var lastSentBrightness: Double = -1
     
@@ -87,6 +90,9 @@ class ItemControlViewModel: ObservableObject {
         }
         
         currentLight = light
+        
+        // Обновляем динамический цвет из LightColorStateService
+        updateDynamicColor()
         
         // Получаем реальное состояние лампы с учетом доступности
         let effectiveState = light.effectiveStateWithBrightness
@@ -280,6 +286,14 @@ class ItemControlViewModel: ObservableObject {
         return light.isReachable
     }
     
+    /// Обновить динамический цвет лампы
+    private func updateDynamicColor() {
+        guard let light = currentLight else { return }
+        
+        // Получаем цвет из LightColorStateService
+        dynamicColor = LightColorStateService.shared.getBaseColor(for: light)
+    }
+    
     // MARK: - Private Methods
     
     /// Настройка наблюдателей для синхронизации через протокол
@@ -342,6 +356,9 @@ class ItemControlViewModel: ObservableObject {
             
             // Обновляем текущую лампу объединённой версией
             currentLight = mergedLight
+            
+            // Обновляем динамический цвет при изменениях
+            updateDynamicColor()
             
             // Если изменился статус связи - принудительно обновляем UI
             if wasReachable != isNowReachable {

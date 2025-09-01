@@ -335,12 +335,36 @@ struct ColorPickerTabsView: View {
                 print("🎨 Применяем цвет к лампе '\(targetLight.metadata.name)'")
                 try await updatedService.setColor(for: targetLight, color: colorToApply)
                 
+                // ✅ ИСПРАВЛЕНИЕ: Сохраняем состояние цвета в LightColorStateService
+                let colorPosition = viewModel.selectedTab == .hexPicker ? viewModel.selectedColorRelativePosition : nil
+                LightColorStateService.shared.setLightColor(
+                    targetLight.id, 
+                    color: colorToApply, 
+                    position: colorPosition
+                )
+                
                 // Показываем успешное уведомление
                 print("✅ Цвет лампы '\(targetLight.metadata.name)' успешно изменен")
                 
             } else if let targetRoom = nav.targetRoomForColorChange {
                 print("🎨 Применяем цвет к комнате '\(targetRoom.name)'")
                 try await updatedService.setColor(for: targetRoom, color: colorToApply)
+                
+                // ✅ ИСПРАВЛЕНИЕ: Сохраняем состояние цвета для всех ламп в комнате
+               
+                    let roomLights = appViewModel.lightsViewModel.lights.filter { light in
+                        targetRoom.lightIds.contains(light.id)
+                    }
+                    
+                    let colorPosition = viewModel.selectedTab == .hexPicker ? viewModel.selectedColorRelativePosition : nil
+                    for light in roomLights {
+                        LightColorStateService.shared.setLightColor(
+                            light.id, 
+                            color: colorToApply, 
+                            position: colorPosition
+                        )
+                    }
+                
                 
                 // Показываем успешное уведомление
                 print("✅ Цвет всех ламп в комнате '\(targetRoom.name)' успешно изменен")
@@ -392,8 +416,39 @@ class ColorPickerTabsViewModel: ObservableObject {
         pickerImage = UIImage(named: "ColorCircl")
         #endif
         
+        // ✅ ИСПРАВЛЕНИЕ: Инициализируем с сохраненным состоянием для текущей целевой лампы
+        initializeWithSavedState()
+        
         // Устанавливаем правильный цвет указателя при старте
         updateSelectedColorFromCurrentPosition()
+    }
+    
+    /// Инициализирует ViewModel с сохраненным состоянием для текущей целевой лампы
+    private func initializeWithSavedState() {
+        // Получаем целевую лампу из NavigationManager
+        let targetLightId: String?
+        
+        if let targetLight = NavigationManager.shared.targetLightForColorChange {
+            targetLightId = targetLight.id
+        } else if let targetRoom = NavigationManager.shared.targetRoomForColorChange {
+            // Для комнаты берем первую лампу как представительную
+            targetLightId = targetRoom.lightIds.first
+        } else {
+            targetLightId = nil
+        }
+        
+        guard let lightId = targetLightId else { return }
+        
+        // Восстанавливаем сохраненный цвет и позицию
+        if let savedColor = LightColorStateService.shared.getLightColor(lightId) {
+            selectedColor = savedColor
+            print("🔄 Восстановлен цвет для лампы \(lightId)")
+        }
+        
+        if let savedPosition = LightColorStateService.shared.getColorPickerPosition(lightId) {
+            selectedColorRelativePosition = savedPosition
+            print("🔄 Восстановлена позиция color picker для лампы \(lightId)")
+        }
     }
     
     // MARK: - Public Methods
