@@ -23,6 +23,14 @@ struct MainContainer: View {
                 AddNewBulb()
             case .environmentBulbs:
                 EnvironmentBulbsView()
+            case .presetColorEdit:
+                // Показываем PresetColorView с выбранной сценой
+                if let selectedScene = nav.selectedSceneForEdit {
+                    PresetColorView(scene: selectedScene)
+                } else {
+                    // Fallback если сцена не выбрана
+                    PresetColorView()
+                }
             case .searchResults:
                 // Этот экран больше не нужен как отдельный, так как состояние отслеживается в AddNewBulb
                 AddNewBulb()

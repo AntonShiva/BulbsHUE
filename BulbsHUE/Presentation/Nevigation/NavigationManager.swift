@@ -28,6 +28,7 @@ enum Router: Equatable {
     
     // Environment Bulbs
     case environmentBulbs         // Экран выбора окружающих сцен освещения
+    case presetColorEdit          // Экран редактирования пресета сцены
     
     // Development
     case development              // Development dashboard
@@ -58,6 +59,9 @@ class NavigationManager: ObservableObject {
     
     // Выбранная комната для показа MenuView
     @Published var selectedRoomForMenu: RoomEntity? = nil
+    
+    // Выбранная сцена для редактирования в PresetColorView
+    @Published var selectedSceneForEdit: EnvironmentSceneEntity? = nil
     
     // Тип поиска ламп
     @Published var searchType: SearchType = .network
@@ -108,6 +112,8 @@ class NavigationManager: ObservableObject {
                 currentRoute = .environment
             case .environmentBulbs:
                 currentRoute = .environment
+            case .presetColorEdit:
+                currentRoute = .environmentBulbs
             case .menuView:
                 currentRoute = .environment
             case .development, .migrationDashboard:
@@ -120,6 +126,7 @@ class NavigationManager: ObservableObject {
             resetAddBulbState()
             selectedLightForMenu = nil
             selectedRoomForMenu = nil
+            selectedSceneForEdit = nil
             
             // Обновляем видимость TabBar
             togleTabBarVisible()
@@ -193,6 +200,26 @@ class NavigationManager: ObservableObject {
             selectedLightForMenu = nil
             selectedRoomForMenu = nil
             currentRoute = .environment
+            togleTabBarVisible() // Обновляем видимость TabBar
+        }
+    }
+    
+    // MARK: - Методы для управления PresetColorView
+    
+    /// Показать экран редактирования пресета сцены
+    func showPresetColorEdit(for scene: EnvironmentSceneEntity) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            selectedSceneForEdit = scene
+            currentRoute = .presetColorEdit
+            togleTabBarVisible() // Обновляем видимость TabBar
+        }
+    }
+    
+    /// Скрыть экран редактирования пресета
+    func hidePresetColorEdit() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            selectedSceneForEdit = nil
+            currentRoute = .environmentBulbs
             togleTabBarVisible() // Обновляем видимость TabBar
         }
     }

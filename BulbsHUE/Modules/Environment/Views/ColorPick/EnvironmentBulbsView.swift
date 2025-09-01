@@ -327,6 +327,8 @@ struct EnvironmentBulbsView: View {
             ForEach(viewModel.currentScenes) { scene in
                 SceneCard(scene: scene) {
                     viewModel.selectScene(scene)
+                } onEdit: {
+                    viewModel.editPreset(scene)
                 }
             }
         }
@@ -341,15 +343,16 @@ struct EnvironmentBulbsView: View {
 private struct SceneCard: View {
     let scene: EnvironmentSceneEntity
     let onTap: () -> Void
+    let onEdit: () -> Void
     
     var body: some View {
         VStack(spacing: 10) {
             // Круглое изображение сцены
-            Button(action: onTap) {
+            Button {
+                onTap()
+                onEdit()
+            } label: {
                 ZStack {
-                    // Создаем красивый градиентный фон для SVG иконок
-                 
-                    
                     // SVG иконка в центре
                     Image(scene.imageAssetName)
                         .resizable()
@@ -363,9 +366,11 @@ private struct SceneCard: View {
                             .stroke(.primColor, lineWidth: 3)
                             .adaptiveFrame(width: 156, height: 156)
                     }
+             
                 }
             }
             .buttonStyle(PlainButtonStyle())
+           
             
             // Название сцены
             Text(scene.name.uppercased())

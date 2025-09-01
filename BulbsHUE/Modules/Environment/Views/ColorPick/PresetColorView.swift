@@ -10,7 +10,15 @@ import Combine
 
 struct PresetColorView: View {
     @EnvironmentObject var nav: NavigationManager
-    @StateObject private var viewModel = PresetColorViewModel()
+    @StateObject private var viewModel: PresetColorViewModel
+    
+    // Принимаем сцену для редактирования
+    let scene: EnvironmentSceneEntity?
+    
+    init(scene: EnvironmentSceneEntity? = nil) {
+        self.scene = scene
+        self._viewModel = StateObject(wrappedValue: PresetColorViewModel(scene: scene))
+    }
    
     var body: some View {
         ZStack{
@@ -23,11 +31,21 @@ struct PresetColorView: View {
                 .adaptiveOffset(y: -262)
             
             ZStack{
-                Image("Neon Abyss")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .adaptiveFrame(width: 308, height: 308)
-                    .clipped()
+                if let scene = scene {
+                    // Отображаем изображение выбранной сцены
+                    Image(scene.imageAssetName)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .adaptiveFrame(width: 308, height: 308)
+                        .clipped()
+                } else {
+                    // Fallback для случая без сцены
+                    Image("Neon Abyss")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .adaptiveFrame(width: 308, height: 308)
+                        .clipped()
+                }
                 
                 Circle()
                     .inset(by: 1)
@@ -43,9 +61,9 @@ struct PresetColorView: View {
     }
     /// Верхняя навигационная панель с кнопками и заголовком
     private var navigationHeader: some View {
-        Header(title: "SHENE NAME") {
+        Header(title: scene?.name.uppercased() ?? "SCENE NAME") {
             ChevronButton {
-                nav.go(.environment)
+                nav.hidePresetColorEdit()
             }
             .rotationEffect(.degrees(180))
     } leftView2: {
@@ -56,14 +74,14 @@ struct PresetColorView: View {
       
         // Центральная кнопка - FAV
         Button {
-            
+            viewModel.toggleFavorite()
         } label: {
             ZStack {
                 BGCircle()
                     .adaptiveFrame(width: 48, height: 48)
                 
-                // Heart icon
-                Image(systemName:  "heart")
+                // Heart icon - показываем состояние избранного из сцены
+                Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
                     .font(.system(size: 23, weight: .medium))
                     .foregroundColor(.primColor)
                
@@ -209,6 +227,7 @@ class PresetColorViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var selectedTab: PresetColor = .statics
     @Published var brightness: Double = 50.0
+    @Published var isFavorite: Bool = false
     
     // Dynamic settings
     @Published var dynamicBrightness: Double = 50.0
@@ -216,6 +235,22 @@ class PresetColorViewModel: ObservableObject {
     @Published var selectedIntensity: IntensityType = .middle
     @Published var isStyleExpanded: Bool = false
     @Published var isIntensityExpanded: Bool = false
+    
+    // MARK: - Private Properties
+    private let scene: EnvironmentSceneEntity?
+    private let environmentScenesUseCase: EnvironmentScenesUseCaseProtocol
+    
+    // MARK: - Initialization
+    
+    init(scene: EnvironmentSceneEntity? = nil) {
+        self.scene = scene
+        self.environmentScenesUseCase = DIContainer.shared.environmentScenesUseCase
+        
+        // Устанавливаем начальные значения из сцены
+        if let scene = scene {
+            self.isFavorite = scene.isFavorite
+        }
+    }
     
     // MARK: - Computed Properties
     
@@ -235,6 +270,22 @@ class PresetColorViewModel: ObservableObject {
     }
     
     // MARK: - Public Methods
+    
+    /// Переключить статус избранного
+    func toggleFavorite() {
+        guard let scene = scene else { return }
+        
+        Task {
+            do {
+                let updatedScene = try await environmentScenesUseCase.toggleFavorite(sceneId: scene.id)
+                await MainActor.run {
+                    self.isFavorite = updatedScene.isFavorite
+                }
+            } catch {
+                print("Error toggling favorite: \(error)")
+            }
+        }
+    }
     
     func savePresetColor() {
         switch selectedTab {

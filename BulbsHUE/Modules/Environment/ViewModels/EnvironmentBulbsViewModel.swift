@@ -44,6 +44,7 @@ final class EnvironmentBulbsViewModel: ObservableObject {
     // MARK: - Dependencies
     
     private let environmentScenesUseCase: EnvironmentScenesUseCaseProtocol
+    private weak var navigationManager: NavigationManager?
     
     // MARK: - Private Properties
     
@@ -51,8 +52,9 @@ final class EnvironmentBulbsViewModel: ObservableObject {
     
     // MARK: - Initialization
     
-    init(environmentScenesUseCase: EnvironmentScenesUseCaseProtocol) {
+    init(environmentScenesUseCase: EnvironmentScenesUseCaseProtocol, navigationManager: NavigationManager? = nil) {
         self.environmentScenesUseCase = environmentScenesUseCase
+        self.navigationManager = navigationManager
         setupBindings()
         loadInitialScenes()
     }
@@ -120,6 +122,11 @@ final class EnvironmentBulbsViewModel: ObservableObject {
         }
     }
     
+    /// Открыть экран редактирования пресета
+    func editPreset(_ scene: EnvironmentSceneEntity) {
+        navigationManager?.showPresetColorEdit(for: scene)
+    }
+    
     // MARK: - Private Methods
     
     /// Настройка подписок на изменения
@@ -166,6 +173,7 @@ extension EnvironmentBulbsViewModel {
     /// Convenience инициализатор с зависимостями через DI Container
     convenience init() {
         let useCase = DIContainer.shared.environmentScenesUseCase
-        self.init(environmentScenesUseCase: useCase)
+        let navigationManager = NavigationManager.shared
+        self.init(environmentScenesUseCase: useCase, navigationManager: navigationManager)
     }
 }
