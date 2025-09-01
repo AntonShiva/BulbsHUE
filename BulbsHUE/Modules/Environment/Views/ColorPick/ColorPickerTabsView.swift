@@ -322,6 +322,9 @@ class ColorPickerTabsViewModel: ObservableObject {
         #if canImport(UIKit)
         pickerImage = UIImage(named: "ColorCircl")
         #endif
+        
+        // Устанавливаем правильный цвет указателя при старте
+        updateSelectedColorFromCurrentPosition()
     }
     
     // MARK: - Public Methods
@@ -414,6 +417,68 @@ class ColorPickerTabsViewModel: ObservableObject {
     
     // MARK: - Private Methods
     
+    /// Обновляет selectedColor на основе текущей позиции указателя
+    private func updateSelectedColorFromCurrentPosition() {
+        #if canImport(UIKit)
+        guard let image = pickerImage else {
+            // Если изображение не загружено, используем HSV расчет
+            updateColorUsingHSV()
+            return
+        }
+        
+        // Преобразуем относительные координаты в координаты изображения
+        let imageSize = CGSize(width: 320, height: 320)
+        let centerX = imageSize.width / 2
+        let centerY = imageSize.height / 2
+        
+        let offsetX = (selectedColorRelativePosition.x - 0.5) * imageSize.width
+        let offsetY = (selectedColorRelativePosition.y - 0.5) * imageSize.height
+        
+        // Проверяем, что точка находится в пределах круга
+        let radius = imageSize.width / 2
+        let distance = sqrt(offsetX * offsetX + offsetY * offsetY)
+        
+        if distance <= radius {
+            // Вычисляем позицию в изображении для получения цвета
+            let imageX = (offsetX / radius + 1.0) * 0.5
+            let imageY = (offsetY / radius + 1.0) * 0.5
+            
+            if let pixelColor = image.getPixelColorNormalized(at: CGPoint(x: imageX, y: imageY)) {
+                var red: CGFloat = 0
+                var green: CGFloat = 0
+                var blue: CGFloat = 0
+                var alpha: CGFloat = 0
+                
+                pixelColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+                selectedColor = Color(red: Double(red), green: Double(green), blue: Double(blue), opacity: Double(alpha))
+                return
+            }
+        }
+        #endif
+        
+        // Запасной вариант - HSV расчет
+        updateColorUsingHSV()
+    }
+    
+    /// Запасной метод для обновления цвета через HSV расчет
+    private func updateColorUsingHSV() {
+        let imageSize = CGSize(width: 320, height: 320)
+        let offsetX = (selectedColorRelativePosition.x - 0.5) * imageSize.width
+        let offsetY = (selectedColorRelativePosition.y - 0.5) * imageSize.height
+        
+        let radius = imageSize.width / 2
+        let distance = sqrt(offsetX * offsetX + offsetY * offsetY)
+        
+        guard distance <= radius else { return }
+        
+        let angle = atan2(offsetY, offsetX)
+        let hue = (angle + .pi) / (2 * .pi)
+        let adjustedHue = (hue + 0.75) > 1.0 ? hue - 0.25 : hue + 0.75
+        let saturation = min(distance / radius, 1.0)
+        
+        selectedColor = Color(hue: Double(adjustedHue), saturation: Double(saturation), brightness: 1.0)
+    }
+
     private func setupWarmColdLamps() {
         warmColdLamps = [
             WarmColdLamp(
