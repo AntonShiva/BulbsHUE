@@ -42,6 +42,16 @@ final class DIContainer {
         return MockPersistenceRepository()
     }()
     
+    // MARK: - Environment Scenes
+    private lazy var _environmentScenesRepository: EnvironmentScenesRepositoryProtocol = {
+        let localDataSource = EnvironmentScenesLocalDataSource()
+        return EnvironmentScenesRepositoryImpl(localDataSource: localDataSource)
+    }()
+    
+    private lazy var _environmentScenesUseCase: EnvironmentScenesUseCaseProtocol = {
+        return EnvironmentScenesUseCase(repository: _environmentScenesRepository)
+    }()
+    
     // MARK: - Use Cases
     private lazy var _toggleLightUseCase: ToggleLightUseCase = {
         return ToggleLightUseCase(lightRepository: lightRepository)
@@ -138,6 +148,7 @@ final class DIContainer {
     var roomRepository: RoomRepositoryProtocol { _roomRepository }
     var bridgeRepository: BridgeRepositoryProtocol { _bridgeRepository }
     var persistenceRepository: PersistenceRepositoryProtocol { _persistenceRepository }
+    var environmentScenesRepository: EnvironmentScenesRepositoryProtocol { _environmentScenesRepository }
     
     // Use Cases
     var toggleLightUseCase: ToggleLightUseCase { _toggleLightUseCase }
@@ -156,6 +167,7 @@ final class DIContainer {
     var updateLightNameUseCase: UpdateLightNameUseCase { _updateLightNameUseCase }
     var updateRoomNameUseCase: UpdateRoomNameUseCase { _updateRoomNameUseCase }
     var deleteLightUseCase: DeleteLightUseCase { _deleteLightUseCase }
+    var environmentScenesUseCase: EnvironmentScenesUseCaseProtocol { _environmentScenesUseCase }
     
     // Services
     var appStore: AppStore { _appStore }
