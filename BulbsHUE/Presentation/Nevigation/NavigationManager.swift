@@ -63,6 +63,10 @@ class NavigationManager: ObservableObject {
     // Выбранная сцена для редактирования в PresetColorView
     @Published var selectedSceneForEdit: EnvironmentSceneEntity? = nil
     
+    // Целевая лампа или комната для изменения цвета в EnvironmentBulbsView
+    @Published var targetLightForColorChange: Light? = nil
+    @Published var targetRoomForColorChange: RoomEntity? = nil
+    
     // Тип поиска ламп
     @Published var searchType: SearchType = .network
     
@@ -127,6 +131,8 @@ class NavigationManager: ObservableObject {
             selectedLightForMenu = nil
             selectedRoomForMenu = nil
             selectedSceneForEdit = nil
+            targetLightForColorChange = nil
+            targetRoomForColorChange = nil
             
             // Обновляем видимость TabBar
             togleTabBarVisible()
@@ -220,6 +226,38 @@ class NavigationManager: ObservableObject {
         withAnimation(.easeInOut(duration: 0.15)) {
             selectedSceneForEdit = nil
             currentRoute = .environmentBulbs
+            togleTabBarVisible() // Обновляем видимость TabBar
+        }
+    }
+    
+    // MARK: - Методы для управления EnvironmentBulbsView с целевым элементом
+    
+    /// Показать EnvironmentBulbsView для изменения цвета конкретной лампы
+    func showEnvironmentBulbs(for light: Light) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            targetLightForColorChange = light
+            targetRoomForColorChange = nil // Сбрасываем комнату
+            currentRoute = .environmentBulbs
+            togleTabBarVisible() // Обновляем видимость TabBar
+        }
+    }
+    
+    /// Показать EnvironmentBulbsView для изменения цвета всех ламп в комнате
+    func showEnvironmentBulbs(for room: RoomEntity) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            targetRoomForColorChange = room
+            targetLightForColorChange = nil // Сбрасываем лампу
+            currentRoute = .environmentBulbs
+            togleTabBarVisible() // Обновляем видимость TabBar
+        }
+    }
+    
+    /// Скрыть EnvironmentBulbsView и сбросить целевой элемент
+    func hideEnvironmentBulbs() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            targetLightForColorChange = nil
+            targetRoomForColorChange = nil
+            currentRoute = .environment
             togleTabBarVisible() // Обновляем видимость TabBar
         }
     }

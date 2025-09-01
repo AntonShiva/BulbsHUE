@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 /// Сервис для управления лампами и предоставления информации о них
 /// Реализует протоколы согласно принципу Dependency Inversion
@@ -46,6 +47,27 @@ class LightControlService: ObservableObject, LightControlling {
     
     func commitBrightness(for light: Light, brightness: Double) {
         appViewModel?.lightsViewModel.commitBrightness(for: light, brightness: brightness)
+    }
+    
+    // MARK: - Color Management
+    
+    /// Установить цвет лампы
+    func setLightColor(lightId: String, red: Double, green: Double, blue: Double) async throws {
+        guard let light = lights.first(where: { $0.id == lightId }) else {
+            throw LightControlError.lightNotFound
+        }
+        
+        let color = Color(red: red, green: green, blue: blue)
+        appViewModel?.lightsViewModel.setColor(for: light, color: color)
+    }
+    
+    /// Установить яркость лампы
+    func setLightBrightness(lightId: String, brightness: Double) async throws {
+        guard let light = lights.first(where: { $0.id == lightId }) else {
+            throw LightControlError.lightNotFound
+        }
+        
+        setBrightness(for: light, brightness: brightness)
     }
     
     // MARK: - GroupsProviding Implementation
@@ -373,6 +395,26 @@ class LightControlService: ObservableObject, LightControlling {
             return "Ou1" // Outdoor icon
         default:
             return "tr1" // Default room icon
+        }
+    }
+}
+
+// MARK: - Errors
+
+/// Ошибки управления лампами
+enum LightControlError: Error, LocalizedError {
+    case lightNotFound
+    case invalidLightId
+    case serviceUnavailable
+    
+    var errorDescription: String? {
+        switch self {
+        case .lightNotFound:
+            return "Лампа не найдена"
+        case .invalidLightId:
+            return "Некорректный ID лампы"
+        case .serviceUnavailable:
+            return "Сервис недоступен"
         }
     }
 }

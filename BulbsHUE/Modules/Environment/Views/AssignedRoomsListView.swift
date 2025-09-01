@@ -34,6 +34,13 @@ struct AssignedRoomsListView: View {
                     // ✅ ИСПРАВЛЕНО: Используем правильный RoomControl с логикой управления
                     RoomControl(room: room)
                     .contextMenu {
+                        // Изменение цвета всех ламп в комнате
+                        Button {
+                            nav.showEnvironmentBulbs(for: room)
+                        } label: {
+                            Label("Изменить цвет комнаты", systemImage: "paintpalette")
+                        }
+                        
                         // Контекстное меню для удаления комнаты
                         Button(role: .destructive) {
                             withAnimation(.easeInOut(duration: 0.2)) {

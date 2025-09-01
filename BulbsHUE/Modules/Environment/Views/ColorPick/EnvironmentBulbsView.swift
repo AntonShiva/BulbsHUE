@@ -22,6 +22,8 @@ struct EnvironmentBulbsView: View {
     /// ViewModel для управления состоянием экрана
     @StateObject private var viewModel = EnvironmentBulbsViewModel()
     
+
+    
     var body: some View {
         ZStack {
             // Основной градиентный фон
@@ -51,15 +53,26 @@ struct EnvironmentBulbsView: View {
         .ignoresSafeArea(.all)
     }
     
-
+    // MARK: - Helper Methods
+    
+    /// Получить имя целевого элемента (лампы или комнаты) для заголовка
+    private func getTargetElementName() -> String {
+        if let targetLight = nav.targetLightForColorChange {
+            return targetLight.metadata.name.uppercased()
+        } else if let targetRoom = nav.targetRoomForColorChange {
+            return targetRoom.name.uppercased()
+        } else {
+            return "BULB"
+        }
+    }
     
     // MARK: - Navigation Header
     
     /// Верхняя навигационная панель с кнопками и заголовком
     private var navigationHeader: some View {
-        Header(title: "BULB") {
+        Header(title: getTargetElementName()) {
             ChevronButton {
-                nav.go(.environment)
+                nav.hideEnvironmentBulbs()
             }
             .rotationEffect(.degrees(180))
         } leftView2: {

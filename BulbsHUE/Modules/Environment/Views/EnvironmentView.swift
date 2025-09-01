@@ -229,11 +229,16 @@ private struct AssignedBulbsLightsListView: View {
                     ItemControl(light: light)
                     .id("item_\(light.id)_\(light.on.on)_\(Int(light.dimming?.brightness ?? 0))") // Уникальный ID с состоянием для принудительного обновления
                     .padding(.horizontal, 10) // Дополнительные отступы для каждого элемента
-                    .contextMenu {
-                        Button("Убрать из Environment", role: .destructive) {
-                            onRemoveLight?(light.id)
-                        }
-                    }
+                    .onLongPressGesture(minimumDuration: 1.0) { 
+                        nav.showEnvironmentBulbs(for: light)
+                                }
+//                    .contextMenu {
+//                        Button("Изменить цвет") {
+//                            nav.showEnvironmentBulbs(for: light)
+//                        }
+//                        
+//                       
+//                    }
                 }
             }
             .padding(.horizontal, 20) // Добавляем отступы по краям

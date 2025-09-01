@@ -17,6 +17,10 @@ import UIKit
 /// Замещает секции при выборе COLOR PICKER таба
 struct ColorPickerTabsView: View {
     @StateObject private var viewModel = ColorPickerTabsViewModel()
+    @EnvironmentObject var nav: NavigationManager
+    @EnvironmentObject var appViewModel: AppViewModel
+    
+
     
     var body: some View {
        ZStack {
@@ -29,7 +33,10 @@ struct ColorPickerTabsView: View {
                .adaptiveOffset(y: -60)
            
            SaveButtonRec {
-               
+               // Применяем выбранный цвет к целевой лампе или комнате
+               Task {
+                   await applySelectedColor()
+               }
            }
            .adaptiveOffset(y: 225)
         }
@@ -288,8 +295,70 @@ struct ColorPickerTabsView: View {
         .adaptiveOffset(y: 250)
     }
     
-
- 
+    // MARK: - Helper Methods
+    
+    /// Применить выбранный цвет к целевой лампе или комнате
+    @MainActor
+    private func applySelectedColor() async {
+        do {
+            // Определяем выбранный цвет в зависимости от активной вкладки
+            let colorToApply: Color
+            
+            switch viewModel.selectedTab {
+            case .hexPicker:
+                colorToApply = viewModel.selectedColor
+            case .warmCold:
+                // Для теплого/холодного используем цвет из выбранной лампы
+                if let selectedLamp = viewModel.warmColdLamps.first(where: { $0.isSelected }) {
+                    colorToApply = selectedLamp.color
+                } else {
+                    colorToApply = viewModel.selectedColor
+                }
+            case .pallet:
+                // Для палитры используем цвет из выбранного элемента
+                if let selectedPalletItem = viewModel.selectedPalletColorItem {
+                    colorToApply = selectedPalletItem.color
+                } else {
+                    colorToApply = viewModel.selectedColor
+                }
+            }
+            
+            // Создаем сервис с AppViewModel напрямую
+            let lightControlService = LightControlService(appViewModel: appViewModel)
+            let updatedService = LightingColorService(
+                lightControlService: lightControlService,
+                appViewModel: appViewModel
+            )
+            
+            // Применяем цвет к целевому элементу
+            if let targetLight = nav.targetLightForColorChange {
+                print("🎨 Применяем цвет к лампе '\(targetLight.metadata.name)'")
+                try await updatedService.setColor(for: targetLight, color: colorToApply)
+                
+                // Показываем успешное уведомление
+                print("✅ Цвет лампы '\(targetLight.metadata.name)' успешно изменен")
+                
+            } else if let targetRoom = nav.targetRoomForColorChange {
+                print("🎨 Применяем цвет к комнате '\(targetRoom.name)'")
+                try await updatedService.setColor(for: targetRoom, color: colorToApply)
+                
+                // Показываем успешное уведомление
+                print("✅ Цвет всех ламп в комнате '\(targetRoom.name)' успешно изменен")
+            } else {
+                print("⚠️ Не выбрана целевая лампа или комната для изменения цвета")
+                return
+            }
+            
+            // Возвращаемся к предыдущему экрану после успешного применения
+            await MainActor.run {
+                nav.hideEnvironmentBulbs()
+            }
+            
+        } catch {
+            print("❌ Ошибка при применении цвета: \(error.localizedDescription)")
+            // Здесь можно показать alert с ошибкой пользователю
+        }
+    }
 }
 
 // MARK: - ViewModel
@@ -485,18 +554,21 @@ class ColorPickerTabsViewModel: ObservableObject {
                 id: "lamp1",
                 position: CGPoint(x: 177, y: 301),
                 iconName: "floor-lamp-2",
+                color: Color(red: 1.0, green: 0.9, blue: 0.7), // Теплый белый
                 isSelected: false
             ),
             WarmColdLamp(
                 id: "lamp2",
                 position: CGPoint(x: 187, y: 278),
                 iconName: "BulbFill",
+                color: Color(red: 1.0, green: 0.95, blue: 0.8), // Нейтральный белый
                 isSelected: true
             ),
             WarmColdLamp(
                 id: "lamp3",
                 position: CGPoint(x: 208, y: 406),
                 iconName: "BulbFill",
+                color: Color(red: 0.9, green: 0.95, blue: 1.0), // Холодный белый
                 isSelected: false
             )
         ]
@@ -574,6 +646,7 @@ struct WarmColdLamp: Identifiable {
     let id: String
     let position: CGPoint
     let iconName: String
+    let color: Color
     var isSelected: Bool
 }
 
