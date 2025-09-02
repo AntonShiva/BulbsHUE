@@ -131,6 +131,15 @@ extension LightsViewModel {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: workItem)
     }
     
+    /// Устанавливает цвет лампы немедленно без debouncing (для пресетов)
+    func setColorImmediate(for light: Light, color: SwiftUI.Color) {
+        let xyColor = convertToXY(color: color, gamutType: light.color_gamut_type)
+        let newState = LightState(
+            color: HueColor(xy: xyColor)
+        )
+        updateLight(light.id, state: newState, currentLight: light)
+    }
+    
     /// Устанавливает цветовую температуру
     func setColorTemperature(for light: Light, temperature: Int) {
         let mirek = 1_000_000 / temperature

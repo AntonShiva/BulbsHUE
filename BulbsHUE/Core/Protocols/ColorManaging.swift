@@ -18,6 +18,12 @@ protocol ColorManaging {
     ///   - color: Новый цвет
     func setColor(for light: Light, color: Color) async throws
     
+    /// Установить цвет для конкретной лампы немедленно (без debouncing)
+    /// - Parameters:
+    ///   - light: Целевая лампа  
+    ///   - color: Новый цвет
+    func setColorImmediate(for light: Light, color: Color) async throws
+    
     /// Установить цвет для всех ламп в комнате
     /// - Parameters:
     ///   - room: Целевая комната

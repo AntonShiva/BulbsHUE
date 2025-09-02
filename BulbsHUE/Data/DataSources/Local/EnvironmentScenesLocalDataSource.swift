@@ -125,215 +125,143 @@ extension EnvironmentScenesLocalDataSource {
                 isFavorite: false
             ),
             
-            // Section 2 - Pastel (без цветовых пресетов)
-            EnvironmentSceneEntity(
-                name: "Eclipse Oracle",
-                imageAssetName: "Eclipse Oracle",
+            // Section 2 - Pastel (с цветовыми пресетами)
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Celestial Whispers",
+                imageAssetName: "Celestial Whispers",
                 section: .section2,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
-                name: "Warm Embrace",
-                imageAssetName: "Warm Embrace",
-                section: .section2,
-                filterType: .pastel,
-                isFavorite: true
-            ),
-            EnvironmentSceneEntity(
-                name: "Aquamarine Oasis",
-                imageAssetName: "Aquamarine Oasis",
-                section: .section2,
-                filterType: .pastel,
-                isFavorite: false
-            ),
-            EnvironmentSceneEntity(
-                name: "Dusty Peaks",
-                imageAssetName: "Dusty Peaks",
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Silent Ridges",
+                imageAssetName: "Silent Ridges",
                 section: .section2,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
-                name: "Monochrome Memory",
-                imageAssetName: "Monochrome Memory",
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Soaring Shadows",
+                imageAssetName: "Soaring Shadows",
                 section: .section2,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
-                name: "Dusty Rose",
-                imageAssetName: "Dusty Rose",
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Tranquil Shoreline",
+                imageAssetName: "Tranquil Shoreline",
                 section: .section2,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
-                name: "Wild Plains",
-                imageAssetName: "Wild Plains",
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Gilded Glow",
+                imageAssetName: "Gilded Glow",
                 section: .section2,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
-                name: "Serene Path",
-                imageAssetName: "Serene Path",
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Midnight Echo",
+                imageAssetName: "Midnight Echo",
                 section: .section2,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
-                name: "Misty Valley",
-                imageAssetName: "Misty Valley",
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Evergreen Veil",
+                imageAssetName: "Evergreen Veil",
                 section: .section2,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
-                name: "Velvet Twilight",
-                imageAssetName: "Velvet Twilight",
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Mirror Lake",
+                imageAssetName: "Mirror Lake",
                 section: .section2,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            
-            // Section 3 - Pastel (без цветовых пресетов)
-            EnvironmentSceneEntity(
-                name: "Moonstone Dreams",
-                imageAssetName: "Moonstone Dreams",
-                section: .section3,
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Aurora Pulse",
+                imageAssetName: "Aurora Pulse",
+                section: .section2,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
-                name: "Coral Reef",
-                imageAssetName: "Coral Reef",
-                section: .section3,
-                filterType: .pastel,
-                isFavorite: true
-            ),
-            EnvironmentSceneEntity(
-                name: "Desert Rose",
-                imageAssetName: "Desert Rose",
-                section: .section3,
-                filterType: .pastel,
-                isFavorite: false
-            ),
-            EnvironmentSceneEntity(
-                name: "Lavender Fields",
-                imageAssetName: "Lavender Fields",
-                section: .section3,
-                filterType: .pastel,
-                isFavorite: true
-            ),
-            EnvironmentSceneEntity(
-                name: "Ocean Breeze",
-                imageAssetName: "Ocean Breeze",
-                section: .section3,
-                filterType: .pastel,
-                isFavorite: false
-            ),
-            EnvironmentSceneEntity(
-                name: "Sunset Glow",
-                imageAssetName: "Sunset Glow",
-                section: .section3,
-                filterType: .pastel,
-                isFavorite: true
-            ),
-            EnvironmentSceneEntity(
-                name: "Foggy Morning",
-                imageAssetName: "Foggy Morning",
-                section: .section3,
-                filterType: .pastel,
-                isFavorite: false
-            ),
-            EnvironmentSceneEntity(
-                name: "Cherry Blossom",
-                imageAssetName: "Cherry Blossom",
-                section: .section3,
-                filterType: .pastel,
-                isFavorite: true
-            ),
-            EnvironmentSceneEntity(
-                name: "Sage Garden",
-                imageAssetName: "Sage Garden",
-                section: .section3,
-                filterType: .pastel,
-                isFavorite: false
-            ),
-            EnvironmentSceneEntity(
-                name: "Twilight Bay",
-                imageAssetName: "Twilight Bay",
-                section: .section3,
+            PresetColorsFactory.createSceneWithPresetColors(
+                name: "Whispering Wilds",
+                imageAssetName: "Whispering Wilds",
+                section: .section2,
                 filterType: .pastel,
                 isFavorite: true
             ),
             
-            // Section 3 - Pastel
-            EnvironmentSceneEntity(
+            // Section 3 - Pastel (с цветовыми пресетами)
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Violet Mist",
                 imageAssetName: "Violet Mist",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Lavender Horizon",
                 imageAssetName: "Lavender Horizon",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Azure Peaks",
                 imageAssetName: "Azure Peaks",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Frozen Veins",
                 imageAssetName: "Frozen Veins",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Crystal Drift",
                 imageAssetName: "Crystal Drift",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Eclipsed Glow",
                 imageAssetName: "Eclipsed Glow",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Twilight Pines",
                 imageAssetName: "Twilight Pines",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Phantom Summits",
                 imageAssetName: "Phantom Summits",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Layered Tranquility",
                 imageAssetName: "Layered Tranquility",
                 section: .section3,
                 filterType: .pastel,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Echoed Fog",
                 imageAssetName: "Echoed Fog",
                 section: .section3,
@@ -346,71 +274,71 @@ extension EnvironmentScenesLocalDataSource {
     /// Создает сцены для Bright фильтра
     private func createBrightScenes() -> [EnvironmentSceneEntity] {
         return [
-            // Section 1 - Bright
-            EnvironmentSceneEntity(
+            // Section 1 - Bright (с цветовыми пресетами)
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Golden Horizon",
                 imageAssetName: "Golden Horizon",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Velvet Glow",
                 imageAssetName: "Velvet Glow",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Rosé Quartz",
                 imageAssetName: "Rosé Quartz",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Crimson Lanterns",
                 imageAssetName: "Crimson Lanterns",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Molten Ember",
                 imageAssetName: "Molten Ember",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Canyon Echo",
                 imageAssetName: "Canyon Echo",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Lemon Mirage",
                 imageAssetName: "Lemon Mirage",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Wild Bloom",
                 imageAssetName: "Wild Bloom",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Solar Flare",
                 imageAssetName: "Solar Flare",
                 section: .section1,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Honey Drip",
                 imageAssetName: "Honey Drip",
                 section: .section1,
@@ -418,71 +346,71 @@ extension EnvironmentScenesLocalDataSource {
                 isFavorite: false
             ),
             
-            // Section 2 - Bright
-            EnvironmentSceneEntity(
+            // Section 2 - Bright (с цветовыми пресетами)
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Emerald Veil",
                 imageAssetName: "Emerald Veil",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Jade Fracture",
                 imageAssetName: "Jade Fracture",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Lucky Charm",
                 imageAssetName: "Lucky Charm",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Verdant Passage",
                 imageAssetName: "Verdant Passage",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Geometric Mirage",
                 imageAssetName: "Geometric Mirage",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Lego Labyrinth",
                 imageAssetName: "Lego Labyrinth",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Citrus Harvest",
                 imageAssetName: "Citrus Harvest",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Neon Zest",
                 imageAssetName: "Neon Zest",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Aurora Echo",
                 imageAssetName: "Aurora Echo",
                 section: .section2,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Celestial Glow",
                 imageAssetName: "Celestial Glow",
                 section: .section2,
@@ -490,71 +418,71 @@ extension EnvironmentScenesLocalDataSource {
                 isFavorite: false
             ),
             
-            // Section 3 - Bright
-            EnvironmentSceneEntity(
+            // Section 3 - Bright (с цветовыми пресетами)
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Neon Abyss",
                 imageAssetName: "Neon Abyss",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Blooming Depths",
                 imageAssetName: "Blooming Depths",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Serene Waves",
                 imageAssetName: "Serene Waves",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Crystal Tide",
                 imageAssetName: "Crystal Tide",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Twilight Bloom",
                 imageAssetName: "Twilight Bloom",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Phantom Drift",
                 imageAssetName: "Phantom Drift",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Nebula Mirage",
                 imageAssetName: "Nebula Mirage",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Lunar Medusa",
                 imageAssetName: "Lunar Medusa",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: false
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Sapphire Glow",
                 imageAssetName: "Sapphire Glow",
                 section: .section3,
                 filterType: .bright,
                 isFavorite: true
             ),
-            EnvironmentSceneEntity(
+            PresetColorsFactory.createSceneWithPresetColors(
                 name: "Frozen Whispers",
                 imageAssetName: "Frozen Whispers",
                 section: .section3,

@@ -134,8 +134,8 @@ final class PresetColorService: PresetColorServiceProtocol {
             throw PresetColorServiceError.lightNotFound(lightId)
         }
         
-        // Применяем цвет через LightingColorService
-        try await lightingColorService.setColor(for: light, color: color)
+        // Применяем цвет через LightingColorService немедленно
+        try await lightingColorService.setColorImmediate(for: light, color: color)
         
         // Сохраняем состояние цвета в LightColorStateService
         lightColorStateService.setLightColor(lightId, color: color)

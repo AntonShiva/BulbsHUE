@@ -30,6 +30,76 @@ struct PresetColorsFactory {
         "Verdant Mist": ["#D3DFFF", "#F3BDA2", "#F9C2E5", "#FA8C8C", "#ECC1AF"]
     ]
     
+    /// Определения цветовых пресетов для второй секции Pastel
+    private static let pastelSection2Presets: [String: [String]] = [
+        "Celestial Whispers": ["#F0CC95", "#ECBC95", "#BFA55C", "#8B8D3F", "#939C53"],
+        "Silent Ridges": ["#F2CFB2", "#FDE8CD", "#89A78E", "#C5A68A", "#91CFBE"],
+        "Soaring Shadows": ["#F4A460", "#D2B48C", "#C68E17", "#DEB887", "#F0E68C"],
+        "Tranquil Shoreline": ["#9CCAC5", "#70B7B3", "#A5C2C2", "#D2D6D7", "#52827B"],
+        "Gilded Glow": ["#294134", "#4A5046", "#69755D", "#708D83", "#9DA79D"],
+        "Midnight Echo": ["#10473C", "#0C3930", "#588983", "#026F58", "#669589"],
+        "Evergreen Veil": ["#BAC6C3", "#909E9D", "#526F6D", "#81AAA3", "#5F9E83"],
+        "Mirror Lake": ["#85CED1", "#48BFC2", "#A0CD9B", "#158689", "#68A68F"],
+        "Aurora Pulse": ["#617E44", "#949A80", "#D9D7BF", "#BFC9A4", "#445F36"],
+        "Whispering Wilds": ["#485830", "#869883", "#6B824A", "#36592B", "#67796C"]
+    ]
+    
+    /// Определения цветовых пресетов для третьей секции Pastel
+    private static let pastelSection3Presets: [String: [String]] = [
+        "Violet Mist": ["#CBB1E3", "#A589C8", "#9D6DC9", "#CAADE1", "#ACA5E3"],
+        "Azure Peaks": ["#8EBDCF", "#5AA6C4", "#408FB2", "#A7CDE0", "#01638D"],
+        "Crystal Drift": ["#294134", "#4A5046", "#69755D", "#708D83", "#9DA79D"],
+        "Twilight Pines": ["#BAC6C3", "#909E9D", "#526F6D", "#81AAA3", "#5F9E83"],
+        "Layered Tranquility": ["#617E44", "#949A80", "#D9D7BF", "#BFC9A4", "#445F36"],
+        "Lavender Horizon": ["#F2CFB2", "#FDE8CD", "#89A78E", "#C5A68A", "#91CFBE"],
+        "Frozen Veins": ["#91A8DF", "#28497E", "#6689CB", "#9EBEFB", "#C2D1FF"],
+        "Eclipsed Glow": ["#10473C", "#0C3930", "#588983", "#026F58", "#669589"],
+        "Phantom Summits": ["#C6E4EB", "#8DC7D8", "#D8DBD4", "#A1C7CF", "#B5D3D7"],
+        "Echoed Fog": ["#99C1D1", "#177D9E", "#6AAEC9", "#4395B3", "#79ADC2"]
+    ]
+    
+    /// Определения цветовых пресетов для первой секции Bright
+    private static let brightSection1Presets: [String: [String]] = [
+        "Golden Horizon": ["#FFA875", "#FF9500", "#FFC66F", "#E28320", "#FBC93D"],
+        "Rosé Quartz": ["#FF5291", "#FF87B3", "#FF5291", "#FF307B", "#FF5D98"],
+        "Molten Ember": ["#FF7521", "#FF96FF", "#2282FF", "#FFCDA6", "#FF4AFF"],
+        "Lemon Mirage": ["#BAC6C3", "#909E9D", "#526F6D", "#81AAA3", "#5F9E83"],
+        "Solar Flare": ["#617E44", "#949A80", "#D9D7BF", "#BFC9A4", "#445F36"],
+        "Velvet Glow": ["#FD9DAB", "#FDCDF8", "#E3A4FF", "#AE69CF", "#E893BF"],
+        "Crimson Lanterns": ["#FF623A", "#FF2E44", "#FF1515", "#F35F5A", "#FA2233"],
+        "Canyon Echo": ["#FF8733", "#D95900", "#FFA86C", "#FFD0AF", "#FF612D"],
+        "Wild Bloom": ["#69D9FF", "#FFC037", "#FA7801", "#0ABF83", "#FFC041"],
+        "Honey Drip": ["#E57148", "#FADC00", "#FF8669", "#FFA8A8", "#F9CB00"]
+    ]
+    
+    /// Определения цветовых пресетов для второй секции Bright
+    private static let brightSection2Presets: [String: [String]] = [
+        "Emerald Veil": ["#21C36C", "#BAEBAA", "#89DBC8", "#1EDB3E", "#3CA06D"],
+        "Lucky Charm": ["#A7FF48", "#53D131", "#BAFF6F", "#8CEE22", "#48FF48"],
+        "Geometric Mirage": ["#17EF14", "#6FC7FF", "#2282FF", "#A6ECFF", "#42CBBF"],
+        "Citrus Harvest": ["#CDFF8F", "#88FF86", "#FFF477", "#BEFF3B", "#A1EB0B"],
+        "Aurora Echo": ["#6AFFBC", "#BAFFE2", "#21E3A1", "#57FBB6", "#45E4B7"],
+        "Jade Fracture": ["#4FE892", "#21BF61", "#CEFFE7", "#8BFFB7", "#50D880"],
+        "Verdant Passage": ["#88E76F", "#B7FF9F", "#2BB788", "#11815E", "#6DE75C"],
+        "Lego Labyrinth": ["#8EC933", "#ACDB64", "#8AC52F", "#C1FF62", "#AAF03F"],
+        "Neon Zest": ["#D5FF69", "#B7F31D", "#EAFFB5", "#95CF18", "#CBFF46"],
+        "Celestial Glow": ["#00D524", "#24E055", "#008D26", "#096439", "#007326"]
+    ]
+    
+    /// Определения цветовых пресетов для третьей секции Bright
+    private static let brightSection3Presets: [String: [String]] = [
+        "Neon Abyss": ["#04F0BB", "#41C9FF", "#1647C4", "#04EFF9", "#B3FEDD"],
+        "Serene Waves": ["#36A8FF", "#297CEF", "#08D4F3", "#59AFFF", "#0FB8F5"],
+        "Twilight Bloom": ["#B1B4FD", "#946BFB", "#DD97F2", "#B09DFB", "#A394FF"],
+        "Nebula Mirage": ["#FF3B88", "#FF6FE9", "#FF6292", "#6528BB", "#E9279C"],
+        "Sapphire Glow": ["#4B60FF", "#4977FF", "#0242F4", "#0436B2", "#7196FF"],
+        "Crystal Tide": ["#00E8FF", "#7FE3FF", "#00D4FF", "#CBFAFF", "#00FFF6"],
+        "Phantom Drift": ["#AA00FF", "#FED2C5", "#513FDD", "#C95CFF", "#FD95FF"],
+        "Lunar Medusa": ["#3A99FF", "#2C66E9", "#93C7FA", "#0050FF", "#266CE8"],
+        "Frozen Whispers": ["#B7EDFF", "#60D6FF", "#21C4FF", "#7AD5FF", "#DDF7FF"],
+        "Blooming Depths": ["#3034D1", "#65D4FF", "#BDFFE9", "#5756EB", "#48C4FF"]
+    ]
+    
     // MARK: - Factory Methods
     
     /// Создает массив PresetSceneColor из hex цветов
@@ -45,12 +115,38 @@ struct PresetColorsFactory {
     /// - Parameter sceneName: Имя сцены
     /// - Returns: Массив PresetSceneColor или пустой массив
     static func getPresetColors(for sceneName: String) -> [PresetSceneColor] {
-        guard let hexColors = pastelSection1Presets[sceneName] else {
-            print("⚠️ PresetColorsFactory: Цвета для сцены '\(sceneName)' не найдены")
-            return []
+        // Сначала проверяем первую секцию Pastel
+        if let hexColors = pastelSection1Presets[sceneName] {
+            return createPresetColors(from: hexColors)
         }
         
-        return createPresetColors(from: hexColors)
+        // Затем проверяем вторую секцию Pastel
+        if let hexColors = pastelSection2Presets[sceneName] {
+            return createPresetColors(from: hexColors)
+        }
+        
+        // Затем проверяем третью секцию Pastel
+        if let hexColors = pastelSection3Presets[sceneName] {
+            return createPresetColors(from: hexColors)
+        }
+        
+        // Затем проверяем первую секцию Bright
+        if let hexColors = brightSection1Presets[sceneName] {
+            return createPresetColors(from: hexColors)
+        }
+        
+        // Затем проверяем вторую секцию Bright
+        if let hexColors = brightSection2Presets[sceneName] {
+            return createPresetColors(from: hexColors)
+        }
+        
+        // Затем проверяем третью секцию Bright
+        if let hexColors = brightSection3Presets[sceneName] {
+            return createPresetColors(from: hexColors)
+        }
+        
+        print("⚠️ PresetColorsFactory: Цвета для сцены '\(sceneName)' не найдены")
+        return []
     }
     
     /// Создать сцену с автоматическими цветами пресета
@@ -84,13 +180,24 @@ struct PresetColorsFactory {
     /// - Parameter sceneName: Имя сцены
     /// - Returns: true если поддерживает
     static func supportsPresetColors(_ sceneName: String) -> Bool {
-        return pastelSection1Presets[sceneName] != nil
+        return pastelSection1Presets[sceneName] != nil || 
+               pastelSection2Presets[sceneName] != nil || 
+               pastelSection3Presets[sceneName] != nil ||
+               brightSection1Presets[sceneName] != nil ||
+               brightSection2Presets[sceneName] != nil ||
+               brightSection3Presets[sceneName] != nil
     }
     
     /// Получить все поддерживаемые сцены с пресетами
     /// - Returns: Массив имен сцен
     static func getAllSupportedScenes() -> [String] {
-        return Array(pastelSection1Presets.keys).sorted()
+        let section1Scenes = Array(pastelSection1Presets.keys)
+        let section2Scenes = Array(pastelSection2Presets.keys)
+        let section3Scenes = Array(pastelSection3Presets.keys)
+        let brightSection1Scenes = Array(brightSection1Presets.keys)
+        let brightSection2Scenes = Array(brightSection2Presets.keys)
+        let brightSection3Scenes = Array(brightSection3Presets.keys)
+        return (section1Scenes + section2Scenes + section3Scenes + brightSection1Scenes + brightSection2Scenes + brightSection3Scenes).sorted()
     }
 }
 

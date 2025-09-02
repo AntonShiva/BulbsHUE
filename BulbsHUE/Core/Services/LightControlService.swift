@@ -61,6 +61,16 @@ class LightControlService: ObservableObject, LightControlling {
         appViewModel?.lightsViewModel.setColor(for: light, color: color)
     }
     
+    /// Установить цвет лампы немедленно (для пресетов)
+    func setLightColorImmediate(lightId: String, red: Double, green: Double, blue: Double) async throws {
+        guard let light = lights.first(where: { $0.id == lightId }) else {
+            throw LightControlError.lightNotFound
+        }
+        
+        let color = Color(red: red, green: green, blue: blue)
+        appViewModel?.lightsViewModel.setColorImmediate(for: light, color: color)
+    }
+    
     /// Установить яркость лампы
     func setLightBrightness(lightId: String, brightness: Double) async throws {
         guard let light = lights.first(where: { $0.id == lightId }) else {

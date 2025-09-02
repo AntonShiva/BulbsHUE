@@ -55,6 +55,26 @@ class LightingColorService: LightingManaging {
         print("✅ Цвет лампы '\(light.metadata.name)' изменен на RGB(\(rgbComponents.red), \(rgbComponents.green), \(rgbComponents.blue))")
     }
     
+    /// Установить цвет для конкретной лампы немедленно (для пресетов)
+    func setColorImmediate(for light: Light, color: Color) async throws {
+        guard let lightControlService = lightControlService else {
+            throw LightingError.serviceNotAvailable
+        }
+        
+        // Конвертируем SwiftUI Color в RGB компоненты
+        let rgbComponents = color.rgbComponents
+        
+        // Выполняем изменение цвета через LightControlService немедленно
+        try await lightControlService.setLightColorImmediate(
+            lightId: light.id,
+            red: rgbComponents.red,
+            green: rgbComponents.green,
+            blue: rgbComponents.blue
+        )
+        
+        print("✅ Цвет лампы '\(light.metadata.name)' изменен немедленно на RGB(\(rgbComponents.red), \(rgbComponents.green), \(rgbComponents.blue))")
+    }
+    
     /// Установить цвет для всех ламп в комнате
     func setColor(for room: RoomEntity, color: Color) async throws {
         guard let appViewModel = appViewModel else {
