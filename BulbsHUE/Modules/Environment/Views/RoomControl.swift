@@ -42,7 +42,7 @@ struct RoomControl: View {
                 // Основной контрол с данными из ViewModel
                 ControlView(
                     isOn: $roomControlViewModel.isOn,
-                    baseColor: roomControlViewModel.defaultWarmColor,
+                    baseColor: roomControlViewModel.currentColor, // ✅ Используем динамический цвет
                     bulbName: roomControlViewModel.getRoomName(), // ✅ Показываем имя комнаты
                     bulbType: roomControlViewModel.getRoomType(), // ✅ Показываем ТИП комнаты (TRADITIONAL, MODERN и т.д.) 
                     roomName: "\(roomControlViewModel.getLightCount()) bulbs",
@@ -78,7 +78,7 @@ struct RoomControl: View {
             // Слайдер яркости для всех ламп в комнате
             CustomSlider(
                 percent: $roomControlViewModel.brightness,
-                color: roomControlViewModel.defaultWarmColor,
+                color: roomControlViewModel.currentColor, // ✅ Используем динамический цвет
                 onChange: { value in
                     // Используем метод ViewModel для throttled обновлений всех ламп
                     roomControlViewModel.setBrightnessThrottled(value)
@@ -95,12 +95,14 @@ struct RoomControl: View {
             let lightService = LightControlService(appViewModel: appViewModel)
             let roomService = RoomService()
             let roomRepository = DIContainer.shared.roomRepository
+            let colorService = DIContainer.shared.roomControlColorService
             
             roomControlViewModel.configure(
                 with: lightService,
                 roomService: roomService,
                 roomRepository: roomRepository,
-                room: room
+                room: room,
+                colorManager: colorService
             )
         }
         .onChange(of: room) { newRoom in

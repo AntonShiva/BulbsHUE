@@ -9,6 +9,17 @@ import Foundation
 import SwiftUI
 import Combine
 
+// MARK: - Room Control Color Managing Protocol
+
+/// Протокол для управления цветами контрола комнаты
+protocol RoomControlColorManaging {
+    func updateRoomColor(roomId: String, sceneName: String) async
+    func registerRoomControl(_ viewModel: RoomControlViewModel, for roomId: String) async
+    func unregisterRoomControl(for roomId: String) async
+}
+
+// MARK: - Room Control View Model
+
 /// ViewModel для управления отдельной комнатой
 /// Аналогично ItemControlViewModel, но для комнат
 @MainActor
@@ -30,6 +41,9 @@ final class RoomControlViewModel: ObservableObject {
     /// Цвет комнаты по умолчанию (тот же что у ламп)
     @Published var defaultWarmColor = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
     
+    /// Динамический цвет комнаты на основе примененного пресета
+    @Published var dynamicColor: Color = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
+    
     // MARK: - Private Properties
     
     /// Сервис для управления лампами в комнате
@@ -40,6 +54,9 @@ final class RoomControlViewModel: ObservableObject {
     
     /// Репозиторий комнат для реактивных стримов
     private var roomRepository: RoomRepositoryProtocol?
+    
+    /// Менеджер цветов контрола
+    private var colorManager: RoomControlColorManaging?
     
     /// Подписки Combine
     private var cancellables = Set<AnyCancellable>()
@@ -64,10 +81,19 @@ final class RoomControlViewModel: ObservableObject {
         return RoomControlViewModel()
     }
     
+    @MainActor
     deinit {
         // Отменяем все активные задачи при деинициализации
         brightnessTask?.cancel()
         cancellables.removeAll()
+        
+        // Отменяем регистрацию в цветовом сервисе
+        if let currentRoom = currentRoom,
+           let colorManager = colorManager as? RoomControlColorService {
+            Task {
+                await colorManager.unregisterRoomControl(for: currentRoom.id)
+            }
+        }
     }
     
     // MARK: - Configuration
@@ -78,15 +104,18 @@ final class RoomControlViewModel: ObservableObject {
     ///   - roomService: Сервис управления комнатами
     ///   - roomRepository: Репозиторий для реактивных обновлений
     ///   - room: Комната для управления
+    ///   - colorManager: Менеджер цветов контрола (опционально)
     func configure(
         with lightControlService: LightControlling,
         roomService: RoomServiceProtocol,
         roomRepository: RoomRepositoryProtocol,
-        room: RoomEntity
+        room: RoomEntity,
+        colorManager: RoomControlColorManaging? = nil
     ) {
         self.lightControlService = lightControlService
         self.roomService = roomService
         self.roomRepository = roomRepository
+        self.colorManager = colorManager
         self.isConfigured = true
         setupObservers()
         setCurrentRoom(room)
@@ -101,6 +130,16 @@ final class RoomControlViewModel: ObservableObject {
         self.currentRoom = room
         updateStateFromRoom()
         setupRoomObserver() // Переустанавливаем подписку на новую комнату
+        
+        // Обновляем динамический цвет из RoomColorStateService
+        updateDynamicColor()
+        
+        // Регистрируемся в цветовом сервисе для получения обновлений
+        if let colorManager = colorManager as? RoomControlColorService {
+            Task {
+                await colorManager.registerRoomControl(self, for: room.id)
+            }
+        }
     }
     
     /// Переключить питание всех ламп в комнате
@@ -416,6 +455,42 @@ final class RoomControlViewModel: ObservableObject {
         
         return lightControlService.lights.filter { room.lightIds.contains($0.id) }
     }
+    
+    // MARK: - Color Management
+    
+    /// Получить текущий цвет контрола (динамический)
+    var currentColor: Color {
+        return dynamicColor
+    }
+    
+    /// Обновить динамический цвет комнаты
+    private func updateDynamicColor() {
+        guard let room = currentRoom else { return }
+        
+        // Получаем цвет из RoomColorStateService
+        dynamicColor = RoomColorStateService.shared.getBaseColor(for: room)
+    }
+    
+    /// Обновить цвет комнаты на основе примененного пресета
+    /// - Parameter sceneName: Имя сцены пресета
+    func updateColorFromPreset(_ sceneName: String) {
+        guard let room = currentRoom else { return }
+        
+        if let dominantColor = PresetColorsFactory.getDominantColor(for: sceneName) {
+            // Сохраняем цвет в RoomColorStateService
+            RoomColorStateService.shared.setRoomColor(room.id, color: dominantColor)
+            // Обновляем локальный цвет
+            dynamicColor = dominantColor
+        }
+    }
+    
+    /// Сбросить цвет комнаты к дефолтному
+    func resetColor() {
+        guard let room = currentRoom else { return }
+        
+        RoomColorStateService.shared.clearRoomState(room.id)
+        dynamicColor = defaultWarmColor
+    }
 }
 
 // MARK: - Room Service Protocol
@@ -436,5 +511,38 @@ final class RoomService: RoomServiceProtocol {
     
     func deleteRoom(_ roomId: String) async throws {
         print("🏠 Удаление комнаты: \(roomId)")
+    }
+}
+
+// MARK: - Room Control Color Service
+
+/// Сервис для управления цветами контролов комнат
+actor RoomControlColorService: RoomControlColorManaging {
+    /// Словарь активных RoomControlViewModel по ID комнат
+    private var roomControlViewModels: [String: RoomControlViewModel] = [:]
+    
+    /// Регистрация RoomControlViewModel для получения обновлений цвета
+    /// - Parameters:
+    ///   - viewModel: ViewModel для регистрации
+    ///   - roomId: ID комнаты
+    func registerRoomControl(_ viewModel: RoomControlViewModel, for roomId: String) async {
+        roomControlViewModels[roomId] = viewModel
+    }
+    
+    /// Отмена регистрации RoomControlViewModel
+    /// - Parameter roomId: ID комнаты
+    func unregisterRoomControl(for roomId: String) async {
+        roomControlViewModels.removeValue(forKey: roomId)
+    }
+    
+    /// Обновить цвет контрола комнаты
+    /// - Parameters:
+    ///   - roomId: ID комнаты
+    ///   - sceneName: Имя сцены пресета
+    func updateRoomColor(roomId: String, sceneName: String) async {
+        guard let viewModel = roomControlViewModels[roomId] else { return }
+        await MainActor.run {
+            viewModel.updateColorFromPreset(sceneName)
+        }
     }
 }

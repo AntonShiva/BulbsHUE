@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import Foundation
 
 // MARK: - Environment Bulbs View Model
 
@@ -45,6 +46,7 @@ final class EnvironmentBulbsViewModel: ObservableObject {
     
     private let environmentScenesUseCase: EnvironmentScenesUseCaseProtocol
     private let presetColorService: PresetColorService
+    private let roomControlColorService: RoomControlColorService
     private weak var navigationManager: NavigationManager?
     
     // MARK: - Private Properties
@@ -56,10 +58,12 @@ final class EnvironmentBulbsViewModel: ObservableObject {
     init(
         environmentScenesUseCase: EnvironmentScenesUseCaseProtocol = DIContainer.shared.environmentScenesUseCase,
         presetColorService: PresetColorService = DIContainer.shared.presetColorService,
+        roomControlColorService: RoomControlColorService = DIContainer.shared.roomControlColorService,
         navigationManager: NavigationManager? = NavigationManager.shared
     ) {
         self.environmentScenesUseCase = environmentScenesUseCase
         self.presetColorService = presetColorService
+        self.roomControlColorService = roomControlColorService
         self.navigationManager = navigationManager
         setupBindings()
         loadInitialScenes()
@@ -145,6 +149,16 @@ final class EnvironmentBulbsViewModel: ObservableObject {
                     strategy: .adaptive
                 )
                 print("✅ Применены цвета пресета '\(scene.name)' к комнате '\(targetRoom.name)'")
+                
+                // ✅ Сохраняем доминирующий цвет пресета в RoomColorStateService
+                if let dominantColor = PresetColorsFactory.getDominantColor(for: scene.name) {
+                    RoomColorStateService.shared.setRoomColor(targetRoom.id, color: dominantColor)
+                }
+                
+                // ✅ Обновляем цвет контрола комнаты через сервис
+                Task {
+                    await roomControlColorService.updateRoomColor(roomId: targetRoom.id, sceneName: scene.name)
+                }
             }
         } catch {
             print("❌ Ошибка применения цветов пресета: \(error.localizedDescription)")

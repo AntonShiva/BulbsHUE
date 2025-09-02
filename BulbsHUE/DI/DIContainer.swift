@@ -152,6 +152,16 @@ final class DIContainer {
     
     private var _presetColorServiceFactory: (() -> PresetColorService)?
     
+    // MARK: - Room Control Color Service
+    
+    private lazy var _roomControlColorService: RoomControlColorService = {
+        return RoomControlColorService()
+    }()
+    
+    private lazy var _roomColorStateService: RoomColorStateService = {
+        return RoomColorStateService.shared
+    }()
+    
     // MARK: - Navigation
     private lazy var _navigationManager: NavigationManager = {
         return NavigationManager.shared
@@ -195,6 +205,8 @@ final class DIContainer {
     var presetColorService: PresetColorService { 
         _presetColorServiceFactory?() ?? _presetColorService 
     }
+    var roomControlColorService: RoomControlColorService { _roomControlColorService }
+    var roomColorStateService: RoomColorStateService { _roomColorStateService }
     
     // MARK: - Configuration
     
