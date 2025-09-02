@@ -138,6 +138,20 @@ final class DIContainer {
         return LightColorStateService.shared
     }()
     
+    private lazy var _lightingColorService: LightingColorService = {
+        return LightingColorService(lightControlService: nil, appViewModel: nil)
+    }()
+    
+    private lazy var _presetColorService: PresetColorService = {
+        return PresetColorService(
+            lightingColorService: _lightingColorService,
+            lightColorStateService: _lightColorStateService,
+            appViewModel: nil
+        )
+    }()
+    
+    private var _presetColorServiceFactory: (() -> PresetColorService)?
+    
     // MARK: - Navigation
     private lazy var _navigationManager: NavigationManager = {
         return NavigationManager.shared
@@ -177,6 +191,10 @@ final class DIContainer {
     var appStore: AppStore { _appStore }
     var navigationManager: NavigationManager { _navigationManager }
     var lightColorStateService: LightColorStateService { _lightColorStateService }
+    var lightingColorService: LightingColorService { _lightingColorService }
+    var presetColorService: PresetColorService { 
+        _presetColorServiceFactory?() ?? _presetColorService 
+    }
     
     // MARK: - Configuration
     
@@ -194,6 +212,27 @@ final class DIContainer {
         
         // Обновляем DataPersistenceService для Use Cases
         _dataPersistenceService = dataPersistenceService
+        
+        // Создаем LightControlService с AppViewModel
+        let lightControlService = LightControlService(appViewModel: appViewModel)
+        
+        // Пересоздаем LightingColorService с правильными зависимостями
+        _lightingColorService = LightingColorService(
+            lightControlService: lightControlService,
+            appViewModel: appViewModel
+        )
+        
+        // Настраиваем PresetColorService с AppViewModel и обновленным LightingColorService
+        _presetColorServiceFactory = {
+            PresetColorService(
+                lightingColorService: self._lightingColorService,
+                lightColorStateService: self._lightColorStateService,
+                appViewModel: appViewModel
+            )
+        }
+        
+        // Принудительно пересоздаем PresetColorService с обновленными зависимостями
+        _presetColorService = _presetColorServiceFactory!()
         
         // Принудительно пересоздаем зависимые Use Cases
         _lightRepository = _lightRepositoryFactory!()

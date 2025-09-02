@@ -253,7 +253,7 @@ private struct AssignedBulbsLightsListView: View {
 private struct MockAssignedLightsListView: View {
     let lights: [Light]
     let onRemoveLight: ((String) -> Void)?
-    
+    @EnvironmentObject var nav: NavigationManager
     // Массив темных цветов для превью
     private let mockColors: [Color] = [
         Color(hue: 0.60, saturation: 0.8, brightness: 0.6),   // Темно-синий
@@ -273,11 +273,10 @@ private struct MockAssignedLightsListView: View {
                         mockColor: mockColors[index % mockColors.count]
                     )
                     .padding(.horizontal, 10)
-                    .contextMenu {
-                        Button("Убрать из Environment", role: .destructive) {
-                            onRemoveLight?(light.id)
-                        }
-                    }
+                    .onLongPressGesture(minimumDuration: 1.0) {
+                        nav.showEnvironmentBulbs(for: light)
+                                
+                }
                 }
             }
             .padding(.horizontal, 20)

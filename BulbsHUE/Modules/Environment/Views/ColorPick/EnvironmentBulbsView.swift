@@ -379,7 +379,44 @@ private struct SceneCard: View {
                             .stroke(.primColor, lineWidth: 3)
                             .adaptiveFrame(width: 156, height: 156)
                     }
-             
+                    
+                    // Индикатор наличия цветов пресета
+                    if scene.hasPresetColors {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                // Показываем небольшие цветные точки в углу
+                                HStack(spacing: 2) {
+                                    ForEach(Array(scene.presetColors.prefix(3).enumerated()), id: \.0) { index, presetColor in
+                                        Circle()
+                                            .fill(presetColor.color)
+                                            .adaptiveFrame(width: 8, height: 8)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(.primColor.opacity(0.3), lineWidth: 0.5)
+                                            )
+                                    }
+                                    if scene.presetColors.count > 3 {
+                                        Circle()
+                                            .fill(.primColor.opacity(0.6))
+                                            .adaptiveFrame(width: 8, height: 8)
+                                            .overlay(
+                                                Text("+")
+                                                    .font(.system(size: 6, weight: .bold))
+                                                    .foregroundColor(.white)
+                                            )
+                                    }
+                                }
+                                .padding(6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(.black.opacity(0.3))
+                                )
+                                .adaptiveOffset(x: -8, y: -8)
+                            }
+                        }
+                    }
                 }
             }
             .buttonStyle(PlainButtonStyle())

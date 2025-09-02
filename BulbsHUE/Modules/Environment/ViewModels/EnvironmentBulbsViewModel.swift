@@ -44,6 +44,7 @@ final class EnvironmentBulbsViewModel: ObservableObject {
     // MARK: - Dependencies
     
     private let environmentScenesUseCase: EnvironmentScenesUseCaseProtocol
+    private let presetColorService: PresetColorService
     private weak var navigationManager: NavigationManager?
     
     // MARK: - Private Properties
@@ -52,8 +53,13 @@ final class EnvironmentBulbsViewModel: ObservableObject {
     
     // MARK: - Initialization
     
-    init(environmentScenesUseCase: EnvironmentScenesUseCaseProtocol, navigationManager: NavigationManager? = nil) {
+    init(
+        environmentScenesUseCase: EnvironmentScenesUseCaseProtocol = DIContainer.shared.environmentScenesUseCase,
+        presetColorService: PresetColorService = DIContainer.shared.presetColorService,
+        navigationManager: NavigationManager? = NavigationManager.shared
+    ) {
         self.environmentScenesUseCase = environmentScenesUseCase
+        self.presetColorService = presetColorService
         self.navigationManager = navigationManager
         setupBindings()
         loadInitialScenes()
@@ -101,12 +107,48 @@ final class EnvironmentBulbsViewModel: ObservableObject {
     func selectScene(_ scene: EnvironmentSceneEntity) {
         Task {
             do {
-                let updatedScenes = try await environmentScenesUseCase.selectScene(sceneId: scene.id)
+                let _ = try await environmentScenesUseCase.selectScene(sceneId: scene.id)
                 // Обновляем только текущие отображаемые сцены
                 await loadScenesForCurrentSelection()
+                
+                // Если сцена содержит цвета пресета, применяем их к лампам
+                if scene.hasPresetColors {
+                    await applyPresetColors(from: scene)
+                }
             } catch {
                 self.error = error
             }
+        }
+    }
+    
+    /// Применить цвета пресета к целевым лампам
+    @MainActor
+    private func applyPresetColors(from scene: EnvironmentSceneEntity) async {
+        guard let navigationManager = navigationManager else { return }
+        
+        do {
+            // Определяем целевые лампы в зависимости от контекста
+            if let targetLight = navigationManager.targetLightForColorChange {
+                // Применяем к одной лампе - используем первый цвет
+                try await presetColorService.applyPresetColor(
+                    from: scene,
+                    to: targetLight.id,
+                    colorIndex: 0
+                )
+                print("✅ Применен цвет пресета '\(scene.name)' к лампе '\(targetLight.metadata.name)'")
+                
+            } else if let targetRoom = navigationManager.targetRoomForColorChange {
+                // Применяем к комнате - распределяем цвета по лампам
+                try await presetColorService.applyPresetColors(
+                    from: scene,
+                    to: targetRoom.lightIds,
+                    strategy: .adaptive
+                )
+                print("✅ Применены цвета пресета '\(scene.name)' к комнате '\(targetRoom.name)'")
+            }
+        } catch {
+            print("❌ Ошибка применения цветов пресета: \(error.localizedDescription)")
+            self.error = error
         }
     }
     

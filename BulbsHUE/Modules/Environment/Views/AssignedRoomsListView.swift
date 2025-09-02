@@ -33,24 +33,11 @@ struct AssignedRoomsListView: View {
                 ForEach(rooms) { room in
                     // ✅ ИСПРАВЛЕНО: Используем правильный RoomControl с логикой управления
                     RoomControl(room: room)
-                    .contextMenu {
-                        // Изменение цвета всех ламп в комнате
-                        Button {
+                        .onLongPressGesture(minimumDuration: 1.0) {
                             nav.showEnvironmentBulbs(for: room)
-                        } label: {
-                            Label("Изменить цвет комнаты", systemImage: "paintpalette")
                         }
-                        
-                        // Контекстное меню для удаления комнаты
-                        Button(role: .destructive) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                onRemoveRoom(room.id)
-                            }
-                        } label: {
-                            Label("Remove Room", systemImage: "trash")
-                        }
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                   
+                    
                 }
             }
         }

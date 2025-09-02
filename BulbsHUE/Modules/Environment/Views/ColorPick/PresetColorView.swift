@@ -217,7 +217,7 @@ struct PresetColorView: View {
  
 }
 
-enum PresetColor: CaseIterable {
+enum PresetColorTab: CaseIterable {
     case statics
     case dynamic
 }
@@ -225,7 +225,7 @@ enum PresetColor: CaseIterable {
 @MainActor
 class PresetColorViewModel: ObservableObject {
     // MARK: - Published Properties
-    @Published var selectedTab: PresetColor = .statics
+    @Published var selectedTab: PresetColorTab = .statics
     @Published var brightness: Double = 50.0
     @Published var isFavorite: Bool = false
     

@@ -18,6 +18,8 @@ struct EnvironmentSceneEntity: Identifiable, Equatable {
     let filterType: EnvironmentFilterType
     let isFavorite: Bool
     var isSelected: Bool = false
+    /// Цвета пресета для ламп (максимум 5 цветов)
+    let presetColors: [PresetSceneColor]
     
     init(
         id: String = UUID().uuidString,
@@ -26,7 +28,8 @@ struct EnvironmentSceneEntity: Identifiable, Equatable {
         section: EnvironmentSection,
         filterType: EnvironmentFilterType,
         isFavorite: Bool = false,
-        isSelected: Bool = false
+        isSelected: Bool = false,
+        presetColors: [PresetSceneColor] = []
     ) {
         self.id = id
         self.name = name
@@ -35,6 +38,7 @@ struct EnvironmentSceneEntity: Identifiable, Equatable {
         self.filterType = filterType
         self.isFavorite = isFavorite
         self.isSelected = isSelected
+        self.presetColors = presetColors
     }
 }
 

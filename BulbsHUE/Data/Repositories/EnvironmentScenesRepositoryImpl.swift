@@ -58,7 +58,8 @@ final class EnvironmentScenesRepositoryImpl: EnvironmentScenesRepositoryProtocol
             section: currentScene.section,
             filterType: currentScene.filterType,
             isFavorite: !currentScene.isFavorite,
-            isSelected: currentScene.isSelected
+            isSelected: currentScene.isSelected,
+            presetColors: currentScene.presetColors
         )
         
         cachedScenes[index] = updatedScene
@@ -81,7 +82,8 @@ final class EnvironmentScenesRepositoryImpl: EnvironmentScenesRepositoryProtocol
                     section: scene.section,
                     filterType: scene.filterType,
                     isFavorite: scene.isFavorite,
-                    isSelected: false
+                    isSelected: false,
+                    presetColors: scene.presetColors
                 )
             }
         }
@@ -99,7 +101,8 @@ final class EnvironmentScenesRepositoryImpl: EnvironmentScenesRepositoryProtocol
             section: currentScene.section,
             filterType: currentScene.filterType,
             isFavorite: currentScene.isFavorite,
-            isSelected: true
+            isSelected: true,
+            presetColors: currentScene.presetColors
         )
         
         // Сохраняем изменения
