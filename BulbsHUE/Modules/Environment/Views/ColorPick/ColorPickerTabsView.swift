@@ -317,8 +317,8 @@ struct ColorPickerTabsView: View {
                 .adaptiveFrame(width: 356)
                
             }
-           Spacer()
-                .adaptiveFrame(height: 380)
+            Spacer()
+                 .adaptiveFrame(height: 380)
 //            // Выбранный цветовой маркер
 //            if let selectedColorItem = viewModel.selectedPalletColorItem {
 //                VStack(spacing: 8) {

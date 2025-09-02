@@ -346,6 +346,7 @@ struct EnvironmentBulbsView: View {
             }
         }
         .padding(.horizontal, 23)
+        .padding(.bottom, 350) // Добавляем отступ снизу для TabBar и Safe Area
     }
     }
 }
