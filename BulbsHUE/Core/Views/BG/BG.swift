@@ -27,6 +27,16 @@ struct BGLight: View {
     }
 }
 
+struct BGTop: View {
+    var body: some View {
+   Image("BGPresetItem")
+            .resizable()
+            .scaledToFill()
+            .frame(width: UIScreen.width, height: UIScreen.height)
+            .ignoresSafeArea(.all)
+    }
+}
+
 #Preview {
     BG()
 }
