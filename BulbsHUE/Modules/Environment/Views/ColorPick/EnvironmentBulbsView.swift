@@ -49,6 +49,30 @@ struct EnvironmentBulbsView: View {
                 sceneGrid
                     .adaptiveOffset(y: 262)
             }
+            
+            if true {
+                Button {
+                   
+                } label: {
+                    ZStack() {
+                        Image("BGPresetBulb")
+                            .resizable()
+                            .scaledToFit()
+                            .adaptiveFrame(width: 375, height: 240)
+                        
+                        Text("BULB")
+                            .font(Font.custom("DMSans-Bold", size: 16.5))
+                          .kerning(3)
+                          .multilineTextAlignment(.center)
+                          .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                          .textCase(.uppercase)
+                          .adaptiveOffset(x: 70,y: 22)
+                          .blur(radius: 0.5)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .adaptiveOffset(x: 50,y: 280)
+            }
         }
         .ignoresSafeArea(.all)
     }
