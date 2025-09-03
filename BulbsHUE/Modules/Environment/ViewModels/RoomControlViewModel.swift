@@ -467,8 +467,9 @@ final class RoomControlViewModel: ObservableObject {
     private func updateDynamicColor() {
         guard let room = currentRoom else { return }
         
-        // Получаем цвет из RoomColorStateService
+        // Получаем цвет из RoomColorStateService (теперь с персистентным хранением)
         dynamicColor = RoomColorStateService.shared.getBaseColor(for: room)
+        print("🎨 RoomControlViewModel: Обновлен динамический цвет для комнаты '\(room.name)'")
     }
     
     /// Обновить цвет комнаты на основе примененного пресета
@@ -481,6 +482,9 @@ final class RoomControlViewModel: ObservableObject {
             RoomColorStateService.shared.setRoomColor(room.id, color: dominantColor)
             // Обновляем локальный цвет
             dynamicColor = dominantColor
+            print("🎨 RoomControlViewModel: Обновлен цвет комнаты '\(room.name)' из пресета '\(sceneName)'")
+        } else {
+            print("⚠️ RoomControlViewModel: Не найден доминирующий цвет для пресета '\(sceneName)'")
         }
     }
     
@@ -490,6 +494,7 @@ final class RoomControlViewModel: ObservableObject {
         
         RoomColorStateService.shared.clearRoomState(room.id)
         dynamicColor = defaultWarmColor
+        print("🎨 RoomControlViewModel: Сброшен цвет для комнаты '\(room.name)' к дефолтному")
     }
 }
 
