@@ -50,7 +50,7 @@ struct EnvironmentBulbsView: View {
                     .adaptiveOffset(y: 262)
             }
             
-            if true {
+            if !true {
                 Button {
                    
                 } label: {
@@ -72,6 +72,67 @@ struct EnvironmentBulbsView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .adaptiveOffset(x: 50,y: 280)
+            }
+            
+            if true {
+//                bulbCenterView
+                ZStack{
+                    VStack {
+                        Rectangle()
+                          .foregroundColor(.clear)
+                          .adaptiveFrame( height: 1)
+                          .background(Color(red: 0.79, green: 1, blue: 1))
+                          .opacity(0.3)
+                          .adaptiveOffset(y: 8)
+                        Rectangle()
+                            .foregroundColor(.clear)
+                            .adaptiveFrame( height: 220)
+                            .background(Color(red: 0.01, green: 0.04, blue: 0.05).opacity(0.92))
+                            .shadow(color: .black.opacity(0.25), radius: 7.5, x: 0, y: -1)
+                    }
+                    
+                    Text("Bulb center")
+                      .font(Font.custom("DMSans-Regular", size: 12))
+                      .kerning(2.5)
+                      .multilineTextAlignment(.center)
+                      .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                      .opacity(0.6)
+                      .textCase(.uppercase)
+                      .adaptiveOffset(y: -75)
+                    
+                    Button {
+                        
+                    } label: {
+                        Image("Minimaze")
+                            .resizable()
+                            .scaledToFit()
+                            .adaptiveFrame(width: 48, height: 48)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .adaptiveOffset(x: 147,y: -75)
+                    
+                    VStack {
+                        HStack {
+                            CustomToggleForBulbCenter(isOn: .constant(true))
+                            Text("Bulb 1")
+                              .font(Font.custom("DM Sans", size: 12))
+                              .kerning(2.04)
+                              .multilineTextAlignment(.center)
+                              .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                              .opacity(0.6)
+                              .textCase(.uppercase)
+                        }
+                        
+                        HStack {
+                            CustomToggleForBulbCenter(isOn: .constant(true))
+                            CustomToggleForBulbCenter(isOn: .constant(true))
+                        }
+                    }
+                    
+                    
+                }
+                .adaptiveOffset(y: 293)
+
             }
         }
         .ignoresSafeArea(.all)
@@ -375,6 +436,14 @@ struct EnvironmentBulbsView: View {
     }
 }
 
+// MARK: - Bulb center
+
+private var bulbCenterView: some View {
+    ZStack{
+        
+    }
+}
+
 // MARK: - Scene Card
 
 /// Карточка отдельной сцены с круглым изображением
@@ -461,6 +530,34 @@ private struct SceneCard: View {
     EnvironmentBulbsView()
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())
-        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=120-2042&m=dev")!)
+        .compare(with: URL(string: "https://www.figma.com/design/7DwY12hUyQ1ruSTx7TWB01/Bulbs_HUE-NEW?node-id=130-4392&t=NNN8510Dw2zKtV1F-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
+}
+
+struct CustomToggleForBulbCenter: View {
+    @Binding var isOn: Bool
+
+    var body: some View {
+        ZStack {
+            // Фон переключателя
+            RoundedRectangle(cornerRadius: 100)
+                .fill(Color(red: 0.8, green: 0.49, blue: 0.92))
+                .adaptiveFrame(width: 72, height: 40)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 100)
+                        .stroke(Color.white.opacity(0.4), lineWidth: 0.5)
+                )
+
+            // Круглый переключатель
+            Circle()
+                .fill(Color.white)
+                .adaptiveFrame(width: 28, height: 28)
+                .adaptiveOffset(x: isOn ? 51 - 36 : -51 + 36) // смещение по состоянию
+                .animation(.easeInOut(duration: 0.2), value: isOn)
+        }
+        .adaptiveFrame(width: 72, height: 40)
+        .onTapGesture {
+            isOn.toggle()
+        }
+    }
 }
