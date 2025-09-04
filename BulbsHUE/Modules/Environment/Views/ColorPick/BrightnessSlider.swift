@@ -12,12 +12,24 @@ import Combine
 struct BrightnessSlider: View {
     @Binding var brightness: Double
     let color: Color
+    let title: String
     
+    // Колбэки для троттлинга/коммита (как в CustomSlider)
+    var onChange: ((Double) -> Void)? = nil
+    var onCommit: ((Double) -> Void)? = nil
     
-    init(brightness: Binding<Double>, color: Color = .white, title: String = "BRIGHTNESS, %") {
+    init(
+        brightness: Binding<Double>, 
+        color: Color = .white, 
+        title: String = "BRIGHTNESS, %",
+        onChange: ((Double) -> Void)? = nil,
+        onCommit: ((Double) -> Void)? = nil
+    ) {
         self._brightness = brightness
         self.color = color
-       
+        self.title = title
+        self.onChange = onChange
+        self.onCommit = onCommit
     }
     
     var body: some View {
@@ -62,6 +74,8 @@ struct BrightnessSlider: View {
                     // Обработка тапа для изменения яркости
                     let newBrightness = min(max((tapLocation.x / 332) * 100, 0), 100)
                     brightness = newBrightness
+                    // Вызываем onChange колбэк
+                    onChange?(newBrightness)
                 }
                 .gesture(
                     DragGesture()
@@ -69,6 +83,12 @@ struct BrightnessSlider: View {
                             // Обработка перетаскивания для изменения яркости
                             let newBrightness = min(max((value.location.x / 332) * 100, 0), 100)
                             brightness = newBrightness
+                            // Вызываем onChange колбэк для троттлинга
+                            onChange?(newBrightness)
+                        }
+                        .onEnded { _ in
+                            // Вызываем onCommit колбэк при завершении жеста
+                            onCommit?(brightness)
                         }
                 )
             }
