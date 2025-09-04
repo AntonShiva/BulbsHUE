@@ -8,6 +8,7 @@ import AppKit
 
 /// Главный ViewModel приложения
 /// Управляет состоянием подключения и координирует другие ViewModels
+@MainActor
 class AppViewModel: ObservableObject {
     
     // MARK: - Published Properties
@@ -94,9 +95,7 @@ class AppViewModel: ObservableObject {
         
         apiClient = HueAPIClient(bridgeIP: ip, dataPersistenceService: dataPersistenceService)
         
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
+        Task { @MainActor in
             print("🔄 Обновляем дочерние ViewModels...")
             self.lightsViewModel = LightsViewModel(apiClient: self.apiClient)
             self.scenesViewModel = ScenesViewModel(apiClient: self.apiClient)
@@ -138,7 +137,6 @@ class AppViewModel: ObservableObject {
         lightsViewModel.startEventStream()
         
         eventStreamCancellable = apiClient.connectToEventStream()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { _ in },
                 receiveValue: { [weak self] event in

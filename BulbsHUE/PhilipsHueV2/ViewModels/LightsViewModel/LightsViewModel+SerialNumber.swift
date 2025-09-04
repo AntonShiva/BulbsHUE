@@ -27,10 +27,9 @@ extension LightsViewModel {
         clearSerialNumberFoundLights()
         
         apiClient.addLightBySerialNumber(serialNumber)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         self?.isLoading = false
                         
                         if case .failure(let error) = completion {
@@ -43,7 +42,7 @@ extension LightsViewModel {
                 receiveValue: { [weak self] foundLights in
                     guard let self = self else { return }
                     
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
                         print("🔄 Обновляем UI с найденными лампами: \(foundLights.count)")
                         
                         self.isLoading = false

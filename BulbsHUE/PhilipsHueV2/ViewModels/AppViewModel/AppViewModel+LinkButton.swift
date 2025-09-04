@@ -163,7 +163,7 @@ extension AppViewModel {
         }
         
         URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if let error = error {
                     let nsError = error as NSError
                     if nsError.code == -1009 {

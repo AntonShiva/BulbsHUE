@@ -16,7 +16,6 @@ extension LightsViewModel {
         print("🔍 Запуск диагностики поиска ламп...")
         
         apiClient.runLightSearchDiagnostics()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { result in
                     if case .failure(let error) = result {

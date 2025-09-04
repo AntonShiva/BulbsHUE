@@ -436,7 +436,7 @@ extension DataPersistenceService {
         ]
         
         // Добавляем моковые лампы в сервис как назначенные в Environment
-        DispatchQueue.main.async {
+        Task { @MainActor in
             for light in mockLights {
                 mockService.saveLightData(light, isAssignedToEnvironment: true)
             }

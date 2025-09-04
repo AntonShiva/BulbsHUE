@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 /// ViewModel для управления правилами автоматизации
+@MainActor
 class RulesViewModel: ObservableObject {
     
     // MARK: - Published Properties
@@ -41,7 +42,6 @@ class RulesViewModel: ObservableObject {
         error = nil
         
         apiClient.getAllRules()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
@@ -62,7 +62,6 @@ class RulesViewModel: ObservableObject {
     ///   - enabled: Новое состояние
     func setRuleEnabled(_ rule: HueRule, enabled: Bool) {
         apiClient.setRuleEnabled(id: rule.id, enabled: enabled)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
@@ -345,7 +344,6 @@ class RulesViewModel: ObservableObject {
             conditions: conditions,
             actions: actions
         )
-        .receive(on: DispatchQueue.main)
         .sink(
             receiveCompletion: { [weak self] completion in
                 if case .failure(let error) = completion {

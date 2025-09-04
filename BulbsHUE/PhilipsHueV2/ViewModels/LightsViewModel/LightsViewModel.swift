@@ -17,6 +17,7 @@ import AppKit
 
 /// ViewModel для управления лампами
 /// Обрабатывает бизнес-логику и взаимодействие с API
+@MainActor
 class LightsViewModel: ObservableObject {
     
     // MARK: - Published Properties
@@ -121,7 +122,6 @@ class LightsViewModel: ObservableObject {
     /// Настраивает привязки данных
     internal func setupBindings() {
         apiClient.errorPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] error in
                 if case HueAPIError.notAuthenticated = error {
                     print("📝 Требуется авторизация - ждем настройки подключения")
@@ -187,10 +187,14 @@ class LightsViewModel: ObservableObject {
         refreshTimer = nil
         brightnessUpdateWorkItem?.cancel()
         colorUpdateWorkItem?.cancel()
-        stopEventStream()
-        lights.removeAll()
-        serialNumberFoundLights.removeAll()
-        lightsDict.removeAll()
+        
+        // Для MainActor изолированных методов и свойств используем Task
+        Task { @MainActor in
+            self.stopEventStream()
+            self.lights.removeAll()
+            self.serialNumberFoundLights.removeAll()
+            self.lightsDict.removeAll()
+        }
     }
 }
 

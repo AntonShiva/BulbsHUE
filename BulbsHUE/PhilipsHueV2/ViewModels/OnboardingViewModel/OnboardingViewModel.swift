@@ -8,6 +8,7 @@ import SwiftUI
 import AVFoundation
 import Combine
 
+@MainActor
 class OnboardingViewModel: ObservableObject {
     // MARK: - Published Properties
     
@@ -47,21 +48,18 @@ class OnboardingViewModel: ObservableObject {
     
     private func setupBindings() {
         appViewModel.$connectionStatus
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
                 self?.handleConnectionStatusChange(status)
             }
             .store(in: &cancellables)
         
         appViewModel.$discoveredBridges
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] bridges in
                 self?.handleDiscoveredBridges(bridges)
             }
             .store(in: &cancellables)
         
         appViewModel.$error
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] error in
                 if let hueError = error as? HueAPIError {
                     self?.handleConnectionError(hueError)
@@ -122,8 +120,9 @@ class OnboardingViewModel: ObservableObject {
         connectionError = nil
         currentStep = .connected
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.appViewModel.showSetup = false
+        Task { @MainActor in
+            try await Task.sleep(for: .seconds(1))
+            appViewModel.showSetup = false
         }
     }
     

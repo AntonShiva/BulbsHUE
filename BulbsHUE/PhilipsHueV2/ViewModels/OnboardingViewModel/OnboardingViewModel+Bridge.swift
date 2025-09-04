@@ -25,26 +25,26 @@ extension OnboardingViewModel {
         
         appViewModel.searchForBridges()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
-            guard let self = self else { return }
+        Task { @MainActor in
+            try await Task.sleep(nanoseconds: 15_000_000_000) // 15 seconds
             
-            if self.appViewModel.connectionStatus == .connected ||
-               self.appViewModel.connectionStatus == .needsAuthentication {
+            if appViewModel.connectionStatus == .connected ||
+               appViewModel.connectionStatus == .needsAuthentication {
                 print("✅ Мост уже найден и подключен")
                 return
             }
             
-            self.isSearchingBridges = false
+            isSearchingBridges = false
             
-            if let error = self.appViewModel.error as? HueAPIError,
+            if let error = appViewModel.error as? HueAPIError,
                case .localNetworkPermissionDenied = error {
                 print("🚫 Отказано в разрешении локальной сети")
-                self.showLocalNetworkAlert = true
-            } else if self.discoveredBridges.isEmpty {
+                showLocalNetworkAlert = true
+            } else if discoveredBridges.isEmpty {
                 print("❌ Мосты не найдены")
-                self.connectionError = "Мосты не найдены в локальной сети. Проверьте подключение."
+                connectionError = "Мосты не найдены в локальной сети. Проверьте подключение."
             } else {
-                print("✅ Найдено мостов: \(self.discoveredBridges.count)")
+                print("✅ Найдено мостов: \(discoveredBridges.count)")
             }
         }
     }

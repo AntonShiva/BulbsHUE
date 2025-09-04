@@ -28,7 +28,6 @@ extension LightsViewModel {
         print("🚀 Загружаем лампы через API v2 HTTPS с обновлением статуса...")
         
         apiClient.getAllLights()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
@@ -103,7 +102,11 @@ extension LightsViewModel {
         }
         
         brightnessUpdateWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
+        
+        Task { @MainActor in
+            try await Task.sleep(nanoseconds: 250_000_000) // 0.25 seconds
+            workItem.perform()
+        }
     }
     
     /// Немедленно устанавливает яркость (для commit после жеста)
@@ -128,7 +131,11 @@ extension LightsViewModel {
         }
         
         colorUpdateWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: workItem)
+        
+        Task { @MainActor in
+            try await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+            workItem.perform()
+        }
     }
     
     /// Устанавливает цвет лампы немедленно без debouncing (для пресетов)
@@ -176,7 +183,6 @@ extension LightsViewModel {
     /// Мигает лампой для визуального подтверждения
     func blinkLight(_ light: Light) {
         apiClient.blinkLight(id: light.id)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { completion in
                     if case .failure(let error) = completion {
@@ -238,7 +244,6 @@ extension LightsViewModel {
         print("🚀 Обновляем лампу \(lightId) через API v2 HTTPS...")
         
         apiClient.updateLight(id: lightId, state: optimizedState)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.activeRequests -= 1

@@ -25,7 +25,6 @@ extension AppViewModel {
         recreateAPIClient(with: bridge.internalipaddress)
         
         apiClient.getBridgeConfig()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure = completion {
@@ -66,7 +65,6 @@ extension AppViewModel {
         #endif
         
         apiClient.createUser(appName: appName, deviceName: deviceName)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { result in
                     if case .failure(let error) = result {
@@ -129,7 +127,6 @@ extension AppViewModel {
         print("🔐 Попытка создания пользователя на мосту: \(bridge.internalipaddress)")
         
         apiClient.createUserWithLocalNetworkCheck(appName: appName, deviceName: deviceName)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { result in
                     if case .failure(let error) = result {
@@ -186,7 +183,6 @@ extension AppViewModel {
         #endif
         
         apiClient.createUser(appName: appName, deviceName: deviceName)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { result in
                     if case .failure(let error) = result {
@@ -266,7 +262,6 @@ extension AppViewModel {
     /// Загружает информацию о возможностях моста
     func loadBridgeCapabilities() {
         apiClient.getBridgeCapabilities()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { _ in },
                 receiveValue: { [weak self] capabilities in

@@ -261,7 +261,8 @@ struct OnboardingView: View {
                     // Переходим к поиску (разрешение уже получено на первом экране)
                     viewModel.nextStep()
                     // Задержка для анимации перехода, затем начинаем поиск
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    Task { @MainActor in
+                        try await Task.sleep(for: .milliseconds(300))
                         viewModel.startBridgeSearch()
                     }
                 }
@@ -601,7 +602,8 @@ struct OnboardingView: View {
             // Автоматически начинаем процесс подключения при появлении экрана
             if viewModel.selectedBridge != nil && !viewModel.isConnecting {
                 // Небольшая задержка для плавности анимации
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Task { @MainActor in
+                    try await Task.sleep(for: .milliseconds(500))
                     viewModel.startBridgeConnection()
                 }
             }

@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 /// ViewModel для управления сенсорами
+@MainActor
 class SensorsViewModel: ObservableObject {
     
     // MARK: - Published Properties
@@ -48,7 +49,6 @@ class SensorsViewModel: ObservableObject {
         error = nil
         
         apiClient.getAllSensors()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
@@ -69,7 +69,6 @@ class SensorsViewModel: ObservableObject {
     private func setupEventHandling() {
         // Подписываемся на события от сенсоров
         apiClient.eventPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] event in
                 self?.handleSensorEvent(event)
             }

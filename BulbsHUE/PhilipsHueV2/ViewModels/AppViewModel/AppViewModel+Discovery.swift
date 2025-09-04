@@ -42,7 +42,6 @@ extension AppViewModel {
     /// Поиск моста по серийному номеру через N-UPnP
     func discoverBridge(bySerial serial: String, completion: @escaping (Bridge?) -> Void) {
         apiClient.discoverBridgesViaCloud()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { _ in },
                 receiveValue: { bridges in
@@ -109,7 +108,7 @@ extension AppViewModel {
     }
     
     private func handleDiscoveryResults(_ bridges: [Bridge]) {
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor in
             print("📋 Discovery завершен с результатом: \(bridges.count) мостов")
             for bridge in bridges {
                 print("  📡 Мост: \(bridge.id) at \(bridge.internalipaddress)")
@@ -123,27 +122,27 @@ extension AppViewModel {
                     acc.append(normalized)
                 }
             }
-            self?.discoveredBridges = deduped
+            self.discoveredBridges = deduped
             
             if bridges.isEmpty {
                 print("❌ Мосты не найдены")
-                self?.connectionStatus = .disconnected
+                self.connectionStatus = .disconnected
                 #if os(iOS)
-                self?.error = HueAPIError.localNetworkPermissionDenied
+                self.error = HueAPIError.localNetworkPermissionDenied
                 #endif
             } else {
                 print("✅ Найдено мостов (уникальных): \(deduped.count)")
-                self?.connectionStatus = .discovered
-                self?.error = nil
+                self.connectionStatus = .discovered
+                self.error = nil
             }
         }
     }
     
     private func handleLegacyDiscovery() {
         print("📱 Используем legacy discovery для iOS < 12.0")
-        DispatchQueue.main.async { [weak self] in
-            self?.connectionStatus = .disconnected
-            self?.error = HueAPIError.bridgeNotFound
+        Task { @MainActor in
+            self.connectionStatus = .disconnected
+            self.error = HueAPIError.bridgeNotFound
         }
     }
 }

@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 /// ViewModel для управления сценами освещения
+@MainActor
 class ScenesViewModel: ObservableObject {
     
     // MARK: - Published Properties
@@ -51,7 +52,6 @@ class ScenesViewModel: ObservableObject {
         error = nil
         
         apiClient.getAllScenes()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
@@ -77,7 +77,6 @@ class ScenesViewModel: ObservableObject {
         let targetGroupId = groupId ?? "0"
         
         apiClient.activateScene(sceneId: scene.id)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
@@ -99,7 +98,6 @@ class ScenesViewModel: ObservableObject {
     ///   - captureCurrentState: Захватить текущее состояние ламп
     func createScene(name: String, lights: [String], captureCurrentState: Bool = true) {
         apiClient.createScene(name: name, lights: lights)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
@@ -149,7 +147,6 @@ class ScenesViewModel: ObservableObject {
     private func setupEventHandling() {
         // Подписываемся на события изменения сцен
         apiClient.eventPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] event in
                 self?.handleEvent(event)
             }

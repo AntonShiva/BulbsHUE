@@ -9,6 +9,7 @@ import Foundation
 import Combine
 
 /// ViewModel для управления группами (комнатами и зонами)
+@MainActor
 class GroupsViewModel: ObservableObject {
     
     // MARK: - Published Properties
@@ -44,7 +45,6 @@ class GroupsViewModel: ObservableObject {
         error = nil
         
         apiClient.getAllGroups()
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
@@ -114,7 +114,6 @@ class GroupsViewModel: ObservableObject {
     /// Обновляет состояние группы
     private func updateGroup(_ groupId: String, state: GroupState) {
         apiClient.updateGroup(id: groupId, state: state)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {

@@ -36,7 +36,7 @@ class HueBridgeDiscovery {
             let normalized = bridges.map { b -> Bridge in
                 var nb = b; nb.id = b.normalizedId; return nb
             }
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 print("🎯 mDNS нашёл мост(ы): \(normalized.count). Раннее завершение поиска")
                 for bridge in normalized {
                     print("   - \(bridge.name ?? "Unknown") (\(bridge.id)) at \(bridge.internalipaddress)")
@@ -85,7 +85,7 @@ class HueBridgeDiscovery {
 
                     if completedTasks >= totalTasks {
                         self.isDiscovering = false
-                        DispatchQueue.main.async {
+                        Task { @MainActor in
                             print("🎯 Найдено всего уникальных мостов: \(allFoundBridges.count)")
                             for bridge in allFoundBridges {
                                 print("   - \(bridge.name ?? "Unknown") (\(bridge.id)) at \(bridge.internalipaddress)")
@@ -110,10 +110,12 @@ class HueBridgeDiscovery {
                         safeTaskCompletion(bridges: bridges, taskName: "Legacy IP Scan")
                     }
 
-                    DispatchQueue.global().asyncAfter(deadline: .now() + self.discoveryTimeout) { [weak self] in
-                        guard let self = self, self.isDiscovering else { return }
+                    Task { [weak self] in
+                        guard let self = self else { return }
+                        try await Task.sleep(nanoseconds: UInt64(self.discoveryTimeout * 1_000_000_000))
+                        guard self.isDiscovering else { return }
                         self.isDiscovering = false
-                        DispatchQueue.main.async {
+                        await MainActor.run {
                             print("⏰ Таймаут поиска, найдено мостов: \(allFoundBridges.count)")
                             if allFoundBridges.isEmpty {
                                 print("❌ Мосты не найдены")
@@ -146,7 +148,7 @@ class HueBridgeDiscovery {
                 completedTasks += 1
                 if completedTasks >= totalTasks {
                     isDiscovering = false
-                    DispatchQueue.main.async { completion(allFoundBridges) }
+                    Task { @MainActor in completion(allFoundBridges) }
                 }
             }
 

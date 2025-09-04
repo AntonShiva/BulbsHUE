@@ -21,7 +21,6 @@ extension LightsViewModel {
             
             // Сначала загружаем текущие лампы из API
             apiClient.getAllLights()
-                .receive(on: DispatchQueue.main)
                 .sink(
                     receiveCompletion: { [weak self] result in
                         if case .failure(let error) = result {
@@ -50,7 +49,6 @@ extension LightsViewModel {
                         
                         // Инициируем поиск новых ламп через существующий метод
                         self.apiClient.getAllLights()
-                            .receive(on: DispatchQueue.main)
                             .sink(
                                 receiveCompletion: { result in
                                     self.isLoading = false
@@ -100,7 +98,7 @@ extension LightsViewModel {
 //        let currentLightIds = Set(lights.map { $0.id })
 //        
 //        apiClient.getAllLights()
-//            .receive(on: DispatchQueue.main)
+//
 //            .sink(
 //                receiveCompletion: { [weak self] completion in
 //                    self?.isLoading = false
