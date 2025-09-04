@@ -103,7 +103,7 @@ struct EnvironmentBulbsView: View {
                 .adaptiveOffset(x: 50,y: 280)
             }
             
-            if !showBulbTogglesPanel {
+            if showBulbTogglesPanel {
                 bulbCenterView
                     .adaptiveOffset(y: 293)
                     .transition(.asymmetric(
@@ -497,7 +497,7 @@ struct EnvironmentBulbsView: View {
                 if lights.count >= 5 {
                     BulbToggleItem(light: lights[4]) // BULB 5 - под третьим
                         .environmentObject(appViewModel)
-                        .adaptiveOffset(x: -58, y: 55)
+                        .adaptiveOffset(x: -58, y: 90)
                 }
            
                 if lights.count >= 2 {
@@ -629,16 +629,28 @@ struct EnvironmentBulbsView: View {
         let light: Light
         @EnvironmentObject var appViewModel: AppViewModel
         
+        // ✅ Локальное состояние для мгновенного обновления UI
+        @State private var localToggleState: Bool
+        
+        // Инициализатор для установки начального состояния
+        init(light: Light) {
+            self.light = light
+            self._localToggleState = State(initialValue: light.on.on)
+        }
+        
         var body: some View {
             HStack(spacing: 12) {
                 CustomToggleForBulbCenter(
-                    isOn: Binding(
-                        get: { light.on.on },
-                        set: { newValue in
-                            toggleLight(newValue)
-                        }
-                    )
+                    isOn: $localToggleState
                 )
+                .onChange(of: localToggleState) { newValue in
+                    // При изменении локального состояния отправляем команду
+                    toggleLight(newValue)
+                }
+                .onChange(of: light.on.on) { newValue in
+                    // Синхронизируем с данными от API
+                    localToggleState = newValue
+                }
                 
                 Text(light.metadata.name.uppercased())
                     .font(Font.custom("DM Sans", size: 12))
@@ -716,7 +728,7 @@ struct EnvironmentBulbsView: View {
         type: .livingRoom,
         subtypeName: "Living Room",
         iconName: "living_room",
-        lightIds: ["mock_1", "mock_2", "mock_3", "mock_4"],
+        lightIds: ["mock_1", "mock_2", "mock_3", "mock_4", "mock_5"],
         isActive: true,
         createdAt: Date(),
         updatedAt: Date()
@@ -760,7 +772,7 @@ struct CustomToggleForBulbCenter: View {
             Circle()
                 .fill(Color.white)
                 .adaptiveFrame(width: 28, height: 28)
-                .adaptiveOffset(x: isOn ? 51 - 36 : -51 + 36) // смещение по состоянию
+                .adaptiveOffset(x: isOn ? 15 : -15) // смещение по состоянию
                 .animation(.easeInOut(duration: 0.2), value: isOn)
         }
         .adaptiveFrame(width: 72, height: 40)
