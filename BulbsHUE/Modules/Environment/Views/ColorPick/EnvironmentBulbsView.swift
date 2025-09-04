@@ -103,7 +103,7 @@ struct EnvironmentBulbsView: View {
                 .adaptiveOffset(x: 50,y: 280)
             }
             
-            if showBulbTogglesPanel {
+            if !showBulbTogglesPanel {
                 bulbCenterView
                     .adaptiveOffset(y: 293)
                     .transition(.asymmetric(
@@ -456,6 +456,7 @@ struct EnvironmentBulbsView: View {
             
             // Динамические тоглы ламп
             bulbTogglesContent
+                .adaptiveOffset(y: 94)
         }
     }
     
@@ -471,62 +472,65 @@ struct EnvironmentBulbsView: View {
                     .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
                     .opacity(0.6)
                     .textCase(.uppercase)
-            } else if roomLights.count <= 4 {
-                // Если ламп 4 или меньше - размещаем в фиксированной сетке
+            } else  {
+                // Если ламп 5 или меньше - размещаем в фиксированной сетке
                 fixedBulbTogglesGrid(lights: roomLights)
-            } else {
-                // Если ламп больше 4 - добавляем скролл
-                scrollableBulbToggles(lights: roomLights)
             }
         }
     }
     
-    /// Фиксированная сетка тоглов (до 4 ламп)
+    /// Фиксированная сетка тоглов (до 5 ламп)
     private func fixedBulbTogglesGrid(lights: [Light]) -> some View {
-        VStack(spacing: 16) {
-            if lights.count == 1 {
-                // Одна лампа в первой позиции (левый верхний угол)
-                HStack(spacing: 24) {
-                    BulbToggleItem(light: lights[0])
+        
+        
+        let content =  ZStack(alignment: .top) {
+                if lights.count >= 1 {
+                    BulbToggleItem(light: lights[0]) // BULB 1 - левый верхний
                         .environmentObject(appViewModel)
-                    Spacer().adaptiveFrame(width: 80) // Пустое место справа
+                        .adaptiveOffset(x: -58, y: -40)
                 }
-            } else if lights.count == 2 {
-                // Две лампы в первой строке
-                BulbToggleRow(lights: Array(lights[0...1]))
-            } else if lights.count == 3 {
-                // Две лампы в первой строке, одна во второй
-                BulbToggleRow(lights: Array(lights[0...1]))
-                HStack(spacing: 24) {
-                    BulbToggleItem(light: lights[2])
+                if lights.count >= 3 {
+                    BulbToggleItem(light: lights[2]) // BULB 3 - под первым
                         .environmentObject(appViewModel)
-                    Spacer().adaptiveFrame(width: 80) // Пустое место справа
+                        .adaptiveOffset(x: -58, y: 25)
                 }
-            } else if lights.count == 4 {
-                // Две строки по две лампы
-                BulbToggleRow(lights: Array(lights[0...1]))
-                BulbToggleRow(lights: Array(lights[2...3]))
-            }
-        }
+                if lights.count >= 5 {
+                    BulbToggleItem(light: lights[4]) // BULB 5 - под третьим
+                        .environmentObject(appViewModel)
+                        .adaptiveOffset(x: -58, y: 55)
+                }
+           
+                if lights.count >= 2 {
+                    BulbToggleItem(light: lights[1]) // BULB 2 - правый верхний
+                        .environmentObject(appViewModel)
+                        .adaptiveOffset(x: 112, y: -40)
+                }
+                if lights.count >= 4 {
+                    BulbToggleItem(light: lights[3]) // BULB 4 - под вторым
+                        .environmentObject(appViewModel)
+                        .adaptiveOffset(x: 112, y: 25)
+                }
+                
+            } .adaptiveOffset(y: -31)
+      
+            return AnyView(
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack {
+                        content
+                            .frame(maxWidth: .infinity)
+                            .adaptiveFrame(height: 240)
+                            
+                        Spacer()
+                            .adaptiveFrame(height: 110)
+                    }
+                       
+                }
+                    .adaptiveFrame(height: 280)
+            )
+        
     }
     
-    /// Скроллируемые тоглы (больше 4 ламп)
-    private func scrollableBulbToggles(lights: [Light]) -> some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 16) {
-                // Размещаем по 2 лампы в строке
-                ForEach(0..<(lights.count + 1) / 2, id: \.self) { rowIndex in
-                    let startIndex = rowIndex * 2
-                    let endIndex = min(startIndex + 1, lights.count - 1)
-                    let rowLights = Array(lights[startIndex...endIndex])
-                    
-                    BulbToggleRow(lights: rowLights)
-                }
-            }
-            .padding(.horizontal, 20)
-        }
-        .adaptiveFrame(height: 140) // Ограничиваем высоту для скролла
-    }
+ 
     
     /// Функция для получения ламп комнаты
     private func getRoomLights() -> [Light] {
@@ -534,9 +538,14 @@ struct EnvironmentBulbsView: View {
             return []
         }
         
-        return appViewModel.lightsViewModel.lights.filter { light in
-            targetRoom.lightIds.contains(light.id)
-        }
+        return appViewModel.lightsViewModel.lights
+            .filter { light in
+                targetRoom.lightIds.contains(light.id)
+            }
+            .sorted { light1, light2 in
+                // Сортируем по имени лампы для правильного порядка
+                light1.metadata.name < light2.metadata.name
+            }
     }
     
     // MARK: - Scene Card
@@ -612,23 +621,7 @@ struct EnvironmentBulbsView: View {
             }
         }
     }
-    
-    // MARK: - Bulb Toggle Row
-    
-    /// Строка с тоглами ламп (до 2 ламп в строке)
-    private struct BulbToggleRow: View {
-        let lights: [Light]
-        @EnvironmentObject var appViewModel: AppViewModel
-        
-        var body: some View {
-            HStack(spacing: 24) {
-                ForEach(lights, id: \.id) { light in
-                    BulbToggleItem(light: light)
-                }
-            }
-        }
-    }
-    
+   
     // MARK: - Bulb Toggle Item
     
     /// Отдельный тогл лампы с названием
@@ -637,7 +630,7 @@ struct EnvironmentBulbsView: View {
         @EnvironmentObject var appViewModel: AppViewModel
         
         var body: some View {
-            VStack(spacing: 8) {
+            HStack(spacing: 12) {
                 CustomToggleForBulbCenter(
                     isOn: Binding(
                         get: { light.on.on },
@@ -648,15 +641,18 @@ struct EnvironmentBulbsView: View {
                 )
                 
                 Text(light.metadata.name.uppercased())
-                    .font(Font.custom("DM Sans", size: 10))
-                    .kerning(1.5)
-                    .multilineTextAlignment(.center)
+                    .font(Font.custom("DM Sans", size: 12))
+               
+                    .kerning(2.04)
+                    .multilineTextAlignment(.leading)
                     .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                    .opacity(light.isReachable ? 0.6 : 0.3)
+                    .opacity(light.isReachable ? 0.7 : 0.3)
                     .textCase(.uppercase)
-                    .lineLimit(2)
-                    .adaptiveFrame(width: 80)
+                    .lineLimit(1)
+                    .frame(width: 100, alignment: .leading)
+                    .adaptiveOffset(x: -3)
             }
+            .adaptiveFrame(width: 184) // Общая ширина элемента (72 + 12 + 100)
         }
         
         /// Переключает состояние лампы
@@ -665,12 +661,77 @@ struct EnvironmentBulbsView: View {
         }
     }
 }
+
+
 // MARK: - Preview
 
 #Preview("Environment Bulbs View") {
     EnvironmentBulbsView()
         .environmentObject(NavigationManager.shared)
         .environmentObject(AppViewModel())
+}
+
+#Preview("Environment Bulbs with Mock Data") {
+    let appViewModel = AppViewModel()
+    let navigationManager = NavigationManager.shared
+    
+    // Создаем мок лампы
+    let mockLights = [
+        Light(
+            id: "mock_1",
+            metadata: LightMetadata(name: "BULB 1"),
+            on: OnState(on: true),
+            dimming: Dimming(brightness: 75)
+        ),
+        Light(
+            id: "mock_2", 
+            metadata: LightMetadata(name: "BULB 2"),
+            on: OnState(on: false),
+            dimming: Dimming(brightness: 50)
+        ),
+        Light(
+            id: "mock_3",
+            metadata: LightMetadata(name: "BULB 3"),
+            on: OnState(on: true),
+            dimming: Dimming(brightness: 100)
+        ),
+        Light(
+            id: "mock_4",
+            metadata: LightMetadata(name: "BULB 4"),
+            on: OnState(on: true),
+            dimming: Dimming(brightness: 100)
+        ),
+        Light(
+            id: "mock_5",
+            metadata: LightMetadata(name: "BULB 5"),
+            on: OnState(on: true),
+            dimming: Dimming(brightness: 100)
+        )
+    ]
+    
+    // Создаем мок комнату
+    let mockRoom = RoomEntity(
+        id: "mock_room",
+        name: "Test Room",
+        type: .livingRoom,
+        subtypeName: "Living Room",
+        iconName: "living_room",
+        lightIds: ["mock_1", "mock_2", "mock_3", "mock_4"],
+        isActive: true,
+        createdAt: Date(),
+        updatedAt: Date()
+    )
+    
+    return EnvironmentBulbsView()
+        .environmentObject(navigationManager)
+        .environmentObject(appViewModel)
+        .onAppear {
+            // Устанавливаем мок данные
+            appViewModel.lightsViewModel.lights = mockLights
+            navigationManager.targetRoomForColorChange = mockRoom
+        }
+        .compare(with: URL(string: "https://www.figma.com/design/7DwY12hUyQ1ruSTx7TWB01/Bulbs_HUE-NEW?node-id=130-4392&m=dev")!)
+        .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
 
 #Preview("Environment Bulbs with Figma") {
