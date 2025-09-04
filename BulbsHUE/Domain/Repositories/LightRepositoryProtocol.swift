@@ -11,7 +11,7 @@ import Combine
 // MARK: - Light Repository Protocol
 /// Протокол репозитория для работы с лампами
 /// Определяет контракт без зависимости от конкретной реализации
-protocol LightRepositoryProtocol {
+protocol LightRepositoryProtocol: AnyObject {
     // MARK: - Queries
     /// Получить все лампы
     func getAllLights() -> AnyPublisher<[LightEntity], Error>

@@ -9,7 +9,7 @@ import Foundation
 import Combine
 
 // MARK: - Room Repository Protocol
-protocol RoomRepositoryProtocol {
+protocol RoomRepositoryProtocol: AnyObject {
     // MARK: - Read Operations
     func getAllRooms() -> AnyPublisher<[RoomEntity], Error>
     func getRoom(by id: String) -> AnyPublisher<RoomEntity?, Error>

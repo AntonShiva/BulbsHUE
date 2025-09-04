@@ -10,6 +10,15 @@ import Foundation
 // MARK: - App State
 /// Глобальное состояние приложения
 struct AppState: Equatable {
+    nonisolated init() {
+        self.lights = AppLightState()
+        self.bridge = BridgeState()
+        self.scenes = AppSceneState()
+        self.groups = AppGroupState()
+        self.sensors = SensorState()
+        self.rules = RuleState()
+        self.ui = UIState()
+    }
     var lights: AppLightState = AppLightState()
     var bridge: BridgeState = BridgeState()
     var scenes: AppSceneState = AppSceneState()

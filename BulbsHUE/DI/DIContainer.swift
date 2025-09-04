@@ -131,23 +131,34 @@ final class DIContainer {
             LoggingMiddleware(),
             // AsyncMiddleware(container: self), // Будет добавлен позже
         ]
-        return AppStore(middlewares: middlewares)
+        let store = AppStore(middlewares: middlewares)
+        
+        // ✅ ДОБАВЛЕНО: Регистрируем в диагностике памяти
+        MemoryLeakDiagnosticsService.registerService(store, name: "AppStore")
+        
+        return store
     }()
     
     private lazy var _lightColorStateService: LightColorStateService = {
-        return LightColorStateService.shared
+        let service = LightColorStateService.shared
+        MemoryLeakDiagnosticsService.registerService(service, name: "LightColorStateService")
+        return service
     }()
     
     private lazy var _lightingColorService: LightingColorService = {
-        return LightingColorService(lightControlService: nil, appViewModel: nil)
+        let service = LightingColorService(lightControlService: nil, appViewModel: nil)
+        MemoryLeakDiagnosticsService.registerService(service, name: "LightingColorService")
+        return service
     }()
     
     private lazy var _presetColorService: PresetColorService = {
-        return PresetColorService(
+        let service = PresetColorService(
             lightingColorService: _lightingColorService,
             lightColorStateService: _lightColorStateService,
             appViewModel: nil
         )
+        MemoryLeakDiagnosticsService.registerService(service, name: "PresetColorService")
+        return service
     }()
     
     private var _presetColorServiceFactory: (() -> PresetColorService)?
@@ -155,16 +166,22 @@ final class DIContainer {
     // MARK: - Room Control Color Service
     
     private lazy var _roomControlColorService: RoomControlColorService = {
-        return RoomControlColorService()
+        let service = RoomControlColorService()
+        MemoryLeakDiagnosticsService.registerService(service, name: "RoomControlColorService")
+        return service
     }()
     
     private lazy var _roomColorStateService: RoomColorStateService = {
-        return RoomColorStateService.shared
+        let service = RoomColorStateService.shared
+        MemoryLeakDiagnosticsService.registerService(service, name: "RoomColorStateService")
+        return service
     }()
     
     // MARK: - Navigation
     private lazy var _navigationManager: NavigationManager = {
-        return NavigationManager.shared
+        let manager = NavigationManager.shared
+        MemoryLeakDiagnosticsService.registerService(manager, name: "NavigationManager")
+        return manager
     }()
     
     private init() {}
@@ -215,6 +232,9 @@ final class DIContainer {
     ///   - appViewModel: AppViewModel с данными Philips Hue API
     ///   - dataPersistenceService: Сервис для работы с локальными данными
     func configureLightRepository(appViewModel: AppViewModel, dataPersistenceService: DataPersistenceService) {
+        // ✅ ИСПРАВЛЕНО: Правильная очистка старых сервисов перед пересозданием
+        cleanupOldLightServices()
+        
         _lightRepositoryFactory = {
             PhilipsHueLightRepository(
                 appViewModel: appViewModel,
@@ -243,41 +263,101 @@ final class DIContainer {
             )
         }
         
-        // Принудительно пересоздаем PresetColorService с обновленными зависимостями
-        _presetColorService = _presetColorServiceFactory!()
+        // ✅ ИСПРАВЛЕНО: Безопасное пересоздание с проверкой
+        if let factory = _presetColorServiceFactory {
+            _presetColorService = factory()
+        }
         
-        // Принудительно пересоздаем зависимые Use Cases
-        _lightRepository = _lightRepositoryFactory!()
-        _toggleLightUseCase = ToggleLightUseCase(lightRepository: _lightRepository)
-        _updateLightBrightnessUseCase = UpdateLightBrightnessUseCase(lightRepository: _lightRepository)
-        _updateLightColorUseCase = UpdateLightColorUseCase(lightRepository: _lightRepository)
-        _addLightToEnvironmentUseCase = AddLightToEnvironmentUseCase(lightRepository: _lightRepository)
-        _getEnvironmentLightsUseCase = GetEnvironmentLightsUseCase(lightRepository: _lightRepository)
-        _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: _lightRepository)
+        // ✅ ИСПРАВЛЕНО: Безопасное пересоздание репозитория и Use Cases
+        if let lightRepoFactory = _lightRepositoryFactory {
+            _lightRepository = lightRepoFactory()
+            
+            // ✅ ДОБАВЛЕНО: Регистрируем репозиторий в диагностике памяти
+            // Временно отключено из-за проблемы с протокольным типом
+            // MemoryLeakDiagnosticsService.registerRepository(_lightRepository, name: "PhilipsHueLightRepository")
+            
+            recreateLightUseCases(with: _lightRepository, appViewModel: appViewModel)
+        }
+    }
+    
+    // MARK: - Private Cleanup Methods
+    
+    /// Очистка старых сервисов связанных с лампами перед пересозданием
+    private func cleanupOldLightServices() {
+        print("🧹 DIContainer: Очистка старых сервисов перед пересозданием")
+        
+        // Обнуляем фабрики для принудительного пересоздания
+        _presetColorServiceFactory = nil
+        _lightRepositoryFactory = nil
+        
+        print("✅ DIContainer: Старые сервисы очищены")
+    }
+    
+    /// Пересоздание Use Cases связанных с лампами
+    private func recreateLightUseCases(with lightRepository: LightRepositoryProtocol, appViewModel: AppViewModel) {
+        print("🔄 DIContainer: Пересоздание Light Use Cases")
+        
+        _toggleLightUseCase = ToggleLightUseCase(lightRepository: lightRepository)
+        _updateLightBrightnessUseCase = UpdateLightBrightnessUseCase(lightRepository: lightRepository)
+        _updateLightColorUseCase = UpdateLightColorUseCase(lightRepository: lightRepository)
+        _addLightToEnvironmentUseCase = AddLightToEnvironmentUseCase(lightRepository: lightRepository)
+        _getEnvironmentLightsUseCase = GetEnvironmentLightsUseCase(lightRepository: lightRepository)
+        _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: lightRepository)
         _updateLightTypeUseCase = UpdateLightTypeUseCase(dataPersistenceService: _dataPersistenceService)
         _updateLightNameUseCase = UpdateLightNameUseCase(
             dataPersistenceService: _dataPersistenceService,
             hueAPIClient: appViewModel.apiClient
         )
-        _deleteLightUseCase = DeleteLightUseCase(lightRepository: _lightRepository, dataPersistenceService: _dataPersistenceService)
+        _deleteLightUseCase = DeleteLightUseCase(lightRepository: lightRepository, dataPersistenceService: _dataPersistenceService)
+        
+        print("✅ DIContainer: Light Use Cases пересозданы")
     }
     
     /// Настройка реального RoomRepository с зависимостями
     /// - Parameter dataPersistenceService: Сервис для работы с SwiftData
     func configureRoomRepository(dataPersistenceService: DataPersistenceService) {
+        // ✅ ИСПРАВЛЕНО: Правильная очистка старых сервисов перед пересозданием
+        cleanupOldRoomServices()
+        
         _roomRepositoryFactory = {
             RoomRepositoryImpl(modelContext: dataPersistenceService.container.mainContext)
         }
         
-        // Принудительно пересоздаем зависимые Use Cases
-        _roomRepository = _roomRepositoryFactory!()
-        _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: _roomRepository, lightRepository: lightRepository)
-        _getRoomsUseCase = GetRoomsUseCase(roomRepository: _roomRepository)
-        _deleteRoomUseCase = DeleteRoomUseCase(roomRepository: _roomRepository)
-        _moveLightBetweenRoomsUseCase = MoveLightBetweenRoomsUseCase(roomRepository: _roomRepository, lightRepository: lightRepository)
-        _removeLightFromRoomUseCase = RemoveLightFromRoomUseCase(roomRepository: _roomRepository)
-        _updateRoomUseCase = UpdateRoomUseCase(roomRepository: _roomRepository)
-        _updateRoomNameUseCase = UpdateRoomNameUseCase(roomRepository: _roomRepository)
+        // ✅ ИСПРАВЛЕНО: Безопасное пересоздание репозитория и Use Cases
+        if let roomRepoFactory = _roomRepositoryFactory {
+            _roomRepository = roomRepoFactory()
+            
+            // ✅ ДОБАВЛЕНО: Регистрируем репозиторий в диагностике памяти
+            // Временно отключено из-за проблемы с протокольным типом
+            // MemoryLeakDiagnosticsService.registerRepository(_roomRepository, name: "RoomRepositoryImpl")
+            
+            recreateRoomUseCases(with: _roomRepository)
+        }
+    }
+    
+    /// Очистка старых сервисов связанных с комнатами перед пересозданием
+    private func cleanupOldRoomServices() {
+        print("🧹 DIContainer: Очистка старых Room сервисов перед пересозданием")
+        
+        // Обнуляем фабрики для принудительного пересоздания
+        _roomRepositoryFactory = nil
+        
+        print("✅ DIContainer: Старые Room сервисы очищены")
+    }
+    
+    /// Пересоздание Use Cases связанных с комнатами
+    private func recreateRoomUseCases(with roomRepository: RoomRepositoryProtocol) {
+        print("🔄 DIContainer: Пересоздание Room Use Cases")
+        
+        _createRoomWithLightsUseCase = CreateRoomWithLightsUseCase(roomRepository: roomRepository, lightRepository: lightRepository)
+        _getRoomsUseCase = GetRoomsUseCase(roomRepository: roomRepository)
+        _deleteRoomUseCase = DeleteRoomUseCase(roomRepository: roomRepository)
+        _moveLightBetweenRoomsUseCase = MoveLightBetweenRoomsUseCase(roomRepository: roomRepository, lightRepository: lightRepository)
+        _removeLightFromRoomUseCase = RemoveLightFromRoomUseCase(roomRepository: roomRepository)
+        _updateRoomUseCase = UpdateRoomUseCase(roomRepository: roomRepository)
+        _updateRoomNameUseCase = UpdateRoomNameUseCase(roomRepository: roomRepository)
+        
+        print("✅ DIContainer: Room Use Cases пересозданы")
     }
 }
 

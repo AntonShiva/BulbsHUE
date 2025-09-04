@@ -24,12 +24,27 @@ final class RoomRepositoryImpl: RoomRepositoryProtocol {
     /// Subjects для отдельных комнат (кэш)
     private var roomSubjects: [String: CurrentValueSubject<RoomEntity?, Never>] = [:]
     
+    /// Отслеживание времени доступа к subjects для автоматической очистки
+    private var roomSubjectsAccess: [String: Date] = [:]
+    
+    /// Cancellables для stream операций
+    private var streamCancellables = Set<AnyCancellable>()
+    
+    /// Максимальное количество активных room subjects (предотвращение утечек памяти)
+    private let maxRoomSubjects = 50
+    
+    /// Время жизни неиспользуемых subjects (5 минут)
+    private let subjectLifetime: TimeInterval = 300
+    
     // MARK: - Initialization
     
     /// Инициализация с контекстом SwiftData
     /// - Parameter modelContext: Контекст модели для работы с данными
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+        
+        // ✅ ДОБАВЛЕНО: Регистрируем репозиторий в диагностике памяти
+        MemoryLeakDiagnosticsService.registerRepository(self, name: "RoomRepositoryImpl_\(ObjectIdentifier(self).hashValue)")
         
         // Загружаем начальные данные для реактивного стрима
         loadInitialRooms()
@@ -316,6 +331,14 @@ final class RoomRepositoryImpl: RoomRepositoryProtocol {
     /// - Parameter id: ID комнаты
     /// - Returns: Publisher с комнатой или nil
     func roomStream(for id: String) -> AnyPublisher<RoomEntity?, Never> {
+        // ✅ ИСПРАВЛЕНО: Обновляем время доступа для трекинга
+        roomSubjectsAccess[id] = Date()
+        
+        // ✅ ИСПРАВЛЕНО: Проверяем лимит subjects и очищаем при необходимости
+        if roomSubjects.count >= maxRoomSubjects {
+            cleanupUnusedSubjects()
+        }
+        
         if let existingSubject = roomSubjects[id] {
             return existingSubject.eraseToAnyPublisher()
         }
@@ -324,14 +347,15 @@ final class RoomRepositoryImpl: RoomRepositoryProtocol {
         let newSubject = CurrentValueSubject<RoomEntity?, Never>(nil)
         roomSubjects[id] = newSubject
         
-        // Загружаем текущее значение
-        _ = getRoom(by: id)
+        // ✅ ИСПРАВЛЕНО: Правильное сохранение подписки в cancellables
+        getRoom(by: id)
             .sink(
                 receiveCompletion: { _ in },
                 receiveValue: { room in
                     newSubject.send(room)
                 }
             )
+            .store(in: &streamCancellables)
         
         return newSubject.eraseToAnyPublisher()
     }
@@ -388,7 +412,7 @@ final class RoomRepositoryImpl: RoomRepositoryProtocol {
     
     /// Загрузить начальные данные для реактивных стримов
     private func loadInitialRooms() {
-        _ = getAllRooms()
+        getAllRooms()
             .sink(
                 receiveCompletion: { completion in
                     if case .failure(let error) = completion {
@@ -399,28 +423,31 @@ final class RoomRepositoryImpl: RoomRepositoryProtocol {
                     // Данные уже обновлены в getAllRooms()
                 }
             )
+            .store(in: &streamCancellables)
     }
     
     /// Обновить все реактивные стримы
     private func refreshReactiveStreams() {
         // Обновляем общий стрим комнат
-        _ = getAllRooms()
+        getAllRooms()
             .sink(
                 receiveCompletion: { _ in },
                 receiveValue: { _ in
                     // Данные уже обновлены в getAllRooms()
                 }
             )
+            .store(in: &streamCancellables)
         
         // Обновляем стримы отдельных комнат
         for (roomId, _) in roomSubjects {
-            _ = getRoom(by: roomId)
+            getRoom(by: roomId)
                 .sink(
                     receiveCompletion: { _ in },
                     receiveValue: { room in
                         self.updateRoomSubject(for: roomId, with: room)
                     }
                 )
+                .store(in: &streamCancellables)
         }
     }
     
@@ -431,7 +458,50 @@ final class RoomRepositoryImpl: RoomRepositoryProtocol {
     private func updateRoomSubject(for roomId: String, with room: RoomEntity?) {
         if let subject = roomSubjects[roomId] {
             subject.send(room)
+            // Обновляем время доступа
+            roomSubjectsAccess[roomId] = Date()
         }
+    }
+    
+    // MARK: - Memory Management
+    
+    /// Очистка неиспользуемых subjects для предотвращения утечек памяти
+    private func cleanupUnusedSubjects() {
+        let cutoffDate = Date().addingTimeInterval(-subjectLifetime)
+        let beforeCount = roomSubjects.count
+        
+        // Находим комнаты для удаления
+        let roomsToRemove = roomSubjectsAccess.compactMap { (roomId, lastAccess) in
+            lastAccess < cutoffDate ? roomId : nil
+        }
+        
+        // Завершаем subjects перед удалением
+        for roomId in roomsToRemove {
+            roomSubjects[roomId]?.send(completion: .finished)
+            roomSubjects.removeValue(forKey: roomId)
+            roomSubjectsAccess.removeValue(forKey: roomId)
+        }
+        
+        print("🧹 RoomRepository: Очищено \(roomsToRemove.count) неиспользуемых subjects (было: \(beforeCount), стало: \(roomSubjects.count))")
+    }
+    
+    // MARK: - Cleanup
+    
+    /// ✅ ДОБАВЛЕНО: Правильная очистка ресурсов при деинициализации
+    deinit {
+        print("♻️ RoomRepositoryImpl деинициализация - очистка \(roomSubjects.count) subjects")
+        
+        // Завершаем все subjects
+        roomsSubject.send(completion: .finished)
+        roomSubjects.values.forEach { $0.send(completion: .finished) }
+        roomSubjects.removeAll()
+        roomSubjectsAccess.removeAll()
+        
+        // Отменяем все подписки
+        streamCancellables.forEach { $0.cancel() }
+        streamCancellables.removeAll()
+        
+        print("✅ RoomRepositoryImpl ресурсы очищены")
     }
 }
 

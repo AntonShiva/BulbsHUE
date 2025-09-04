@@ -62,6 +62,9 @@ final class DataPersistenceService: ObservableObject {
             
             // Загружаем начальные данные
             loadAssignedLights()
+            
+            // ✅ ДОБАВЛЕНО: Регистрируем сервис в диагностике памяти после инициализации
+            MemoryLeakDiagnosticsService.registerService(self, name: "DataPersistenceService")
         } catch {
             fatalError("❌ Не удалось инициализировать ModelContainer: \(error)")
         }
