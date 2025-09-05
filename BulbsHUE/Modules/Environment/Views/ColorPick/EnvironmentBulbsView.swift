@@ -25,6 +25,11 @@ struct EnvironmentBulbsView: View {
     /// Состояние показа щита тоглов ламп
     @State private var showBulbTogglesPanel = false
     
+    /// Определяет, пришел ли пользователь из контрола комнаты (true) или из настроек лампы (false)
+    private var isFromRoomControl: Bool {
+        nav.targetRoomForColorChange != nil
+    }
+    
     
     
     var body: some View {
@@ -53,57 +58,61 @@ struct EnvironmentBulbsView: View {
                     .adaptiveOffset(y: 262)
             }
             
-            if showBulbTogglesPanel {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showBulbTogglesPanel = false
+            // Ярлык BULB отображается только если пришли из контрола комнаты
+            if isFromRoomControl {
+                if showBulbTogglesPanel {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showBulbTogglesPanel = false
+                        }
+                    } label: {
+                        ZStack() {
+                            Image("BGPresetBulb")
+                                .resizable()
+                                .scaledToFit()
+                                .adaptiveFrame(width: 375, height: 240)
+                            
+                            Text("BULB")
+                                .font(Font.custom("DMSans-Bold", size: 16.5))
+                                .kerning(3)
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                .textCase(.uppercase)
+                                .adaptiveOffset(x: 70,y: 22)
+                                .blur(radius: 0.5)
+                        }
                     }
-                } label: {
-                    ZStack() {
-                        Image("BGPresetBulb")
-                            .resizable()
-                            .scaledToFit()
-                            .adaptiveFrame(width: 375, height: 240)
-                        
-                        Text("BULB")
-                            .font(Font.custom("DMSans-Bold", size: 16.5))
-                            .kerning(3)
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                            .textCase(.uppercase)
-                            .adaptiveOffset(x: 70,y: 22)
-                            .blur(radius: 0.5)
+                    .buttonStyle(PlainButtonStyle())
+                    .adaptiveOffset(x: 50,y: 280)
+                } else {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showBulbTogglesPanel = true
+                        }
+                    } label: {
+                        ZStack() {
+                            Image("BGPresetBulb")
+                                .resizable()
+                                .scaledToFit()
+                                .adaptiveFrame(width: 375, height: 240)
+                            
+                            Text("BULB")
+                                .font(Font.custom("DMSans-Bold", size: 16.5))
+                                .kerning(3)
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
+                                .textCase(.uppercase)
+                                .adaptiveOffset(x: 70,y: 22)
+                                .blur(radius: 0.5)
+                        }
                     }
+                    .buttonStyle(PlainButtonStyle())
+                    .adaptiveOffset(x: 50,y: 280)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .adaptiveOffset(x: 50,y: 280)
-            } else {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showBulbTogglesPanel = true
-                    }
-                } label: {
-                    ZStack() {
-                        Image("BGPresetBulb")
-                            .resizable()
-                            .scaledToFit()
-                            .adaptiveFrame(width: 375, height: 240)
-                        
-                        Text("BULB")
-                            .font(Font.custom("DMSans-Bold", size: 16.5))
-                            .kerning(3)
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(Color(red: 0.79, green: 1, blue: 1))
-                            .textCase(.uppercase)
-                            .adaptiveOffset(x: 70,y: 22)
-                            .blur(radius: 0.5)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                .adaptiveOffset(x: 50,y: 280)
             }
             
-            if showBulbTogglesPanel {
+            // Панель BULB CENTER также отображается только если пришли из контрола комнаты
+            if isFromRoomControl && showBulbTogglesPanel {
                 bulbCenterView
                     .adaptiveOffset(y: 293)
                     .transition(.asymmetric(
