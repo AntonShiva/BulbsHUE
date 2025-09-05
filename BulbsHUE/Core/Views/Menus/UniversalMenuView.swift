@@ -11,8 +11,8 @@ import Combine
 /// Универсальное меню настроек для ламп и комнат
 /// Этот компонент обеспечивает единообразный интерфейс меню для разных типов элементов
 struct UniversalMenuView: View {
-    @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var dataPersistenceService: DataPersistenceService
+    @Environment(NavigationManager.self) private var nav
+    @Environment(DataPersistenceService.self) private var dataPersistenceService
     
     /// Состояние для управления переходом к экрану переименования
     @State private var showRenameView: Bool = false

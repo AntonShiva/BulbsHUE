@@ -9,11 +9,11 @@ import SwiftUI
 
 struct AddNewRoom: View {
     // MARK: - Environment Dependencies
-    @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var appViewModel: AppViewModel
+    @Environment(NavigationManager.self) private var nav
+    @Environment(AppViewModel.self) private var appViewModel
     
     // MARK: - ViewModel (создается с правильными зависимостями)
-    @StateObject private var viewModel = AddNewRoomViewModel()
+    @State private var viewModel = AddNewRoomViewModel()
     
     var body: some View {
         ZStack {

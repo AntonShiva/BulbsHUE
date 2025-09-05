@@ -20,7 +20,7 @@ struct MenuItemRooms: View {
     /// Базовый цвет для фона компонента
     let baseColor: Color
     
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(NavigationManager.self) private var nav
     
     /// Набор cancellables для хранения подписок Combine
     @State private var cancellables = Set<AnyCancellable>()
@@ -128,7 +128,7 @@ struct MenuItemRooms: View {
         bulbCount: 5, 
         baseColor: .cyan
     )
-    .environmentObject(NavigationManager.shared)
+    .environment(NavigationManager.shared)
 }
 
 #Preview("Room with 2 bulbs") {
@@ -139,7 +139,7 @@ struct MenuItemRooms: View {
         bulbCount: 2, 
         baseColor: .orange
     )
-    .environmentObject(NavigationManager.shared)
+    .environment(NavigationManager.shared)
 }
 
 #Preview("Empty room") {
@@ -150,5 +150,5 @@ struct MenuItemRooms: View {
         bulbCount: 0, 
         baseColor: .green
     )
-    .environmentObject(NavigationManager.shared)
+    .environment(NavigationManager.shared)
 }

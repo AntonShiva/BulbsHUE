@@ -13,9 +13,9 @@ import Combine
 struct ItemControl: View {
     // MARK: - Environment Objects
     /// Основной ViewModel приложения для доступа к сервисам
-    @EnvironmentObject var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     /// Навигационный менеджер для управления переходами
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(NavigationManager.self) private var nav
     
     // MARK: - Properties
     

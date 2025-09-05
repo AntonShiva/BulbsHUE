@@ -9,16 +9,16 @@ import SwiftUI
 import Combine
 
 struct PresetColorView: View {
-    @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var appViewModel: AppViewModel
-    @StateObject private var viewModel: PresetColorViewModel
+    @Environment(NavigationManager.self) private var nav
+    @Environment(AppViewModel.self) private var appViewModel
+    @State private var viewModel: PresetColorViewModel
     
     // Принимаем сцену для редактирования
     let scene: EnvironmentSceneEntity?
     
     init(scene: EnvironmentSceneEntity? = nil) {
         self.scene = scene
-        self._viewModel = StateObject(wrappedValue: PresetColorViewModel(scene: scene))
+        self._viewModel = State(initialValue: PresetColorViewModel(scene: scene))
     }
    
     var body: some View {

@@ -8,21 +8,25 @@
 import Foundation
 import Combine
 import SwiftUI
+import Observation
 
 /// ViewModel для управления комнатами в Environment
 /// Следует принципам MVVM и SOLID - Single Responsibility Principle
+/// ✅ ОБНОВЛЕНО: Мигрировано на @Observable
 @MainActor
-final class RoomsViewModel: ObservableObject {
-    // MARK: - Published Properties
+@Observable
+final class RoomsViewModel {
+    // MARK: - Observable Properties
     
+    /// ✅ ОБНОВЛЕНО: Убрали @Published - @Observable отслеживает автоматически
     /// Список созданных комнат
-    @Published var rooms: [RoomEntity] = []
+    var rooms: [RoomEntity] = []
     
     /// Статус загрузки комнат
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
     
     /// Ошибка загрузки комнат
-    @Published var error: Error?
+    var error: Error?
     
     // MARK: - Private Properties
     

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import Observation
 
 
 // MARK: - Navigation Route
@@ -32,7 +33,6 @@ enum Router: Equatable {
     
     // Development
     case development              // Development dashboard
-    case migrationDashboard       // Migration progress dashboard
     
     case addRoom
 }
@@ -41,37 +41,39 @@ enum EnvironmentTab {
     case bulbs, rooms
 }
 
-class NavigationManager: ObservableObject {
-    @Published var currentRoute: Router = .environment
-    @Published var еnvironmentTab: EnvironmentTab = .bulbs
+/// ✅ ОБНОВЛЕНО: Мигрировано на @Observable
+@Observable
+class NavigationManager {
+    var currentRoute: Router = .environment
+    var еnvironmentTab: EnvironmentTab = .bulbs
     
     // Переменная для отслеживания состояний в AddNewBulb
-    @Published var isSearching: Bool = false
-    @Published var showSelectCategories: Bool = false
+    var isSearching: Bool = false
+    var showSelectCategories: Bool = false
     /// Флаг показа TabBar
-    @Published var isTabBarVisible: Bool = true
+    var isTabBarVisible: Bool = true
     
     // Выбранная лампа для настройки категории
-    @Published var selectedLight: Light? = nil
+    var selectedLight: Light? = nil
     
     // Выбранная лампа для показа MenuView
-    @Published var selectedLightForMenu: Light? = nil
+    var selectedLightForMenu: Light? = nil
     
     // Выбранная комната для показа MenuView
-    @Published var selectedRoomForMenu: RoomEntity? = nil
+    var selectedRoomForMenu: RoomEntity? = nil
     
     // Выбранная сцена для редактирования в PresetColorView
-    @Published var selectedSceneForEdit: EnvironmentSceneEntity? = nil
+    var selectedSceneForEdit: EnvironmentSceneEntity? = nil
     
     // Целевая лампа или комната для изменения цвета в EnvironmentBulbsView
-    @Published var targetLightForColorChange: Light? = nil
-    @Published var targetRoomForColorChange: RoomEntity? = nil
+    var targetLightForColorChange: Light? = nil
+    var targetRoomForColorChange: RoomEntity? = nil
     
     // Тип поиска ламп
-    @Published var searchType: SearchType = .network
+    var searchType: SearchType = .network
     
     // Введенный серийный номер
-    @Published var enteredSerialNumber: String? = nil
+    var enteredSerialNumber: String? = nil
     
     enum SearchType {
         case network        // Автоматический поиск в сети
@@ -120,7 +122,7 @@ class NavigationManager: ObservableObject {
                 currentRoute = .environmentBulbs
             case .menuView:
                 currentRoute = .environment
-            case .development, .migrationDashboard:
+            case .development:
                 currentRoute = .environment
             default:
                 currentRoute = .environment

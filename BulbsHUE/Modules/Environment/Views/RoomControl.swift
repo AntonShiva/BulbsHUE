@@ -12,8 +12,8 @@ import Combine
 /// Аналогично ItemControl, но для комнат
 struct RoomControl: View {
     // MARK: - Environment Objects
-    @EnvironmentObject var appViewModel: AppViewModel
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(NavigationManager.self) private var nav
     
     // MARK: - Properties
     
@@ -21,7 +21,7 @@ struct RoomControl: View {
     let room: RoomEntity
     
     /// Изолированная ViewModel для этой конкретной комнаты
-    @StateObject private var roomControlViewModel: RoomControlViewModel
+    @State private var roomControlViewModel: RoomControlViewModel
     
     // MARK: - Initialization
     
@@ -31,7 +31,7 @@ struct RoomControl: View {
         self.room = room
         
         // Создаем изолированную ViewModel для этой комнаты
-        self._roomControlViewModel = StateObject(wrappedValue: RoomControlViewModel.createIsolated())
+        self._roomControlViewModel = State(initialValue: RoomControlViewModel.createIsolated())
     }
     
     // MARK: - Body
@@ -122,6 +122,6 @@ struct RoomControl: View {
     )
     
     RoomControl(room: mockRoom)
-        .environmentObject(AppViewModel())
-        .environmentObject(NavigationManager.shared)
+        .environment(AppViewModel())
+        .environment(NavigationManager.shared)
 }

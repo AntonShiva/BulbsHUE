@@ -16,8 +16,8 @@ import Combine
 /// Экран выбора окружающих сцен освещения
 /// Отображает коллекцию природных сцен для настройки освещения
 struct EnvironmentBulbsView: View {
-    @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var appViewModel: AppViewModel
+    @Environment(NavigationManager.self) private var nav
+    @Environment(AppViewModel.self) private var appViewModel
     
     /// ViewModel для управления состоянием экрана
     @StateObject private var viewModel = EnvironmentBulbsViewModel()

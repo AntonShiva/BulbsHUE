@@ -9,8 +9,8 @@ import SwiftUI
 import Combine
 
 struct SearchResultsSheet: View {
-    @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var appViewModel: AppViewModel
+    @Environment(NavigationManager.self) private var nav
+    @Environment(AppViewModel.self) private var appViewModel
     
     var lightsViewModel: LightsViewModel {
         appViewModel.lightsViewModel

@@ -9,18 +9,22 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Combine
+import Observation
 
 /// Сервис для управления персистентным хранением данных через SwiftData
 /// Следует принципам SOLID и обеспечивает изоляцию данных
-final class DataPersistenceService: ObservableObject {
+/// ✅ ОБНОВЛЕНО: Мигрировано на @Observable для лучшей производительности
+@Observable
+final class DataPersistenceService {
     
-    // MARK: - Published Properties
+    // MARK: - Observable Properties
     
+    /// ✅ ОБНОВЛЕНО: Убрали @Published - @Observable отслеживает автоматически
     /// Список ламп назначенных в Environment (для реактивного обновления UI)
-    @Published var assignedLights: [Light] = []
+    var assignedLights: [Light] = []
     
     /// Статус операций с данными
-    @Published var isUpdating: Bool = false
+    var isUpdating: Bool = false
     
     // MARK: - Properties
     

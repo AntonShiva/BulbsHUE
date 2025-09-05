@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Observation
 #if canImport(UIKit)
 import UIKit
 #else
@@ -8,15 +9,18 @@ import AppKit
 
 /// Главный ViewModel приложения
 /// Управляет состоянием подключения и координирует другие ViewModels
+/// ✅ ОБНОВЛЕНО: Мигрировано на @Observable
 @MainActor
-class AppViewModel: ObservableObject {
+@Observable
+class AppViewModel {
     
-    // MARK: - Published Properties
+    // MARK: - Observable Properties
     
-    @Published var connectionStatus: ConnectionStatus = .disconnected
-    @Published var discoveredBridges: [Bridge] = []
-    @Published var currentBridge: Bridge?
-    @Published var applicationKey: String? {
+    /// ✅ ОБНОВЛЕНО: Убрали @Published - @Observable отслеживает автоматически
+    var connectionStatus: ConnectionStatus = .disconnected
+    var discoveredBridges: [Bridge] = []
+    var currentBridge: Bridge?
+    var applicationKey: String? {
         didSet {
             if let key = applicationKey {
                 UserDefaults.standard.set(key, forKey: "HueApplicationKey")
@@ -24,18 +28,18 @@ class AppViewModel: ObservableObject {
             }
         }
     }
-    @Published var showSetup: Bool = false
-    @Published var bridgeCapabilities: BridgeCapabilities?
-    @Published var performanceMetrics = PerformanceMetrics()
-    @Published var error: Error?
+    var showSetup: Bool = false
+    var bridgeCapabilities: BridgeCapabilities?
+    var performanceMetrics = PerformanceMetrics()
+    var error: Error?
     
     // MARK: - Child ViewModels
     
-    @Published var lightsViewModel: LightsViewModel
-    @Published var scenesViewModel: ScenesViewModel
-    @Published var groupsViewModel: GroupsViewModel
-    @Published var sensorsViewModel: SensorsViewModel
-    @Published var rulesViewModel: RulesViewModel
+    var lightsViewModel: LightsViewModel
+    var scenesViewModel: ScenesViewModel
+    var groupsViewModel: GroupsViewModel
+    var sensorsViewModel: SensorsViewModel
+    var rulesViewModel: RulesViewModel
     
     // MARK: - Internal Properties (для доступа из расширений)
     
@@ -273,12 +277,16 @@ class AppViewModel: ObservableObject {
     
     deinit {
         print("♻️ AppViewModel деинициализация")
-        eventStreamCancellable?.cancel()
-        apiClient.disconnectEventStream()
-        cancellables.forEach { $0.cancel() }
-        cancellables.removeAll()
-        entertainmentClient?.stopSession()
-        entertainmentClient = nil
+        
+        // Clean up must be done async for @MainActor isolated properties
+        Task { @MainActor in
+            eventStreamCancellable?.cancel()
+            apiClient.disconnectEventStream()
+            cancellables.forEach { $0.cancel() }
+            cancellables.removeAll()
+            entertainmentClient?.stopSession()
+            entertainmentClient = nil
+        }
     }
 }
 

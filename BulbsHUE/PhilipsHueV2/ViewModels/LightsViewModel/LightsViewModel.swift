@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import SwiftUI
 import CoreGraphics
+import Observation
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -17,13 +18,16 @@ import AppKit
 
 /// ViewModel для управления лампами
 /// Обрабатывает бизнес-логику и взаимодействие с API
+/// ✅ ОБНОВЛЕНО: Мигрировано на @Observable для лучшей производительности
 @MainActor
-class LightsViewModel: ObservableObject {
+@Observable
+class LightsViewModel {
     
-    // MARK: - Published Properties
+    // MARK: - Observable Properties
     
+    /// ✅ ОБНОВЛЕНО: Убрали @Published - @Observable отслеживает автоматически
     /// Список всех ламп в системе
-    @Published var lights: [Light] = [] {
+    var lights: [Light] = [] {
         didSet {
             updateLightsDictionary()
         }
@@ -33,22 +37,22 @@ class LightsViewModel: ObservableObject {
     internal var lightsDict: [String: Int] = [:]
     
     /// Флаг загрузки данных
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
     
     /// Текущая ошибка (если есть)
-    @Published var error: Error?
+    var error: Error?
     
     /// Выбранная лампа для детального просмотра
-    @Published var selectedLight: Light?
+    var selectedLight: Light?
     
     /// Фильтр для отображения ламп
-    @Published var filter: LightFilter = .all
+    var filter: LightFilter = .all
     
     /// Лампы найденные по серийному номеру (отдельно от основного списка)
-    @Published var serialNumberFoundLights: [Light] = []
+    var serialNumberFoundLights: [Light] = []
     
     /// Лампы найденные через сетевой поиск (v1 scan)
-    @Published var networkFoundLights: [Light] = []
+    var networkFoundLights: [Light] = []
     
     // MARK: - Internal Properties
     

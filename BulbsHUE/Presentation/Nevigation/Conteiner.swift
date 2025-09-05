@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct MainContainer: View {
-    @EnvironmentObject var nav: NavigationManager
+    /// ✅ ОБНОВЛЕНО: @EnvironmentObject -> @Environment для @Observable
+    @Environment(NavigationManager.self) private var nav
     
     var body: some View {
         Group {
@@ -59,8 +60,6 @@ struct MainContainer: View {
                 }
             case .development:
                 DevelopmentMenuView()
-            case .migrationDashboard:
-                MigrationDashboardView()
             case .addRoom:
                 AddNewRoom()
             }

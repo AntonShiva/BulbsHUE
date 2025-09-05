@@ -14,7 +14,7 @@ struct TabBarButton: View {
     let title: String
     let route: Router
 //    @Binding var currentView: Router
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(NavigationManager.self) private var nav
     
     // Colors from Figma
     private let activeColor = Color(red: 0.79, green: 1, blue: 1) // Active color

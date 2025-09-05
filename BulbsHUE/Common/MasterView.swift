@@ -8,15 +8,16 @@
 import SwiftUI
 
 struct MasterView: View {
-    @EnvironmentObject var appViewModel: AppViewModel
-    @EnvironmentObject var navigationManager: NavigationManager
+    /// ✅ ОБНОВЛЕНО: @EnvironmentObject -> @Environment для @Observable
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(NavigationManager.self) private var navigationManager
     var body: some View {
         ZStack(alignment: .bottom) {
             BG()
             
             if appViewModel.showSetup {
                 // Показываем онбординг для настройки Hue Bridge
-                OnboardingView(appViewModel: appViewModel)
+                OnboardingView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Показываем основной интерфейс
@@ -37,15 +38,17 @@ struct MasterView: View {
     }
 }
 #Preview {
+    /// ✅ ОБНОВЛЕНО: .environmentObject -> .environment для @Observable
     MasterView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         
 }
 #Preview {
+    /// ✅ ОБНОВЛЕНО: .environmentObject -> .environment для @Observable
     MasterView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=w7kYvAzD6FTnifyZ-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
        

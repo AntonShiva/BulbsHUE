@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct SelectCategoriesSheet: View {
-    @EnvironmentObject var nav: NavigationManager
-    @StateObject private var typeManager = BulbTypeManager()
+    @Environment(NavigationManager.self) private var nav
+    @State private var typeManager = BulbTypeManager()
     @State private var selectedBulbType: BulbType?
     
     var body: some View {

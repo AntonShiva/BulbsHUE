@@ -16,8 +16,8 @@ extension View {
 }
 
 struct AddNewBulb: View {
-    @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var appViewModel: AppViewModel
+    @Environment(NavigationManager.self) private var nav
+    @Environment(AppViewModel.self) private var appViewModel
     @State private var serialNumber: String = ""
     @FocusState private var isSerialNumberFocused: Bool
     
@@ -195,15 +195,15 @@ struct AddNewBulb: View {
 
 #Preview {
     AddNewBulb()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
 //        .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=144-1954&m=dev")!)
 //        .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
 #Preview {
     AddNewBulb()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=140-1857&m=dev")!)
         .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }

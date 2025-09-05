@@ -8,9 +8,9 @@
 import SwiftUI
 
 struct EnvironmentView: View {
-    @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var appViewModel: AppViewModel
-    @EnvironmentObject var dataPersistenceService: DataPersistenceService
+    @Environment(NavigationManager.self) private var nav
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(DataPersistenceService.self) private var dataPersistenceService
     
     /// Координатор для управления лампами и комнатами (SOLID принципы)
     @State private var environmentCoordinator: EnvironmentCoordinator?

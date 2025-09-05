@@ -10,11 +10,12 @@ import SwiftUI
 
 /// Главный экран онбординга для настройки Hue Bridge
 struct OnboardingView: View {
-    @EnvironmentObject var appViewModel: AppViewModel
-    @StateObject private var viewModel: OnboardingViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @State private var viewModel: OnboardingViewModel
     
-    init(appViewModel: AppViewModel) {
-        self._viewModel = StateObject(wrappedValue: OnboardingViewModel(appViewModel: appViewModel))
+    init() {
+        // Initialize with temporary AppViewModel, will be replaced by environment
+        self._viewModel = State(initialValue: OnboardingViewModel(appViewModel: AppViewModel()))
     }
     
     var body: some View {
