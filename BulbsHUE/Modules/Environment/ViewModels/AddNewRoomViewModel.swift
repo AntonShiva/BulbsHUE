@@ -94,6 +94,7 @@ final class AddNewRoomViewModel: ObservableObject {
     private func setupBindings() {
         // Отслеживаем изменения в выборе категории для автоматического обновления UI
         categoryManager.$selectedSubtype
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 // Триггерим обновление для hasSelection computed property
                 self?.objectWillChange.send()

@@ -28,6 +28,15 @@ extension HueAPIClient {
         
         return performRequestHTTPS<LightsResponse>(endpoint: endpoint, method: "GET")
             .map { (response: LightsResponse) -> [Light] in
+                // Добавляем диагностику
+                print("📊 Тип response: \(type(of: response))")
+                print("📊 Тип response.data: \(type(of: response.data))")
+                
+                guard response.data is [Light] else {
+                    print("❌ response.data не является массивом Light!")
+                    return []
+                }
+                
                 print("✅ API v2 HTTPS: получено \(response.data.count) ламп")
                 
                 // ИСПРАВЛЕНИЕ: Убираем сложную логику сравнения v1/v2

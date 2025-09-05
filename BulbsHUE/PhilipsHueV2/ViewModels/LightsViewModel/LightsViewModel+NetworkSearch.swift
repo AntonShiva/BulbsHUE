@@ -21,6 +21,7 @@ extension LightsViewModel {
             
             // Сначала загружаем текущие лампы из API
             apiClient.getAllLights()
+                .receive(on: RunLoop.main)
                 .sink(
                     receiveCompletion: { [weak self] result in
                         if case .failure(let error) = result {
@@ -41,7 +42,9 @@ extension LightsViewModel {
                         }
                         
                         // Обновляем список ламп
-                        self.lights = currentLights
+                        Task { @MainActor in
+                            self.lights = currentLights
+                        }
                         
                         // Показываем все лампы как доступные для настройки
                         // (пользователь может перенастроить любую лампу)
@@ -49,6 +52,7 @@ extension LightsViewModel {
                         
                         // Инициируем поиск новых ламп через существующий метод
                         self.apiClient.getAllLights()
+                            .receive(on: RunLoop.main)
                             .sink(
                                 receiveCompletion: { result in
                                     self.isLoading = false
@@ -64,7 +68,9 @@ extension LightsViewModel {
                                     print("📊 После v1 поиска: \(allLights.count) ламп")
                                     
                                     // Обновляем список всех ламп
-                                    self.lights = allLights
+                                    Task { @MainActor in
+                                        self.lights = allLights
+                                    }
                                     
                                     // Определяем какие лампы новые (не были в исходном списке)
                                     let currentIds = Set(currentLights.map { $0.id })

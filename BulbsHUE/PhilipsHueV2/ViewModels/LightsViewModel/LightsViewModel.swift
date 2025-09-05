@@ -88,40 +88,60 @@ class LightsViewModel: ObservableObject {
     
     /// Обновляет словарь для быстрого поиска ламп
     internal func updateLightsDictionary() {
-        lightsDict.removeAll()
-        for (index, light) in lights.enumerated() {
-            lightsDict[light.id] = index
+        // Очищаем словарь если массив пустой
+        guard !lights.isEmpty else {
+            lightsDict.removeAll()
+            return
         }
+        
+        // Безопасно обновляем словарь
+        var newDict: [String: Int] = [:]
+        for (index, light) in lights.enumerated() {
+            newDict[light.id] = index
+        }
+        lightsDict = newDict
     }
     
     /// Обновляет локальное состояние лампы
     internal func updateLocalLight(_ lightId: String, with state: LightState) {
-        guard let index = lightsDict[lightId], index < lights.count else { return }
+        guard let index = lightsDict[lightId], 
+              index >= 0,
+              index < lights.count else { 
+            print("⚠️ Не найден индекс для лампы \(lightId) или индекс вне границ")
+            return 
+        }
+        
+        // Создаем копию для безопасного обновления
+        var updatedLight = lights[index]
         
         if let on = state.on {
-            lights[index].on = on
+            updatedLight.on = on
         }
         
         if let dimming = state.dimming {
-            lights[index].dimming = dimming
+            updatedLight.dimming = dimming
         }
         
         if let color = state.color {
-            lights[index].color = color
+            updatedLight.color = color
         }
         
         if let colorTemp = state.color_temperature {
-            lights[index].color_temperature = colorTemp
+            updatedLight.color_temperature = colorTemp
         }
         
         if let effects = state.effects_v2 {
-            lights[index].effects_v2 = effects
+            updatedLight.effects_v2 = effects
         }
+        
+        // Безопасно обновляем массив
+        lights[index] = updatedLight
     }
     
     /// Настраивает привязки данных
     internal func setupBindings() {
         apiClient.errorPublisher
+            .receive(on: RunLoop.main)
             .sink { [weak self] error in
                 if case HueAPIError.notAuthenticated = error {
                     print("📝 Требуется авторизация - ждем настройки подключения")
@@ -181,20 +201,20 @@ class LightsViewModel: ObservableObject {
     
     deinit {
         print("♻️ LightsViewModel деинициализация")
+        // Отменяем все подписки
         cancellables.forEach { $0.cancel() }
         cancellables.removeAll()
+        
+        // Отменяем таймер
         refreshTimer?.invalidate()
         refreshTimer = nil
+        
+        // Отменяем отложенные задачи
         brightnessUpdateWorkItem?.cancel()
         colorUpdateWorkItem?.cancel()
         
-        // Для MainActor изолированных методов и свойств используем Task
-        Task { @MainActor in
-            self.stopEventStream()
-            self.lights.removeAll()
-            self.serialNumberFoundLights.removeAll()
-            self.lightsDict.removeAll()
-        }
+        // Остановка event stream уже должна быть выполнена до деинициализации
+        // Очистка коллекций произойдет автоматически при освобождении памяти
     }
 }
 

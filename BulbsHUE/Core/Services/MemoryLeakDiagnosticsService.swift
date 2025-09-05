@@ -61,7 +61,9 @@ final class MemoryLeakDiagnosticsService: ObservableObject {
     private init() {
         // Включаем диагностику только в DEBUG режиме
         #if DEBUG
-        isDiagnosticsEnabled = true
+        // Отключено автоматическое включение для уменьшения спама в логах
+        // isDiagnosticsEnabled = true
+        isDiagnosticsEnabled = false
         #endif
     }
     

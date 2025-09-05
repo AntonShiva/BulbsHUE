@@ -30,11 +30,13 @@ extension LightsViewModel {
         stopAutoRefresh()
         
         eventStreamCancellable = apiClient.eventPublisher
+            .receive(on: RunLoop.main)
             .sink { [weak self] event in
                 self?.handleLightEvent(event)
             }
         
         apiClient.connectToEventStream()
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { completion in
                     if case .failure(let error) = completion {
@@ -74,6 +76,7 @@ extension LightsViewModel {
         print("🔄 Настраиваем подписку на Event Stream для реального времени...")
         
         apiClient.connectToEventStreamV2()
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { completion in
                     switch completion {

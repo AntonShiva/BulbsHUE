@@ -141,6 +141,7 @@ final class RoomsViewModel: ObservableObject {
     private func setupReactiveStreams() {
         // Подписываемся на реактивный стрим комнат из репозитория
         roomRepository.roomsStream
+            .receive(on: RunLoop.main)
             .sink { [weak self] updatedRooms in
                 // Автоматически обновляем список при изменениях в репозитории
                 print("🔄 RoomsViewModel: Получены обновленные данные комнат из реактивного стрима: \(updatedRooms.count)")

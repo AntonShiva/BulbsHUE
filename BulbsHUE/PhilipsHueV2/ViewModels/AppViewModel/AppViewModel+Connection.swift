@@ -25,6 +25,7 @@ extension AppViewModel {
         recreateAPIClient(with: bridge.internalipaddress)
         
         apiClient.getBridgeConfig()
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure = completion {
@@ -65,6 +66,7 @@ extension AppViewModel {
         #endif
         
         apiClient.createUser(appName: appName, deviceName: deviceName)
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { result in
                     if case .failure(let error) = result {
@@ -127,15 +129,16 @@ extension AppViewModel {
         print("🔐 Попытка создания пользователя на мосту: \(bridge.internalipaddress)")
         
         apiClient.createUserWithLocalNetworkCheck(appName: appName, deviceName: deviceName)
+            .receive(on: RunLoop.main)
             .sink(
-                receiveCompletion: { result in
+                receiveCompletion: { [weak self] result in
                     if case .failure(let error) = result {
                         print("❌ Ошибка создания пользователя: \(error)")
                         
                         if let nsError = error as NSError?,
                            nsError.code == -1009 {
                             print("🚫 Нет доступа к локальной сети!")
-                            self.error = HueAPIError.localNetworkPermissionDenied
+                            self?.error = HueAPIError.localNetworkPermissionDenied
                         } else if case HueAPIError.linkButtonNotPressed = error as? HueAPIError ?? HueAPIError.invalidResponse {
                             print("⏳ Кнопка Link еще не нажата")
                         }
@@ -183,6 +186,7 @@ extension AppViewModel {
         #endif
         
         apiClient.createUser(appName: appName, deviceName: deviceName)
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { result in
                     if case .failure(let error) = result {
@@ -262,6 +266,7 @@ extension AppViewModel {
     /// Загружает информацию о возможностях моста
     func loadBridgeCapabilities() {
         apiClient.getBridgeCapabilities()
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { _ in },
                 receiveValue: { [weak self] capabilities in

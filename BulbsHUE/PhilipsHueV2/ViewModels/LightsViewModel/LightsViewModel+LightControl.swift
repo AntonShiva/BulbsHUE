@@ -30,19 +30,31 @@ extension LightsViewModel {
         apiClient.getAllLights()
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    if case .failure(let error) = completion {
-                        print("❌ Ошибка загрузки ламп: \(error)")
-                        if case HueAPIError.notAuthenticated = error {
-                            print("📝 Требуется авторизация - ждем настройки подключения")
-                        } else {
-                            self?.error = error
+                    Task { @MainActor in
+                        self?.isLoading = false
+                        if case .failure(let error) = completion {
+                            print("❌ Ошибка загрузки ламп: \(error)")
+                            if case HueAPIError.notAuthenticated = error {
+                                print("📝 Требуется авторизация - ждем настройки подключения")
+                            } else {
+                                self?.error = error
+                            }
                         }
                     }
                 },
                 receiveValue: { [weak self] lights in
-                    print("✅ Загружено \(lights.count) ламп с актуальным статусом")
-                    self?.lights = lights
+                    Task { @MainActor in
+                        guard let self = self else { return }
+                        
+                        // Добавляем проверку валидности данных
+                        guard lights is [Light] else {
+                            print("❌ Получены некорректные данные вместо массива ламп")
+                            return
+                        }
+                        
+                        print("✅ Загружено \(lights.count) ламп с актуальным статусом")
+                        self.lights = lights
+                    }
                 }
             )
             .store(in: &cancellables)
@@ -183,6 +195,7 @@ extension LightsViewModel {
     /// Мигает лампой для визуального подтверждения
     func blinkLight(_ light: Light) {
         apiClient.blinkLight(id: light.id)
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { completion in
                     if case .failure(let error) = completion {
@@ -244,6 +257,7 @@ extension LightsViewModel {
         print("🚀 Обновляем лампу \(lightId) через API v2 HTTPS...")
         
         apiClient.updateLight(id: lightId, state: optimizedState)
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.activeRequests -= 1

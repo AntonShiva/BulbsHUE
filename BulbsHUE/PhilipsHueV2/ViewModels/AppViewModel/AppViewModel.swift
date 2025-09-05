@@ -93,26 +93,35 @@ class AppViewModel: ObservableObject {
     internal func recreateAPIClient(with ip: String) {
         print("🔄 Пересоздаем API клиент с IP: \(ip)")
         
+        // Останавливаем event streams перед пересозданием
+        lightsViewModel.stopEventStream()
+        
+        // Отменяем все активные подписки перед пересозданием
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
+        eventStreamCancellable?.cancel()
+        eventStreamCancellable = nil
+        
+        // Создаем новый API клиент
         apiClient = HueAPIClient(bridgeIP: ip, dataPersistenceService: dataPersistenceService)
         
-        Task { @MainActor in
-            print("🔄 Обновляем дочерние ViewModels...")
-            self.lightsViewModel = LightsViewModel(apiClient: self.apiClient)
-            self.scenesViewModel = ScenesViewModel(apiClient: self.apiClient)
-            self.groupsViewModel = GroupsViewModel(apiClient: self.apiClient)
-            self.sensorsViewModel = SensorsViewModel(apiClient: self.apiClient)
-            self.rulesViewModel = RulesViewModel(apiClient: self.apiClient)
-            
-            print("✅ ViewModels обновлены с новым API клиентом")
-            
-            if let key = self.applicationKey {
-                print("🔑 Устанавливаем application key в новый клиент")
-                self.apiClient.setApplicationKey(key)
-                print("🚀 Загружаем данные после установки application key...")
-                self.loadAllData()
-            } else {
-                print("⚠️ Application key отсутствует - пропускаем загрузку данных")
-            }
+        print("🔄 Обновляем дочерние ViewModels...")
+        // Создаем новые ViewModels синхронно на главном потоке
+        self.lightsViewModel = LightsViewModel(apiClient: self.apiClient)
+        self.scenesViewModel = ScenesViewModel(apiClient: self.apiClient)
+        self.groupsViewModel = GroupsViewModel(apiClient: self.apiClient)
+        self.sensorsViewModel = SensorsViewModel(apiClient: self.apiClient)
+        self.rulesViewModel = RulesViewModel(apiClient: self.apiClient)
+        
+        print("✅ ViewModels обновлены с новым API клиентом")
+        
+        if let key = self.applicationKey {
+            print("🔑 Устанавливаем application key в новый клиент")
+            self.apiClient.setApplicationKey(key)
+            print("🚀 Загружаем данные после установки application key...")
+            self.loadAllData()
+        } else {
+            print("⚠️ Application key отсутствует - пропускаем загрузку данных")
         }
     }
     

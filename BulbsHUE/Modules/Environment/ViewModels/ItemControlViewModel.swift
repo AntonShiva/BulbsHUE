@@ -305,6 +305,7 @@ class ItemControlViewModel: ObservableObject {
         
         // Подписываемся на изменения списка ламп через протокол
         lightControlService.lightsPublisher
+            .receive(on: RunLoop.main)
             .sink { [weak self] updatedLights in
                 self?.syncWithUpdatedLights(updatedLights)
             }
@@ -312,6 +313,7 @@ class ItemControlViewModel: ObservableObject {
         
         // Подписываемся на изменения selectedLightForMenu в NavigationManager
         NavigationManager.shared.$selectedLightForMenu
+            .receive(on: RunLoop.main)
             .sink { [weak self] updatedLight in
                 self?.handleNavigationManagerLightUpdate(updatedLight)
             }

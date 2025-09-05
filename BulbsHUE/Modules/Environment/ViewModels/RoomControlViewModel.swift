@@ -340,6 +340,7 @@ final class RoomControlViewModel: ObservableObject {
         
         // Подписываемся на изменения ламп
         lightControlService.lightsPublisher
+            .receive(on: RunLoop.main)
             .sink { [weak self] lights in
                 self?.updateStateFromLights(lights)
             }
@@ -347,6 +348,7 @@ final class RoomControlViewModel: ObservableObject {
         
         // Подписываемся на изменения selectedRoomForMenu в NavigationManager
         NavigationManager.shared.$selectedRoomForMenu
+            .receive(on: RunLoop.main)
             .sink { [weak self] updatedRoom in
                 self?.handleNavigationManagerRoomUpdate(updatedRoom)
             }
@@ -373,6 +375,7 @@ final class RoomControlViewModel: ObservableObject {
         
         // Подписываемся на изменения конкретной комнаты из репозитория
         roomRepository.roomStream(for: roomId)
+            .receive(on: RunLoop.main)
             .sink { [weak self] updatedRoom in
                 if let room = updatedRoom {
                     print("🏠 RoomControlViewModel: Получено обновление комнаты '\(room.name)' - тип: \(room.type.displayName), подтип: \(room.subtypeName)")

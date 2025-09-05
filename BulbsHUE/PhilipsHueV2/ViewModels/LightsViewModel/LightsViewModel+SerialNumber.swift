@@ -27,6 +27,7 @@ extension LightsViewModel {
         clearSerialNumberFoundLights()
         
         apiClient.addLightBySerialNumber(serialNumber)
+            .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     Task { @MainActor in
