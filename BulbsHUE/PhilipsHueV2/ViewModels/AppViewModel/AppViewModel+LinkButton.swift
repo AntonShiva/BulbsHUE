@@ -69,11 +69,13 @@ extension AppViewModel {
                         }
                         
                         self?.connectionStatus = .connected
+                        self?.showSetup = false  // 🔧 ИСПРАВЛЕНИЕ: Переходим к главному экрану
                         onProgress(.success)
                         completion(.success(username))
                         
                         self?.startEventStream()
                         self?.loadAllData()
+                        self?.saveCredentials()  // 💾 Сохраняем данные для будущих запусков
                         
                     } else if let error = response.error {
                         self?.handleLinkButtonError(

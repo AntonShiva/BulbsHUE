@@ -38,8 +38,8 @@ struct CostumButton: View {
     }
 #Preview {
     AddNewBulb()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=140-1857&m=dev")!)
         .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }

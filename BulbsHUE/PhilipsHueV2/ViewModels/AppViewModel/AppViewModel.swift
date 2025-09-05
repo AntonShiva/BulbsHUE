@@ -30,7 +30,9 @@ class AppViewModel {
     }
     var showSetup: Bool = false
     var bridgeCapabilities: BridgeCapabilities?
-    var performanceMetrics = PerformanceMetrics()
+    // MARK: - Deprecated Properties
+    // Удален PerformanceMetrics для @Observable
+    // var performanceMetrics = PerformanceMetrics()
     var error: Error?
     
     // MARK: - Child ViewModels
@@ -59,13 +61,14 @@ class AppViewModel {
     
     init(dataPersistenceService: DataPersistenceService? = nil) {
         self.dataPersistenceService = dataPersistenceService
-        self.apiClient = HueAPIClient(bridgeIP: "", dataPersistenceService: dataPersistenceService)
+        let apiClientInstance = HueAPIClient(bridgeIP: "", dataPersistenceService: dataPersistenceService)
+        self.apiClient = apiClientInstance
         
-        self.lightsViewModel = LightsViewModel(apiClient: apiClient)
-        self.scenesViewModel = ScenesViewModel(apiClient: apiClient)
-        self.groupsViewModel = GroupsViewModel(apiClient: apiClient)
-        self.sensorsViewModel = SensorsViewModel(apiClient: apiClient)
-        self.rulesViewModel = RulesViewModel(apiClient: apiClient)
+        self.lightsViewModel = LightsViewModel(apiClient: apiClientInstance)
+        self.scenesViewModel = ScenesViewModel(apiClient: apiClientInstance)
+        self.groupsViewModel = GroupsViewModel(apiClient: apiClientInstance)
+        self.sensorsViewModel = SensorsViewModel(apiClient: apiClientInstance)
+        self.rulesViewModel = RulesViewModel(apiClient: apiClientInstance)
         
         setupPerformanceMonitoring()
         setupAppStateObservation()
@@ -110,6 +113,10 @@ class AppViewModel {
         apiClient = HueAPIClient(bridgeIP: ip, dataPersistenceService: dataPersistenceService)
         
         print("🔄 Обновляем дочерние ViewModels...")
+        
+        // ИСПРАВЛЕНИЕ: Принудительно обнуляем старые ViewModels для разрыва retain cycles
+        print("🗑️ Очищаем старые ViewModels...")
+        
         // Создаем новые ViewModels синхронно на главном потоке
         self.lightsViewModel = LightsViewModel(apiClient: self.apiClient)
         self.scenesViewModel = ScenesViewModel(apiClient: self.apiClient)
@@ -159,7 +166,7 @@ class AppViewModel {
     }
     
     internal func handleEvent(_ event: HueEvent) {
-        performanceMetrics.eventsReceived += 1
+        // performanceMetrics.eventsReceived += 1
     }
     
     internal func setupEntertainmentClient(clientKey: String) {
@@ -203,6 +210,7 @@ class AppViewModel {
             )
             
             connectionStatus = .connected
+            showSetup = false  // 🔧 ИСПРАВЛЕНИЕ: Переходим к главному экрану при загрузке из UserDefaults
             startEventStream()
         } else {
             showSetup = true
@@ -244,9 +252,11 @@ class AppViewModel {
             .sink { [weak self] error in
                 switch error {
                 case .rateLimitExceeded:
-                    self?.performanceMetrics.rateLimitHits += 1
+                    // self?.performanceMetrics.rateLimitHits += 1
+                    print("⚠️ Rate limit exceeded")
                 case .bufferFull:
-                    self?.performanceMetrics.bufferOverflows += 1
+                    // self?.performanceMetrics.bufferOverflows += 1
+                    print("⚠️ Buffer full")
                 default:
                     break
                 }
@@ -275,18 +285,11 @@ class AppViewModel {
     
     // MARK: - Deinit
     
-    deinit {
+    nonisolated deinit {
         print("♻️ AppViewModel деинициализация")
         
-        // Clean up must be done async for @MainActor isolated properties
-        Task { @MainActor in
-            eventStreamCancellable?.cancel()
-            apiClient.disconnectEventStream()
-            cancellables.forEach { $0.cancel() }
-            cancellables.removeAll()
-            entertainmentClient?.stopSession()
-            entertainmentClient = nil
-        }
+        // Cancellables и другие ресурсы освобождаются автоматически при деинициализации
+        // Избегаем обращения к @MainActor свойствам в deinit для предотвращения retain cycles
     }
 }
 

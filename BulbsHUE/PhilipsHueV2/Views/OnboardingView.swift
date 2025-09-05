@@ -14,7 +14,7 @@ struct OnboardingView: View {
     @State private var viewModel: OnboardingViewModel
     
     init() {
-        // Initialize with temporary AppViewModel, will be replaced by environment
+        // Initialize with temporary AppViewModel, will be configured in onAppear
         self._viewModel = State(initialValue: OnboardingViewModel(appViewModel: AppViewModel()))
     }
     
@@ -59,6 +59,10 @@ struct OnboardingView: View {
                 }
             }
             .navigationBarHidden(true)
+            .onAppear {
+                // 🔧 ИСПРАВЛЕНИЕ: Настраиваем OnboardingViewModel с правильным AppViewModel из Environment
+                viewModel.configureAppViewModel(appViewModel)
+            }
             // Также добавьте алерт для отображения процесса в главном body OnboardingView:
 
 //            .alert("Подключение к Hue Bridge", isPresented: $viewModel.showLinkButtonAlert) {
@@ -418,8 +422,14 @@ struct OnboardingView: View {
             }
         }
         .onAppear {
-            // НЕ начинаем поиск автоматически - только по кнопке
-            // Поиск теперь начинается только после получения разрешения локальной сети
+            // Автоматически запускаем поиск при появлении экрана searchBridges
+            if !viewModel.isSearchingBridges && viewModel.discoveredBridges.isEmpty {
+                print("📱 SearchBridges экран появился - запускаем автоматический поиск")
+                Task { @MainActor in
+                    try await Task.sleep(for: .milliseconds(500))
+                    viewModel.startBridgeSearch()
+                }
+            }
         }
     }
     
@@ -759,13 +769,13 @@ struct SecondaryButtonStyle: ButtonStyle {
 
 // MARK: - Preview
 
-#Preview {
-    let appViewModel = AppViewModel(dataPersistenceService: nil)
-    appViewModel.showSetup = true
-    
-    return OnboardingView(appViewModel: appViewModel)
-        .environmentObject(appViewModel)
-}
+//#Preview {
+//    let appViewModel = AppViewModel(dataPersistenceService: nil)
+//    appViewModel.showSetup = true
+//    
+//    OnboardingView(appViewModel: appViewModel)
+//        .environment(appViewModel)
+//}
 // Стили кнопок из OnboardingView для консистентности
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {

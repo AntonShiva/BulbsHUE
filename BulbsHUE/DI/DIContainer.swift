@@ -126,18 +126,8 @@ final class DIContainer {
     private var _dataPersistenceService: DataPersistenceService = DataPersistenceService()
     
     // MARK: - Services
-    private lazy var _appStore: AppStore = {
-        let middlewares: [Middleware] = [
-            LoggingMiddleware(),
-            // AsyncMiddleware(container: self), // Будет добавлен позже
-        ]
-        let store = AppStore(middlewares: middlewares)
-        
-        // ✅ ДОБАВЛЕНО: Регистрируем в диагностике памяти
-        MemoryLeakDiagnosticsService.registerService(store, name: "AppStore")
-        
-        return store
-    }()
+    // УДАЛЕНО: AppStore больше не нужен после миграции на @Observable
+    // private lazy var _appStore: AppStore = { ... }
     
     private lazy var _lightColorStateService: LightColorStateService = {
         let service = LightColorStateService.shared
@@ -215,7 +205,8 @@ final class DIContainer {
     var environmentScenesUseCase: EnvironmentScenesUseCaseProtocol { _environmentScenesUseCase }
     
     // Services
-    var appStore: AppStore { _appStore }
+    // УДАЛЕНО: appStore больше не нужен после миграции на @Observable
+    // var appStore: AppStore { _appStore }
     var navigationManager: NavigationManager { _navigationManager }
     var lightColorStateService: LightColorStateService { _lightColorStateService }
     var lightingColorService: LightingColorService { _lightingColorService }
@@ -361,12 +352,12 @@ final class DIContainer {
     }
 }
 
-// MARK: - Logging Middleware
-struct LoggingMiddleware: Middleware {
-    func process(action: AppAction, state: AppState, store: AppStore) -> AppAction {
-        return action
-    }
-}
+// MARK: - УДАЛЕНО: Logging Middleware (больше не нужен без Redux)
+// struct LoggingMiddleware: Middleware {
+//    func process(action: AppAction, state: AppState, store: AppStore) -> AppAction {
+//        return action
+//    }
+// }
 
 // MARK: - Mock Repositories (временные реализации)
 final class MockLightRepository: LightRepositoryProtocol {

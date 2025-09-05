@@ -50,8 +50,20 @@ extension LightsViewModel {
     
     /// Останавливает поток событий
     func stopEventStream() {
+        print("⏹️ LightsViewModel: Останавливаем EventStream...")
         eventStreamCancellable?.cancel()
+        eventStreamCancellable = nil
         apiClient.disconnectEventStream()
+        
+        // Отменяем все активные подписки для предотвращения retain cycles
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
+        
+        // Останавливаем таймер
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+        
+        print("✅ LightsViewModel: EventStream остановлен и очищен")
     }
     
     /// Запускает автоматическое обновление (устаревший метод)

@@ -15,7 +15,7 @@ struct ReorganizeRoomCell: View {
     // MARK: - Environment Objects
     
     /// Единый источник данных приложения
-    @EnvironmentObject var dataPersistenceService: DataPersistenceService
+    @Environment(DataPersistenceService.self) private var dataPersistenceService
     
     // MARK: - Properties
     
@@ -636,7 +636,7 @@ struct ReorganizeRoomCell: View {
         BG()
         ReorganizeRoomCell(light: nil)
     }
-    .environmentObject(DataPersistenceService())
+    .environment(DataPersistenceService())
     .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2075-219&t=p1MiOXAQpotRB4uj-4")!)
     .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }

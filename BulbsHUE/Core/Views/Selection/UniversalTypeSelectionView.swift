@@ -10,7 +10,7 @@ import SwiftUI
 /// Универсальное View для выбора подтипов ламп и комнат
 /// Использует существующую архитектуру TupeCell и TypeManager
 struct UniversalTypeSelectionView: View {
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(NavigationManager.self) private var nav
     
     /// Конфигурация для выбора типа
     let config: TypeSelectionConfig
@@ -303,7 +303,7 @@ struct RoomTypeConfig: TypeSelectionConfig {
             print("Cancel bulb type selection")
         }
     )
-    .environmentObject(NavigationManager.shared)
+    .environment(NavigationManager.shared)
 }
 
 #Preview("Room Type Selection") {
@@ -315,5 +315,5 @@ struct RoomTypeConfig: TypeSelectionConfig {
             print("Cancel room type selection")
         }
     )
-    .environmentObject(NavigationManager.shared)
+    .environment(NavigationManager.shared)
 }

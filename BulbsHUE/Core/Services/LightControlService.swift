@@ -34,7 +34,8 @@ class LightControlService: ObservableObject, LightControlling {
         guard let appViewModel = appViewModel else {
             return Just([]).eraseToAnyPublisher()
         }
-        return appViewModel.lightsViewModel.$lights.eraseToAnyPublisher()
+        // @Observable не поддерживает publishers, возвращаем Just publisher
+        return Just(appViewModel.lightsViewModel.lights).eraseToAnyPublisher()
     }
     
     func setPower(for light: Light, on: Bool) {
@@ -90,7 +91,7 @@ class LightControlService: ObservableObject, LightControlling {
         guard let appViewModel = appViewModel else {
             return Just([]).eraseToAnyPublisher()
         }
-        return appViewModel.groupsViewModel.$groups.eraseToAnyPublisher()
+        return Just(appViewModel.groupsViewModel.groups).eraseToAnyPublisher()
     }
     
     func findGroup(by id: String) -> HueGroup? {

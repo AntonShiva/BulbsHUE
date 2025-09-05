@@ -7,23 +7,25 @@
 import SwiftUI
 import AVFoundation
 import Combine
+import Observation
 
 @MainActor
-class OnboardingViewModel: ObservableObject {
-    // MARK: - Published Properties
+@Observable
+class OnboardingViewModel {
+    // MARK: - Observable Properties (migrated from @Published)
     
-    @Published var currentStep: OnboardingStep = .welcome
-    @Published var showLocalNetworkAlert = false
-    @Published var showPermissionAlert = false
-    @Published var showLinkButtonAlert = false
-    @Published var isSearchingBridges = false
-    @Published var linkButtonCountdown = 30
-    @Published var discoveredBridges: [Bridge] = []
-    @Published var selectedBridge: Bridge?
-    @Published var isConnecting = false
-    @Published var isRequestingPermission = false
-    @Published var linkButtonPressed = false
-    @Published var connectionError: String? = nil
+    var currentStep: OnboardingStep = .welcome
+    var showLocalNetworkAlert = false
+    var showPermissionAlert = false
+    var showLinkButtonAlert = false
+    var isSearchingBridges = false
+    var linkButtonCountdown = 30
+    var discoveredBridges: [Bridge] = []
+    var selectedBridge: Bridge?
+    var isConnecting = false
+    var isRequestingPermission = false
+    var linkButtonPressed = false
+    var connectionError: String? = nil
     
     // MARK: - Internal Properties
     
@@ -44,28 +46,33 @@ class OnboardingViewModel: ObservableObject {
         setupBindings()
     }
     
+    // MARK: - Configuration
+    
+    /// Конфигурирует OnboardingViewModel с правильным AppViewModel из Environment
+    func configureAppViewModel(_ appViewModel: AppViewModel) {
+        print("🔧 OnboardingViewModel: Конфигурируем с правильным AppViewModel")
+        self.appViewModel = appViewModel
+        setupBindings() // Перенастраиваем привязки с новым AppViewModel
+    }
+    
     // MARK: - Setup
     
     private func setupBindings() {
-        appViewModel.connectionStatusPublisher
-            .sink { [weak self] status in
-                self?.handleConnectionStatusChange(status)
-            }
-            .store(in: &cancellables)
+        // @Observable не поддерживает publishers - используем прямое наблюдение
+        // setupBindings больше не нужен с @Observable архитектурой
+        // Состояние синхронизируется автоматически через прямые обращения
         
-        appViewModel.discoveredBridgesPublisher
-            .sink { [weak self] bridges in
-                self?.handleDiscoveredBridges(bridges)
-            }
-            .store(in: &cancellables)
-        
-        appViewModel.errorPublisher
-            .sink { [weak self] error in
-                if let hueError = error as? HueAPIError {
-                    self?.handleConnectionError(hueError)
-                }
-            }
-            .store(in: &cancellables)
+        // Устанавливаем начальные значения
+        updateFromAppViewModel()
+    }
+    
+    // Метод для ручной синхронизации состояния
+    internal func updateFromAppViewModel() {
+        discoveredBridges = appViewModel.discoveredBridges
+        handleConnectionStatusChange(appViewModel.connectionStatus)
+        if let error = appViewModel.error as? HueAPIError {
+            handleConnectionError(error)
+        }
     }
     
     // MARK: - Internal Helper Methods

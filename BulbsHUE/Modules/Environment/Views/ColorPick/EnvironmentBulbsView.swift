@@ -20,7 +20,7 @@ struct EnvironmentBulbsView: View {
     @Environment(AppViewModel.self) private var appViewModel
     
     /// ViewModel для управления состоянием экрана
-    @StateObject private var viewModel = EnvironmentBulbsViewModel()
+    @State private var viewModel = EnvironmentBulbsViewModel()
     
     /// Состояние показа щита тоглов ламп
     @State private var showBulbTogglesPanel = false
@@ -495,28 +495,28 @@ struct EnvironmentBulbsView: View {
         let content =  ZStack(alignment: .top) {
                 if lights.count >= 1 {
                     BulbToggleItem(light: lights[0]) // BULB 1 - левый верхний
-                        .environmentObject(appViewModel)
+                        .environment(appViewModel)
                         .adaptiveOffset(x: -58, y: -40)
                 }
                 if lights.count >= 3 {
                     BulbToggleItem(light: lights[2]) // BULB 3 - под первым
-                        .environmentObject(appViewModel)
+                        .environment(appViewModel)
                         .adaptiveOffset(x: -58, y: 25)
                 }
                 if lights.count >= 5 {
                     BulbToggleItem(light: lights[4]) // BULB 5 - под третьим
-                        .environmentObject(appViewModel)
+                        .environment(appViewModel)
                         .adaptiveOffset(x: -58, y: 90)
                 }
            
                 if lights.count >= 2 {
                     BulbToggleItem(light: lights[1]) // BULB 2 - правый верхний
-                        .environmentObject(appViewModel)
+                        .environment(appViewModel)
                         .adaptiveOffset(x: 112, y: -40)
                 }
                 if lights.count >= 4 {
                     BulbToggleItem(light: lights[3]) // BULB 4 - под вторым
-                        .environmentObject(appViewModel)
+                        .environment(appViewModel)
                         .adaptiveOffset(x: 112, y: 25)
                 }
                 
@@ -636,7 +636,7 @@ struct EnvironmentBulbsView: View {
     /// Отдельный тогл лампы с названием
     private struct BulbToggleItem: View {
         let light: Light
-        @EnvironmentObject var appViewModel: AppViewModel
+        @Environment(AppViewModel.self) private var appViewModel
         
         // ✅ Локальное состояние для мгновенного обновления UI
         @State private var localToggleState: Bool
@@ -688,8 +688,8 @@ struct EnvironmentBulbsView: View {
 
 #Preview("Environment Bulbs View") {
     EnvironmentBulbsView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
 }
 
 #Preview("Environment Bulbs with Mock Data") {
@@ -743,9 +743,9 @@ struct EnvironmentBulbsView: View {
         updatedAt: Date()
     )
     
-    return EnvironmentBulbsView()
-        .environmentObject(navigationManager)
-        .environmentObject(appViewModel)
+    EnvironmentBulbsView()
+        .environment(navigationManager)
+        .environment(appViewModel)
         .onAppear {
             // Устанавливаем мок данные
             appViewModel.lightsViewModel.lights = mockLights
@@ -757,8 +757,8 @@ struct EnvironmentBulbsView: View {
 
 #Preview("Environment Bulbs with Figma") {
     EnvironmentBulbsView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/7DwY12hUyQ1ruSTx7TWB01/Bulbs_HUE-NEW?node-id=130-4392&t=NNN8510Dw2zKtV1F-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }

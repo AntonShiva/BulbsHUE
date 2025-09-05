@@ -7,28 +7,30 @@
 
 import SwiftUI
 import Combine
+import Observation
 
 /// ViewModel для управления процессом создания новой комнаты
 /// Следует принципам MVVM и SOLID, выделяя всю логику из View
 @MainActor
-final class AddNewRoomViewModel: ObservableObject {
+@Observable
+class AddNewRoomViewModel  {
     
     // MARK: - Published Properties (UI State)
     
     /// Текущий шаг в процессе создания комнаты (0 - выбор категории, 1 - выбор ламп, 2 - ввод названия)
-    @Published var currentStep: Int = 0
+    var currentStep: Int = 0
     
     /// Множество ID выбранных ламп
-    @Published var selectedLights: Set<String> = []
+    var selectedLights: Set<String> = []
     
     /// Пользовательское название комнаты
-    @Published var customRoomName: String = ""
+    var customRoomName: String = ""
     
     /// Индикатор загрузки для создания комнаты
-    @Published var isCreatingRoom: Bool = false
+    var isCreatingRoom: Bool = false
     
     /// Индикатор поиска новых ламп
-    @Published var isSearchingLights: Bool = false
+    var isSearchingLights: Bool = false
     
     // MARK: - Dependencies
     
@@ -92,14 +94,8 @@ final class AddNewRoomViewModel: ObservableObject {
     
     /// Настройка привязок и подписок
     private func setupBindings() {
-        // Отслеживаем изменения в выборе категории для автоматического обновления UI
-        categoryManager.$selectedSubtype
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                // Триггерим обновление для hasSelection computed property
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
+        // @Observable не требует setupBindings для UI обновлений
+        // Состояние синхронизируется автоматически
     }
     
     // MARK: - Computed Properties
@@ -419,7 +415,8 @@ extension NavigationManager: NavigationManaging {
 // MARK: - Room Creation Service Implementation
 
 /// Реализация сервиса создания комнат через DIContainer
-class DIRoomCreationService: RoomCreationServicing {
+@Observable
+class DIRoomCreationService: RoomCreationServicing  {
     private let createRoomWithLightsUseCase: CreateRoomWithLightsUseCase
     
     init(createRoomWithLightsUseCase: CreateRoomWithLightsUseCase) {

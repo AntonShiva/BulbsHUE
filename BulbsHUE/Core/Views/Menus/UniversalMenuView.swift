@@ -629,8 +629,8 @@ struct MenuConfiguration {
             onDelete: { print("Delete bulb") }
         )
     )
-    .environmentObject(NavigationManager.shared)
-    .environmentObject(DataPersistenceService())
+    .environment(NavigationManager.shared)
+    .environment(DataPersistenceService())
 }
 
 #Preview("Room Menu") {
@@ -649,8 +649,8 @@ struct MenuConfiguration {
             onDelete: { print("Delete room") }
         )
     )
-    .environmentObject(NavigationManager.shared)
-    .environmentObject(DataPersistenceService())
+    .environment(NavigationManager.shared)
+    .environment(DataPersistenceService())
 }
 
 #Preview("Room Menu - Reorganize Mode") {
@@ -673,8 +673,8 @@ struct MenuConfiguration {
                     onDelete: { print("Delete room") }
                 )
             )
-            .environmentObject(NavigationManager.shared)
-            .environmentObject(DataPersistenceService())
+            .environment(NavigationManager.shared)
+            .environment(DataPersistenceService())
         }
     }
     

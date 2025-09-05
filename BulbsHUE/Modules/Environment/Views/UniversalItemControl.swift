@@ -279,8 +279,8 @@ extension UniversalItemControl {
             print("💡 Menu tapped")
         }
     )
-    .environmentObject(AppViewModel())
-    .environmentObject(NavigationManager.shared)
+    .environment(AppViewModel())
+    .environment(NavigationManager.shared)
 }
 
 #Preview("Room Control") {
@@ -308,8 +308,8 @@ extension UniversalItemControl {
             print("🏠 Room menu tapped")
         }
     )
-    .environmentObject(AppViewModel())
-    .environmentObject(NavigationManager.shared)
+    .environment(AppViewModel())
+    .environment(NavigationManager.shared)
 }
 
 #Preview("Both Controls") {
@@ -350,6 +350,6 @@ extension UniversalItemControl {
         )
     }
     .padding()
-    .environmentObject(AppViewModel())
-    .environmentObject(NavigationManager.shared)
+    .environment(AppViewModel())
+    .environment(NavigationManager.shared)
 }

@@ -29,6 +29,7 @@ extension AppViewModel {
             )
             
             connectionStatus = .connected
+            showSetup = false  // 🔧 ИСПРАВЛЕНИЕ: Переходим к главному экрану при загрузке сохраненных данных
             startEventStream()
         } else {
             showSetup = true

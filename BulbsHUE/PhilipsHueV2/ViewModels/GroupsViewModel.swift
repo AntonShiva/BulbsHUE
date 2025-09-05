@@ -7,24 +7,26 @@
 
 import Foundation
 import Combine
+import Observation
 
 /// ViewModel для управления группами (комнатами и зонами)
 @MainActor
-class GroupsViewModel: ObservableObject {
+@Observable
+class GroupsViewModel {
     
     // MARK: - Published Properties
     
     /// Список всех групп
-    @Published var groups: [HueGroup] = []
+    var groups: [HueGroup] = []
     
     /// Флаг загрузки
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
     
     /// Текущая ошибка
-    @Published var error: Error?
+    var error: Error?
     
     /// Выбранная группа
-    @Published var selectedGroup: HueGroup?
+    var selectedGroup: HueGroup?
     
     // MARK: - Private Properties
     

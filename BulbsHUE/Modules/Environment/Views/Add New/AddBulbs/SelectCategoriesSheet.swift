@@ -183,12 +183,12 @@ struct SelectCategoriesSheet: View {
 }
 #Preview {
     SelectCategoriesSheet()
-        .environmentObject(NavigationManager.shared)
+        .environment(NavigationManager.shared)
 }
 #Preview {
     SelectCategoriesSheet()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2065-13&m=dev")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }

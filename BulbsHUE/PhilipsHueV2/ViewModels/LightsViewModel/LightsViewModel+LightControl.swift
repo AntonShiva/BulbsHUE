@@ -239,7 +239,7 @@ extension LightsViewModel {
         
         lights[index].communicationStatus = status
         print("✅ LightsViewModel: Обновлен статус связи лампы \(lightId): \(status)")
-        objectWillChange.send()
+        // @Observable не требует objectWillChange.send()
     }
     
     // MARK: - Private Update Method

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SelectorTabEnviromentView: View {
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(NavigationManager.self) private var nav
     
     var body: some View {
         ZStack{
@@ -45,8 +45,8 @@ struct SelectorTabEnviromentView: View {
 }
 #Preview {
     MasterView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=64-207&t=hGUwQNy3BUo6l6lB-4")!)
         .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
@@ -57,9 +57,9 @@ struct SelectorTabEnviromentView: View {
         
        SelectorTabEnviromentView()
     }
-   .environmentObject(NavigationManager.shared)
-   .environmentObject(AppViewModel())
-   .environmentObject(AppViewModel())
+   .environment(NavigationManager.shared)
+   .environment(AppViewModel())
+   .environment(AppViewModel())
     .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=w7kYvAzD6FTnifyZ-4")!)
     .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }

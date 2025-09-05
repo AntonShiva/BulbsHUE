@@ -7,19 +7,21 @@
 
 import Foundation
 import Combine
+import Observation
 import SwiftUI
 
 /// Координатор для управления взаимодействием ламп и комнат в Environment
 /// Следует принципам SOLID - координирует отдельные ViewModels, не делая их работу
 @MainActor
-final class EnvironmentCoordinator: ObservableObject {
+@Observable
+class EnvironmentCoordinator  {
     // MARK: - Child ViewModels
     
     /// ViewModel для управления лампами
-    @Published var lightsViewModel: EnvironmentLightsViewModel
+    var lightsViewModel: EnvironmentLightsViewModel
     
     /// ViewModel для управления комнатами
-    @Published var roomsViewModel: RoomsViewModel
+    var roomsViewModel: RoomsViewModel
     
     // MARK: - Computed Properties для удобства
     

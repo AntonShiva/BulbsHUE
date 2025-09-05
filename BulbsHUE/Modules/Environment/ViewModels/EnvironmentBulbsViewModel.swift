@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import Observation
 import Foundation
 
 // MARK: - Environment Bulbs View Model
@@ -14,33 +15,34 @@ import Foundation
 /// ViewModel для экрана выбора сцен окружения
 /// Управляет состоянием фильтров, секций и списком сцен
 @MainActor
-final class EnvironmentBulbsViewModel: ObservableObject {
+@Observable
+class EnvironmentBulbsViewModel  {
     
     // MARK: - Published Properties
     
     /// Выбранный фильтр (Color Picker, Pastel, Bright)
-    @Published var selectedFilterTab: EnvironmentFilterType = .pastel
+    var selectedFilterTab: EnvironmentFilterType = .pastel
     
     /// Выбранная секция (Section 1, 2, 3)
-    @Published var selectedSection: EnvironmentSection = .section1
+    var selectedSection: EnvironmentSection = .section1
     
     /// Активен ли фильтр избранного
-    @Published var isFavoriteFilterActive = false
+    var isFavoriteFilterActive = false
     
     /// Включен ли основной свет
-    @Published var isMainLightOn = true
+    var isMainLightOn = true
     
     /// Активен ли режим солнца
-    @Published var isSunModeActive = false
+    var isSunModeActive = false
     
     /// Сцены для текущего выбранного фильтра и секции
-    @Published var currentScenes: [EnvironmentSceneEntity] = []
+    var currentScenes: [EnvironmentSceneEntity] = []
     
     /// Состояние загрузки
-    @Published var isLoading = false
+    var isLoading = false
     
     /// Ошибка, если произошла
-    @Published var error: Error?
+    var error: Error?
     
     // MARK: - Dependencies
     

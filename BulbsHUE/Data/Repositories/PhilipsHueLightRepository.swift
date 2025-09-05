@@ -190,8 +190,8 @@ final class PhilipsHueLightRepository: LightRepositoryProtocol {
             return Just([]).eraseToAnyPublisher()
         }
         
-        // Преобразуем поток Light в поток LightEntity
-        return appViewModel.lightsViewModel.$lights
+        // @Observable не поддерживает publishers, возвращаем текущее состояние
+        return Just(appViewModel.lightsViewModel.lights)
             .map { lights in
                 lights.compactMap { light in
                     self.convertToLightEntity(light)

@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import Observation
 
 // MARK: - Room Control Color Managing Protocol
 
@@ -23,26 +24,27 @@ protocol RoomControlColorManaging {
 /// ViewModel для управления отдельной комнатой
 /// Аналогично ItemControlViewModel, но для комнат
 @MainActor
-final class RoomControlViewModel: ObservableObject {
+@Observable
+class RoomControlViewModel  {
     // MARK: - Published Properties
     
     /// Текущая комната для управления
-    @Published var currentRoom: RoomEntity?
+    var currentRoom: RoomEntity?
     
     /// Состояние включения/выключения комнаты (всех ламп в ней)
-    @Published var isOn: Bool = false
+    var isOn: Bool = false
     
     /// Средняя яркость всех ламп в комнате
-    @Published var brightness: Double = 100.0
+    var brightness: Double = 100.0
     
     /// Запомненная яркость для восстановления при включении (аналогично лампам)
     private var rememberedBrightness: Double = 100.0
     
     /// Цвет комнаты по умолчанию (тот же что у ламп)
-    @Published var defaultWarmColor = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
+    var defaultWarmColor = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
     
     /// Динамический цвет комнаты на основе примененного пресета
-    @Published var dynamicColor: Color = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
+    var dynamicColor: Color = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
     
     // MARK: - Private Properties
     
@@ -346,13 +348,9 @@ final class RoomControlViewModel: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Подписываемся на изменения selectedRoomForMenu в NavigationManager
-        NavigationManager.shared.$selectedRoomForMenu
-            .receive(on: RunLoop.main)
-            .sink { [weak self] updatedRoom in
-                self?.handleNavigationManagerRoomUpdate(updatedRoom)
-            }
-            .store(in: &cancellables)
+        // @Observable не поддерживает publishers - синхронизация через прямое обращение
+        // NavigationManager.shared.$selectedRoomForMenu больше недоступно
+        // Используем прямое обращение к NavigationManager.shared.selectedRoomForMenu при необходимости
     }
     
     /// Обработка обновления комнаты из NavigationManager
@@ -506,7 +504,8 @@ protocol RoomServiceProtocol {
 }
 
 /// Реализация сервиса комнат
-final class RoomService: RoomServiceProtocol {
+@Observable
+class RoomService: RoomServiceProtocol  {
     // TODO: Реализовать методы управления комнатами
     
     func updateRoom(_ room: RoomEntity) async throws {

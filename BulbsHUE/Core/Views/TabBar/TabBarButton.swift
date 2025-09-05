@@ -70,14 +70,14 @@ struct TabBarButton: View {
         TabBarView()
             .adaptiveOffset(y: 330)
     }
-    .environmentObject(NavigationManager.shared)
+    .environment(NavigationManager.shared)
 }
 #Preview {
     ZStack {
         BG()
         TabBarButton(image: "envir", title: "environment", route: .environment)
     }
-    .environmentObject(NavigationManager.shared)
+    .environment(NavigationManager.shared)
     .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&m=dev")!)
     .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }

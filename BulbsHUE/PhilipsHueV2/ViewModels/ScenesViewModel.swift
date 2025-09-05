@@ -7,30 +7,32 @@
 
 import Foundation
 import Combine
+import Observation
 
 /// ViewModel для управления сценами освещения
 @MainActor
-class ScenesViewModel: ObservableObject {
+@Observable
+class ScenesViewModel {
     
-    // MARK: - Published Properties
+    // MARK: - Observable Properties
     
     /// Список всех сцен
-    @Published var scenes: [HueScene] = []
+    var scenes: [HueScene] = []
     
     /// Активная сцена
-    @Published var activeSceneId: String?
+    var activeSceneId: String?
     
     /// Флаг загрузки
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
     
     /// Текущая ошибка
-    @Published var error: Error?
+    var error: Error?
     
     /// Режим редактирования сцены
-    @Published var isEditingScene: Bool = false
+    var isEditingScene: Bool = false
     
     /// Редактируемая сцена
-    @Published var editingScene: HueScene?
+    var editingScene: HueScene?
     
     // MARK: - Private Properties
     

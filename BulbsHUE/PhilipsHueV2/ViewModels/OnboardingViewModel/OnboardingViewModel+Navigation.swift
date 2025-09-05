@@ -12,19 +12,30 @@ extension OnboardingViewModel {
     // MARK: - Navigation
     
     func nextStep() {
+        print("🚀 OnboardingViewModel.nextStep() - текущий шаг: \(currentStep)")
+        
         switch currentStep {
         case .welcome:
             currentStep = .localNetworkPermission
+            print("✅ Переход к .localNetworkPermission")
         case .localNetworkPermission:
             currentStep = .searchBridges
+            print("✅ Переход к .searchBridges")
         case .searchBridges:
             if !discoveredBridges.isEmpty {
                 currentStep = .linkButton
+                print("✅ Переход к .linkButton")
+            } else {
+                print("⚠️ Не найдены мосты для перехода к .linkButton")
             }
         case .linkButton:
+            print("⚠️ Неожиданный вызов nextStep() из .linkButton")
             break
         case .connected:
+            print("🎯 ЗАВЕРШЕНИЕ ОНБОРДИНГА: Устанавливаем appViewModel.showSetup = false")
+            print("🔍 AppViewModel до изменения - showSetup: \(appViewModel.showSetup)")
             appViewModel.showSetup = false
+            print("✅ AppViewModel после изменения - showSetup: \(appViewModel.showSetup)")
         }
     }
     

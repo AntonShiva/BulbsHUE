@@ -151,14 +151,14 @@ struct MenuView: View {
 }
 #Preview {
     MenuView(bulbName: "Ламочка ул", bulbIcon: "f2", bulbType: "Лщджия")
-        .environmentObject(NavigationManager.shared)
+        .environment(NavigationManager.shared)
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=120-879&t=aTBbxHC3igKeQH3e-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
        
 }
 #Preview {
     MenuView(bulbName: "bulb name", bulbIcon: "t1", bulbType: "Лщджия")
-        .environmentObject(NavigationManager.shared)
+        .environment(NavigationManager.shared)
 }
 
 

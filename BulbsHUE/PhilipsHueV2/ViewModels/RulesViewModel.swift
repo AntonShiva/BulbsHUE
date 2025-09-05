@@ -7,21 +7,23 @@
 
 import Foundation
 import Combine
+import Observation
 
 /// ViewModel для управления правилами автоматизации
 @MainActor
-class RulesViewModel: ObservableObject {
+@Observable
+class RulesViewModel {
     
     // MARK: - Published Properties
     
     /// Список всех правил
-    @Published var rules: [HueRule] = []
+    var rules: [HueRule] = []
     
     /// Флаг загрузки
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
     
     /// Текущая ошибка
-    @Published var error: Error?
+    var error: Error?
     
     // MARK: - Private Properties
     

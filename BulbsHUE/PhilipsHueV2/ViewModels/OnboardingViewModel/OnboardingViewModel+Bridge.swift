@@ -28,6 +28,9 @@ extension OnboardingViewModel {
         Task { @MainActor in
             try await Task.sleep(nanoseconds: 15_000_000_000) // 15 seconds
             
+            // Обновляем состояние из AppViewModel после поиска
+            updateFromAppViewModel()
+            
             if appViewModel.connectionStatus == .connected ||
                appViewModel.connectionStatus == .needsAuthentication {
                 print("✅ Мост уже найден и подключен")
@@ -40,11 +43,13 @@ extension OnboardingViewModel {
                case .localNetworkPermissionDenied = error {
                 print("🚫 Отказано в разрешении локальной сети")
                 showLocalNetworkAlert = true
-            } else if discoveredBridges.isEmpty {
+            } else if appViewModel.discoveredBridges.isEmpty {
                 print("❌ Мосты не найдены")
                 connectionError = "Мосты не найдены в локальной сети. Проверьте подключение."
             } else {
-                print("✅ Найдено мостов: \(discoveredBridges.count)")
+                print("✅ Найдено мостов: \(appViewModel.discoveredBridges.count)")
+                // Обновляем локальное состояние
+                updateFromAppViewModel()
             }
         }
     }

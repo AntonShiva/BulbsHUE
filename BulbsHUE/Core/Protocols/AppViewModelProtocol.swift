@@ -10,6 +10,34 @@ import Combine
 
 /// Protocol abstraction for AppViewModel dependencies
 /// Следует принципу Dependency Inversion Principle (DIP) из SOLID
+
+/// Enum определяющий статус подключения к мосту Philips Hue
+enum ConnectionStatus: Equatable {
+    case disconnected
+    case searching
+    case connecting
+    case connected
+    case needsAuthentication
+    case discovered
+    case error(String)
+    
+    static func ==(lhs: ConnectionStatus, rhs: ConnectionStatus) -> Bool {
+        switch (lhs, rhs) {
+        case (.disconnected, .disconnected),
+             (.searching, .searching),
+             (.connecting, .connecting),
+             (.connected, .connected),
+             (.needsAuthentication, .needsAuthentication),
+             (.discovered, .discovered):
+            return true
+        case (.error(let lhsMessage), .error(let rhsMessage)):
+            return lhsMessage == rhsMessage
+        default:
+            return false
+        }
+    }
+}
+
 @MainActor
 protocol AppViewModelProtocol: AnyObject {
     
@@ -71,14 +99,17 @@ protocol AppViewModelProtocol: AnyObject {
 extension AppViewModel: AppViewModelProtocol {
     
     var connectionStatusPublisher: AnyPublisher<ConnectionStatus, Never> {
-        $connectionStatus.eraseToAnyPublisher()
+        // @Observable не поддерживает publishers, возвращаем Just publisher
+        Just(connectionStatus).eraseToAnyPublisher()
     }
     
     var discoveredBridgesPublisher: AnyPublisher<[Bridge], Never> {
-        $discoveredBridges.eraseToAnyPublisher()
+        // @Observable не поддерживает publishers, возвращаем Just publisher
+        Just(discoveredBridges).eraseToAnyPublisher()
     }
     
     var errorPublisher: AnyPublisher<Error?, Never> {
-        $error.eraseToAnyPublisher()
+        // @Observable не поддерживает publishers, возвращаем Just publisher
+        Just(error).eraseToAnyPublisher()
     }
 }

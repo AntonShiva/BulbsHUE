@@ -7,27 +7,29 @@
 
 import Foundation
 import Combine
+import Observation
 
 /// ViewModel для управления сенсорами
 @MainActor
-class SensorsViewModel: ObservableObject {
+@Observable
+class SensorsViewModel {
     
     // MARK: - Published Properties
     
     /// Список всех сенсоров
-    @Published var sensors: [HueSensor] = []
+    var sensors: [HueSensor] = []
     
     /// Флаг загрузки
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
     
     /// Текущая ошибка
-    @Published var error: Error?
+    var error: Error?
     
     /// Последние события движения
-    @Published var motionEvents: [String: Bool] = [:]
+    var motionEvents: [String: Bool] = [:]
     
     /// Последние события кнопок
-    @Published var buttonEvents: [String: ButtonEvent] = [:]
+    var buttonEvents: [String: ButtonEvent] = [:]
     
     // MARK: - Private Properties
     

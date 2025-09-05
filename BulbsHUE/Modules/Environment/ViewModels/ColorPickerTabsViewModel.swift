@@ -7,29 +7,31 @@
 
 import SwiftUI
 import Combine
+import Observation
 
 @MainActor
-class ColorPickerTabsViewModel: ObservableObject {
+@Observable
+class ColorPickerTabsViewModel  {
     
     // MARK: - Published Properties
     
-    @Published var selectedTab: ColorPickerTab = .hexPicker
-    @Published var selectedColor: Color = .orange
-    @Published var selectedColorRelativePosition: CGPoint = CGPoint(x: 0.63, y: 0.9) // Относительные координаты от 0 до 1
-    @Published var brightness: Double = 24.0
-    @Published var warmColdLamps: [WarmColdLamp] = []
-    @Published var palletColors: [PalletColorItem] = []
-    @Published var selectedPalletColorItem: PalletColorItem?
+    var selectedTab: ColorPickerTab = .hexPicker
+    var selectedColor: Color = .orange
+    var selectedColorRelativePosition: CGPoint = CGPoint(x: 0.63, y: 0.9) // Относительные координаты от 0 до 1
+    var brightness: Double = 24.0
+    var warmColdLamps: [WarmColdLamp] = []
+    var palletColors: [PalletColorItem] = []
+    var selectedPalletColorItem: PalletColorItem?
     
     // MARK: - Warm/Cold Properties
-    @Published var warmColdSelectedColor: Color = Color(red: 1.0, green: 0.9, blue: 0.8) // Нейтральный белый по умолчанию
-    @Published var warmColdRelativePosition: CGPoint = CGPoint(x: 0.5, y: 0.5) // Позиция в warm/cold круге
+    var warmColdSelectedColor: Color = Color(red: 1.0, green: 0.9, blue: 0.8) // Нейтральный белый по умолчанию
+    var warmColdRelativePosition: CGPoint = CGPoint(x: 0.5, y: 0.5) // Позиция в warm/cold круге
     
     // MARK: - Room Light Markers for HEX Picker
-    @Published var roomLightMarkers: [RoomLightMarker] = []
+    var roomLightMarkers: [RoomLightMarker] = []
     
     #if canImport(UIKit)
-    @Published var pickerImage: UIImage? = nil
+    var pickerImage: UIImage? = nil
     #endif
     
     // MARK: - Computed Properties

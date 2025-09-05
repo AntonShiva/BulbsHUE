@@ -162,8 +162,8 @@ struct SearchResultsSheet: View {
 
 #Preview {
     SearchResultsSheet()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2010-2&t=N7aN39c57LpreKLv-4")!)
         .environment(\.figmaAccessToken, "YOUR_FIGMA_TOKEN")
 }
@@ -173,7 +173,7 @@ struct LightResultCell: View {
     let onTap: () -> Void
     
     // Получаем LightsViewModel из Environment
-    @EnvironmentObject var appViewModel: AppViewModel
+    @Environment(AppViewModel.self) private var appViewModel
     var lightsViewModel: LightsViewModel {
         appViewModel.lightsViewModel
     }

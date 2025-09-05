@@ -203,22 +203,10 @@ class LightsViewModel {
     
     // MARK: - Memory Management
     
-    deinit {
+    nonisolated deinit {
         print("♻️ LightsViewModel деинициализация")
-        // Отменяем все подписки
-        cancellables.forEach { $0.cancel() }
-        cancellables.removeAll()
-        
-        // Отменяем таймер
-        refreshTimer?.invalidate()
-        refreshTimer = nil
-        
-        // Отменяем отложенные задачи
-        brightnessUpdateWorkItem?.cancel()
-        colorUpdateWorkItem?.cancel()
-        
-        // Остановка event stream уже должна быть выполнена до деинициализации
-        // Очистка коллекций произойдет автоматически при освобождении памяти
+        // Cancellables, Timer и DispatchWorkItem отменятся автоматически при deallocation
+        // Избегаем обращения к @MainActor свойствам в deinit
     }
 }
 

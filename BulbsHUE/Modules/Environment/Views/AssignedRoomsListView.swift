@@ -14,8 +14,8 @@ struct AssignedRoomsListView: View {
     let onRemoveRoom: (String) -> Void
     
     // MARK: - Environment Objects
-    @EnvironmentObject var appViewModel: AppViewModel
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(NavigationManager.self) private var nav
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -88,6 +88,6 @@ struct AssignedRoomsListView: View {
             print("Remove room: \(roomId)")
         }
     )
-    .environmentObject(NavigationManager.shared)
-    .environmentObject(AppViewModel())
+    .environment(NavigationManager.shared)
+    .environment(AppViewModel())
 }

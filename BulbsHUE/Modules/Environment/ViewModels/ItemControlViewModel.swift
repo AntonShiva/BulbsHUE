@@ -8,32 +8,34 @@
 import Foundation
 import SwiftUI
 import Combine
+import Observation
 
 /// ViewModel для управления отдельной лампой
 /// Следует принципам MVVM и SOLID
 /// Зависит от абстракций (протоколов), а не от конкретных реализаций
 /// Каждый экземпляр изолирован для работы с одной лампой
 @MainActor
-class ItemControlViewModel: ObservableObject {
+@Observable
+class ItemControlViewModel  {
     // MARK: - Published Properties
     
     /// Текущая лампа для управления
-    @Published var currentLight: Light?
+    var currentLight: Light?
     
     /// Состояние включения/выключения лампы
-    @Published var isOn: Bool = false
+    var isOn: Bool = false
     
     /// Яркость лампы в процентах (0-100)
-    @Published var brightness: Double = 100.0
+    var brightness: Double = 100.0
     
     /// Цвет лампы по умолчанию (тёплый нейтрально-желтоватый ~2700–3000K)
-    @Published var defaultWarmColor = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
+    var defaultWarmColor = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
     
     /// Динамический цвет лампы на основе установленного пользователем цвета
-    @Published var dynamicColor: Color = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
+    var dynamicColor: Color = Color(hue: 0.13, saturation: 0.25, brightness: 1.0)
     
     /// Последняя отправленная яркость для предотвращения дублирования запросов
-    @Published private var lastSentBrightness: Double = -1
+    private var lastSentBrightness: Double = -1
     
     /// Запомненная яркость для восстановления при включении лампы
     private var rememberedBrightness: Double = 100.0
@@ -55,13 +57,13 @@ class ItemControlViewModel: ObservableObject {
     // MARK: - Initialization
     
     /// Приватный инициализатор - используйте статические методы для создания
-    private init() {
+    init() {
         // Пустая инициализация - будет сконфигурирована позже
     }
     
     /// Инициализация с внедрением зависимости через протокол
     /// - Parameter lightControlService: Сервис управления лампами
-    private init(lightControlService: LightControlling) {
+    init(lightControlService: LightControlling) {
         self.lightControlService = lightControlService
         self.isConfigured = true
         setupObservers()
@@ -121,8 +123,7 @@ class ItemControlViewModel: ObservableObject {
             rememberedBrightness = currentBrightness
         }
         
-        // Принудительно уведомляем об изменении для обновления UI
-        objectWillChange.send()
+        // @Observable handles UI updates automatically
     }
     
     /// Переключить состояние включения/выключения лампы
@@ -311,13 +312,9 @@ class ItemControlViewModel: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Подписываемся на изменения selectedLightForMenu в NavigationManager
-        NavigationManager.shared.$selectedLightForMenu
-            .receive(on: RunLoop.main)
-            .sink { [weak self] updatedLight in
-                self?.handleNavigationManagerLightUpdate(updatedLight)
-            }
-            .store(in: &cancellables)
+        // @Observable не поддерживает publishers - синхронизация через прямое обращение
+        // NavigationManager.shared.$selectedLightForMenu больше недоступно
+        // Используем прямое обращение к NavigationManager.shared.selectedLightForMenu при необходимости
     }
     
     /// Обработка обновления лампы из NavigationManager
@@ -363,8 +360,7 @@ class ItemControlViewModel: ObservableObject {
             
             // Если изменился статус связи - принудительно обновляем UI
             if wasReachable != isNowReachable {
-                // Принудительно обновляем UI для индикатора "Обесточена"
-                objectWillChange.send()
+                // @Observable handles UI updates automatically
             }
             
             // ИСПРАВЛЕНИЕ: Синхронизируем состояние ВСЕГДА при обновлении от API (не только когда пользователь не взаимодействует)
@@ -391,8 +387,7 @@ class ItemControlViewModel: ObservableObject {
                 rememberedBrightness = currentBrightness
             }
             
-            // Принудительно уведомляем об изменении для обновления UI
-            objectWillChange.send()
+            // @Observable handles UI updates automatically
         }
     }
     

@@ -7,20 +7,22 @@
 
 import SwiftUI
 import Combine
+import Observation
 
 @MainActor
-class PresetColorViewModel: ObservableObject {
+@Observable
+class PresetColorViewModel  {
     // MARK: - Published Properties
-    @Published var selectedTab: PresetColorTab = .statics
-    @Published var brightness: Double = 50.0
-    @Published var isFavorite: Bool = false
+    var selectedTab: PresetColorTab = .statics
+    var brightness: Double = 50.0
+    var isFavorite: Bool = false
     
     // Dynamic settings
-    @Published var dynamicBrightness: Double = 50.0
-    @Published var selectedStyle: StyleType = .classic
-    @Published var selectedIntensity: IntensityType = .middle
-    @Published var isStyleExpanded: Bool = false
-    @Published var isIntensityExpanded: Bool = false
+    var dynamicBrightness: Double = 50.0
+    var selectedStyle: StyleType = .classic
+    var selectedIntensity: IntensityType = .middle
+    var isStyleExpanded: Bool = false
+    var isIntensityExpanded: Bool = false
     
     // MARK: - Private Properties
     private let scene: EnvironmentSceneEntity?
@@ -189,9 +191,7 @@ class PresetColorViewModel: ObservableObject {
         }
     }
     
-    deinit {
-        // Отменяем все активные задачи при деинициализации
-        brightnessTask?.cancel()
-        dynamicBrightnessTask?.cancel()
+    nonisolated deinit {
+        // Tasks will be cancelled automatically when the class is deallocated
     }
 }

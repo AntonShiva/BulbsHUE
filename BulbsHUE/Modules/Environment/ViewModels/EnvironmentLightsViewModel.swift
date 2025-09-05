@@ -7,22 +7,24 @@
 
 import Foundation
 import Combine
+import Observation
 import SwiftUI
 
 /// ViewModel для управления лампами в Environment
 /// Следует принципам MVVM и SOLID - Single Responsibility Principle
 @MainActor
-final class EnvironmentLightsViewModel: ObservableObject {
+@Observable
+class EnvironmentLightsViewModel  {
     // MARK: - Published Properties
     
     /// Список ламп с назначенными комнатами (из персистентного хранилища + API)
-    @Published var assignedLights: [Light] = []
+    var assignedLights: [Light] = []
     
     /// Статус загрузки данных
-    @Published var isLoading: Bool = false
+    var isLoading: Bool = false
     
     /// Ошибка загрузки (если есть)
-    @Published var error: Error?
+    var error: Error?
     
     // MARK: - Private Properties
     
@@ -110,44 +112,10 @@ final class EnvironmentLightsViewModel: ObservableObject {
         guard let appViewModel = appViewModel,
               let dataPersistenceService = dataPersistenceService else { return }
         
-        // ГЛАВНЫЙ FIX: Подписываемся на изменения в DataPersistenceService
-        dataPersistenceService.$assignedLights
-            .receive(on: RunLoop.main)
-            .sink { [weak self] persistenceLights in
-                // ✅ ОБЪЕДИНЯЕМ данные из БД с актуальным состоянием из API
-                guard let self = self, let appViewModel = self.appViewModel else { return }
-                
-                let apiLights = appViewModel.lightsViewModel.lights
-                let hybridLights = persistenceLights.map { persistentLight in
-                    // Ищем актуальное состояние лампы в API
-                    if let apiLight = apiLights.first(where: { $0.id == persistentLight.id }) {
-                        // Объединяем: состояние из API + пользовательские поля из БД
-                        var hybridLight = apiLight
-                        hybridLight.metadata.userSubtypeName = persistentLight.metadata.userSubtypeName
-                        hybridLight.metadata.userSubtypeIcon = persistentLight.metadata.userSubtypeIcon
-                        return hybridLight
-                    } else {
-                        // API состояние недоступно, используем данные из БД
-                        return persistentLight
-                    }
-                }
-                
-                self.assignedLights = hybridLights
-            }
-            .store(in: &cancellables)
-        
-        // Подписываемся на изменения списка ламп из API
-        appViewModel.lightsViewModel.$lights
-            .receive(on: RunLoop.main)
-            .sink { [weak self] apiLights in
-                self?.handleAPILightsUpdate(apiLights)
-            }
-            .store(in: &cancellables)
-        
-        // Подписываемся на состояние загрузки
-        appViewModel.lightsViewModel.$isLoading
-            .assign(to: \.isLoading, on: self)
-            .store(in: &cancellables)
+        // ГЛАВНЫЙ FIX: @Observable не поддерживает publishers, используем ручную синхронизацию
+        // dataPersistenceService.$assignedLights - больше не доступно в @Observable
+        // Вызываем начальную синхронизацию данных
+        loadInitialData()
     }
     
     /// Обработка обновления ламп из API
@@ -167,7 +135,9 @@ final class EnvironmentLightsViewModel: ObservableObject {
         
         if appViewModel.lightsViewModel.lights.isEmpty {
             // Если API данных нет, инициируем загрузку
-            refreshLights()
+            Task {
+                await appViewModel.lightsViewModel.refreshLightsWithStatus()
+            }
         }
     }
 }

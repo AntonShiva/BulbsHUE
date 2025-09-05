@@ -218,8 +218,8 @@ private struct AssignedBulbsLightsListView: View {
     let lights: [Light]
     let onRemoveLight: ((String) -> Void)?
     
-    @EnvironmentObject var appViewModel: AppViewModel
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(NavigationManager.self) private var nav
     
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -253,7 +253,7 @@ private struct AssignedBulbsLightsListView: View {
 private struct MockAssignedLightsListView: View {
     let lights: [Light]
     let onRemoveLight: ((String) -> Void)?
-    @EnvironmentObject var nav: NavigationManager
+    @Environment(NavigationManager.self) private var nav
     // Массив темных цветов для превью
     private let mockColors: [Color] = [
         Color(hue: 0.60, saturation: 0.8, brightness: 0.6),   // Темно-синий
@@ -287,9 +287,9 @@ private struct MockAssignedLightsListView: View {
 
 #Preview("Environment with Mock Data") {
     EnvironmentView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
-        .environmentObject(DataPersistenceService.createMock())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
+        .environment(DataPersistenceService.createMock())
 }
 
 #Preview("Environment with Colorful Mock Lights") {
@@ -326,24 +326,24 @@ private struct MockAssignedLightsListView: View {
         )
         .adaptiveOffset(y: 30)
     }
-    .environmentObject(NavigationManager.shared)
-    .environmentObject(AppViewModel())
+    .environment(NavigationManager.shared)
+    .environment(AppViewModel())
 }
 
 #Preview("Environment with Figma") {
     EnvironmentView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
-        .environmentObject(DataPersistenceService.createMock())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
+        .environment(DataPersistenceService.createMock())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=120-1187&t=B04C893qA3iLYnq6-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }
 
 #Preview("MasterView") {
     MasterView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
-        .environmentObject(DataPersistenceService.createMock())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
+        .environment(DataPersistenceService.createMock())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=2002-3&t=B04C893qA3iLYnq6-4")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }

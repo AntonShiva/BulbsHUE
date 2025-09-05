@@ -37,8 +37,8 @@ struct Header<LeftView1: View,LeftView2: View, RightView1: View,RightView2: View
 }
 #Preview("Environment Bulbs with Figma") {
     EnvironmentBulbsView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
         .compare(with: URL(string: "https://www.figma.com/design/9yYMU69BSxasCD4lBnOtet/Bulbs_HUE--Copy-?node-id=120-2042&m=dev")!)
         .environment(\.figmaAccessToken, "figd_0tuspWW6vlV9tTm5dGXG002n2yoohRRd94dMxbXD")
 }

@@ -23,7 +23,7 @@ struct ItemControl: View {
     let light: Light
     
     /// Изолированная ViewModel для этой конкретной лампы
-    @StateObject private var itemControlViewModel: ItemControlViewModel
+    @State private var itemControlViewModel = ItemControlViewModel()
     
     // MARK: - Initialization
     
@@ -34,7 +34,7 @@ struct ItemControl: View {
         
         // Создаем изолированную ViewModel для этой лампы
         // Инициализируется с пустым сервисом, будет настроена в onAppear
-        self._itemControlViewModel = StateObject(wrappedValue: ItemControlViewModel.createIsolated())
+        self._itemControlViewModel = State(initialValue: ItemControlViewModel.createIsolated())
     }
 
     // MARK: - Body
@@ -204,14 +204,14 @@ struct ItemControl: View {
 struct MockItemControl: View {
     let light: Light
     let mockColor: Color
-    @EnvironmentObject var appViewModel: AppViewModel
-    @EnvironmentObject var nav: NavigationManager
-    @StateObject private var itemControlViewModel: ItemControlViewModel
+    @Environment(AppViewModel.self) private var appViewModel
+    @Environment(NavigationManager.self) private var nav
+    @State private var itemControlViewModel = ItemControlViewModel()
     
     init(light: Light, mockColor: Color) {
         self.light = light
         self.mockColor = mockColor
-        self._itemControlViewModel = StateObject(wrappedValue: ItemControlViewModel.createIsolated())
+        self._itemControlViewModel = State(initialValue: ItemControlViewModel.createIsolated())
     }
     
     var body: some View {
@@ -311,5 +311,5 @@ struct MockItemControl: View {
     )
     
     ItemControl(light: mockLight)
-        .environmentObject(appViewModel)
+        .environment(appViewModel)
 }

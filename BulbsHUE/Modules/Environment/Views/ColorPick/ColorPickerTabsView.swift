@@ -16,9 +16,9 @@ import UIKit
 /// Отдельное представление для трех вкладок COLOR PICKER
 /// Замещает секции при выборе COLOR PICKER таба
 struct ColorPickerTabsView: View {
-    @StateObject private var viewModel = ColorPickerTabsViewModel()
-    @EnvironmentObject var nav: NavigationManager
-    @EnvironmentObject var appViewModel: AppViewModel
+    @State private var viewModel = ColorPickerTabsViewModel()
+    @Environment(NavigationManager.self) private var nav
+    @Environment(AppViewModel.self) private var appViewModel
     
 
     
@@ -572,6 +572,6 @@ extension UIImage {
 
 #Preview("Environment Bulbs View") {
     EnvironmentBulbsView()
-        .environmentObject(NavigationManager.shared)
-        .environmentObject(AppViewModel())
+        .environment(NavigationManager.shared)
+        .environment(AppViewModel())
 }

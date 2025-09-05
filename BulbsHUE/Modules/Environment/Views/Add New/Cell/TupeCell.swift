@@ -176,8 +176,8 @@ struct BulbCell: View {
             )
         }
     }
-    .environmentObject(NavigationManager.shared)
-    .environmentObject(AppViewModel())
+    .environment(NavigationManager.shared)
+    .environment(AppViewModel())
 }
 
 // MARK: - Удобные расширения для создания типизированных ячеек
