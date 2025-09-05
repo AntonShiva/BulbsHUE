@@ -27,7 +27,7 @@ class OnboardingViewModel: ObservableObject {
     
     // MARK: - Internal Properties
     
-    internal var appViewModel: AppViewModel
+    internal var appViewModel: AppViewModelProtocol
     internal var linkButtonTimer: Timer?
     internal var cancellables = Set<AnyCancellable>()
     internal var connectionAttempts = 0
@@ -39,7 +39,7 @@ class OnboardingViewModel: ObservableObject {
     
     // MARK: - Initialization
     
-    init(appViewModel: AppViewModel) {
+    init(appViewModel: AppViewModelProtocol) {
         self.appViewModel = appViewModel
         setupBindings()
     }
@@ -47,19 +47,19 @@ class OnboardingViewModel: ObservableObject {
     // MARK: - Setup
     
     private func setupBindings() {
-        appViewModel.$connectionStatus
+        appViewModel.connectionStatusPublisher
             .sink { [weak self] status in
                 self?.handleConnectionStatusChange(status)
             }
             .store(in: &cancellables)
         
-        appViewModel.$discoveredBridges
+        appViewModel.discoveredBridgesPublisher
             .sink { [weak self] bridges in
                 self?.handleDiscoveredBridges(bridges)
             }
             .store(in: &cancellables)
         
-        appViewModel.$error
+        appViewModel.errorPublisher
             .sink { [weak self] error in
                 if let hueError = error as? HueAPIError {
                     self?.handleConnectionError(hueError)

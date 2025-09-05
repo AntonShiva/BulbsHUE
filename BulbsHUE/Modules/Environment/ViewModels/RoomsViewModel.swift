@@ -65,7 +65,6 @@ final class RoomsViewModel: ObservableObject {
         print("🔍 RoomsViewModel: Запрашиваем список комнат...")
         
         getRoomsUseCase.execute(())
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     self?.isLoading = false
@@ -99,7 +98,6 @@ final class RoomsViewModel: ObservableObject {
         }
         
         deleteRoomUseCase.execute(roomId)
-            .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { completion in
                     if case .failure(let error) = completion {
@@ -143,7 +141,6 @@ final class RoomsViewModel: ObservableObject {
     private func setupReactiveStreams() {
         // Подписываемся на реактивный стрим комнат из репозитория
         roomRepository.roomsStream
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] updatedRooms in
                 // Автоматически обновляем список при изменениях в репозитории
                 print("🔄 RoomsViewModel: Получены обновленные данные комнат из реактивного стрима: \(updatedRooms.count)")

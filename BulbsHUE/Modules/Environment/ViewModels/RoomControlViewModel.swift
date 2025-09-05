@@ -108,14 +108,13 @@ final class RoomControlViewModel: ObservableObject {
     func configure(
         with lightControlService: LightControlling,
         roomService: RoomServiceProtocol,
-        roomRepository: RoomRepositoryProtocol,
         room: RoomEntity,
         colorManager: RoomControlColorManaging? = nil
     ) {
         self.lightControlService = lightControlService
         self.roomService = roomService
-        self.roomRepository = roomRepository
-        self.colorManager = colorManager
+        self.roomRepository = DIContainer.shared.roomRepository
+        self.colorManager = colorManager ?? DIContainer.shared.roomControlColorService
         self.isConfigured = true
         setupObservers()
         setCurrentRoom(room)
@@ -341,7 +340,6 @@ final class RoomControlViewModel: ObservableObject {
         
         // Подписываемся на изменения ламп
         lightControlService.lightsPublisher
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] lights in
                 self?.updateStateFromLights(lights)
             }
@@ -349,7 +347,6 @@ final class RoomControlViewModel: ObservableObject {
         
         // Подписываемся на изменения selectedRoomForMenu в NavigationManager
         NavigationManager.shared.$selectedRoomForMenu
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] updatedRoom in
                 self?.handleNavigationManagerRoomUpdate(updatedRoom)
             }
@@ -376,7 +373,6 @@ final class RoomControlViewModel: ObservableObject {
         
         // Подписываемся на изменения конкретной комнаты из репозитория
         roomRepository.roomStream(for: roomId)
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] updatedRoom in
                 if let room = updatedRoom {
                     print("🏠 RoomControlViewModel: Получено обновление комнаты '\(room.name)' - тип: \(room.type.displayName), подтип: \(room.subtypeName)")

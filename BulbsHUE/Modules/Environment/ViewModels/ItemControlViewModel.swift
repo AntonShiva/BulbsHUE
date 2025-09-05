@@ -312,7 +312,6 @@ class ItemControlViewModel: ObservableObject {
         
         // Подписываемся на изменения selectedLightForMenu в NavigationManager
         NavigationManager.shared.$selectedLightForMenu
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] updatedLight in
                 self?.handleNavigationManagerLightUpdate(updatedLight)
             }

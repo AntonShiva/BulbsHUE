@@ -94,15 +94,11 @@ struct RoomControl: View {
             // Конфигурируем ViewModel с сервисами из appViewModel
             let lightService = LightControlService(appViewModel: appViewModel)
             let roomService = RoomService()
-            let roomRepository = DIContainer.shared.roomRepository
-            let colorService = DIContainer.shared.roomControlColorService
             
             roomControlViewModel.configure(
                 with: lightService,
                 roomService: roomService,
-                roomRepository: roomRepository,
-                room: room,
-                colorManager: colorService
+                room: room
             )
         }
         .onChange(of: room) { newRoom in

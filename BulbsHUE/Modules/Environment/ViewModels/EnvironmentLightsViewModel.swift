@@ -112,7 +112,6 @@ final class EnvironmentLightsViewModel: ObservableObject {
         
         // ГЛАВНЫЙ FIX: Подписываемся на изменения в DataPersistenceService
         dataPersistenceService.$assignedLights
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] persistenceLights in
                 // ✅ ОБЪЕДИНЯЕМ данные из БД с актуальным состоянием из API
                 guard let self = self, let appViewModel = self.appViewModel else { return }
@@ -138,7 +137,6 @@ final class EnvironmentLightsViewModel: ObservableObject {
         
         // Подписываемся на изменения списка ламп из API
         appViewModel.lightsViewModel.$lights
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] apiLights in
                 self?.handleAPILightsUpdate(apiLights)
             }
@@ -146,7 +144,6 @@ final class EnvironmentLightsViewModel: ObservableObject {
         
         // Подписываемся на состояние загрузки
         appViewModel.lightsViewModel.$isLoading
-            .receive(on: DispatchQueue.main)
             .assign(to: \.isLoading, on: self)
             .store(in: &cancellables)
     }

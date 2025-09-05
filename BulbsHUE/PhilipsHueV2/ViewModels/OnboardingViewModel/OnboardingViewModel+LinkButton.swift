@@ -46,9 +46,7 @@ extension OnboardingViewModel {
     }
     
     private func handleLinkButtonState(_ state: LinkButtonState) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
+        Task { @MainActor in
             switch state {
             case .idle:
                 print("🔄 Link Button: Готов к подключению")
@@ -73,7 +71,8 @@ extension OnboardingViewModel {
                 self.connectionError = nil
                 self.currentStep = .connected
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
                     self.appViewModel.showSetup = false
                 }
                 
@@ -93,9 +92,7 @@ extension OnboardingViewModel {
     }
     
     private func handleConnectionResult(_ result: Result<String, Error>) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
+        Task { @MainActor in
             switch result {
             case .success(let username):
                 print("🎉 Успешное подключение! Username: \(username)")
@@ -157,7 +154,8 @@ extension OnboardingViewModel {
                 self?.cancelLinkButton()
                 self?.currentStep = .connected
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
                     self?.appViewModel.showSetup = false
                 }
             }
