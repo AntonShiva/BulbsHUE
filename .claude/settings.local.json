@@ -4,7 +4,9 @@
       "Bash(xcodebuild:*)",
       "Bash(git checkout:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "WebSearch",
+      "WebFetch(domain:developers.meethue.com)"
     ],
     "deny": [],
     "ask": []

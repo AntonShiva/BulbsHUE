@@ -403,8 +403,9 @@ struct EffectsV2: Codable {
     var effect: String?
     
     /// Список доступных эффектов
-    /// Новые эффекты: "cosmos", "enchant", "sunbeam", "underwater"
-    /// Дополнительные: "candle", "fireplace", "prism", "glisten", "opal", "sparkle"
+    /// Обновлено 2024: добавлены "cosmos", "enchant", "sunbeam", "underwater"
+    /// Базовые: "candle", "fireplace", "prism", "glisten", "opal", "sparkle" 
+    /// Классические: "colorloop", "sunrise"
     var effect_values: [String]?
     
     /// Статус эффекта (теперь объект)

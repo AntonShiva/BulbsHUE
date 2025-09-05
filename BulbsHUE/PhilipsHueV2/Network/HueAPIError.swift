@@ -26,6 +26,8 @@ enum HueAPIError: LocalizedError {
     case encodingError
     case networkError(Error)
     case unknown(String)
+    case invalidParameter(String)
+    case endpointNotFound
     
     var errorDescription: String? {
         switch self {
@@ -61,6 +63,10 @@ enum HueAPIError: LocalizedError {
             return "Ошибка сети: \(error.localizedDescription)"
         case .unknown(let message):
             return "Неизвестная ошибка: \(message)"
+        case .invalidParameter(let message):
+            return "Неверный параметр: \(message)"
+        case .endpointNotFound:
+            return "Endpoint не найден. Возможно, требуется более новая версия Hue Bridge."
         }
     }
 }

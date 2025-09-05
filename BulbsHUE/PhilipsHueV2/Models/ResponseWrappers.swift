@@ -195,3 +195,16 @@ struct DeviceMetadata: Codable {
 }
 
 // ProductData уже определен в Common.swift
+
+// MARK: - Generic Response Wrapper для API v2
+
+/// Универсальная обертка для ответов Hue API v2
+struct HueResponse<T: Codable>: Codable {
+    let data: T
+    let errors: [APIError]?
+    
+    init(data: T, errors: [APIError]? = nil) {
+        self.data = data
+        self.errors = errors
+    }
+}
