@@ -11,7 +11,7 @@ import SwiftUI
 struct TupeCell<DataType: TypeCellData, ManagerType: TypeManager, SubtypeCellView: View>: View 
 where DataType.SubtypeType == ManagerType.SubtypeType {
     let typeData: DataType
-    @ObservedObject var typeManager: ManagerType
+    @Bindable var typeManager: ManagerType
     let subtypeCellBuilder: (DataType.SubtypeType, Bool, @escaping () -> Void) -> SubtypeCellView
     var cellHeight: CGFloat = 64 // Настраиваемая высота
     var iconWidth: CGFloat? = nil // Переопределение ширины иконки

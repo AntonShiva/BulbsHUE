@@ -101,6 +101,9 @@ struct EnvironmentView: View {
                     // Обновляем данные при каждом появлении экрана
                     appViewModel.lightsViewModel.loadLights()
                     environmentCoordinator?.refreshAll()
+                    
+                    // ✅ FIX: Принудительно синхронизируем assigned lights
+                    environmentCoordinator?.lightsViewModel.refreshAssignedLights()
                 } else {
                     // Нет подключения - пропускаем загрузку
                 }

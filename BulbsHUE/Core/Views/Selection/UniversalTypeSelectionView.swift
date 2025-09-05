@@ -167,7 +167,7 @@ protocol TypeSelectionConfig {
 
 /// Специализированный экран выбора типов ламп
 struct BulbTypeSelectionSheet: View {
-    @StateObject private var typeManager = BulbTypeManager()
+    @State private var typeManager = BulbTypeManager()
     let onSave: (String, String) -> Void
     let onCancel: () -> Void
     
@@ -186,7 +186,7 @@ struct BulbTypeSelectionSheet: View {
 
 /// Специализированный экран выбора типов комнат
 struct RoomTypeSelectionSheet: View {
-    @StateObject private var categoryManager = RoomCategoryManager()
+    @State private var categoryManager = RoomCategoryManager()
     let onSave: (String, String, RoomSubType) -> Void
     let onCancel: () -> Void
     

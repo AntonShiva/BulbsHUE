@@ -26,7 +26,7 @@ protocol SubtypeCellData {
 }
 
 // MARK: - Протокол для менеджера типов
-protocol TypeManager: ObservableObject {
+protocol TypeManager: AnyObject, Observable {
     associatedtype SubtypeType: SubtypeCellData
     
     var selectedSubtype: UUID? { get set }

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import Observation
 
 // MARK: - Модель подтипа лампы
 struct LampSubtype: Identifiable, Hashable {
@@ -45,8 +46,9 @@ struct BulbType: Identifiable {
 }
 
 // MARK: - Менеджер данных типов ламп
-class BulbTypeManager: ObservableObject {
-    @Published var selectedSubtype: UUID? = nil // Только один выбранный подтип
+@Observable
+class BulbTypeManager {
+    var selectedSubtype: UUID? = nil // Только один выбранный подтип
     
     // Словарь с названиями подтипов для каждого типа (согласно скриншоту)
     private let subtypeNames: [String: [String]] = [
@@ -114,15 +116,21 @@ class BulbTypeManager: ObservableObject {
     ]
     
     // Генерируем типы ламп с подтипами
-    lazy var bulbTypes: [BulbType] = {
-        return [
+    private var _bulbTypes: [BulbType]?
+    var bulbTypes: [BulbType] {
+        if let cached = _bulbTypes {
+            return cached
+        }
+        let types = [
             generateBulbType(name: "TABLE", iconName: "table", iconPrefix: "t", count: 3),
             generateBulbType(name: "FLOOR", iconName: "floor", iconPrefix: "f", count: 7),
             generateBulbType(name: "WALL", iconName: "wall", iconPrefix: "w", count: 4),
             generateBulbType(name: "CEILING", iconName: "ceiling", iconWidth: 24, iconHeight: 20, iconPrefix: "c", count: 10),
             generateBulbType(name: "OTHER", iconName: "other", iconPrefix: "o", count: 27)
         ]
-    }()
+        _bulbTypes = types
+        return types
+    }
     
     // Генерирует тип лампы с подтипами
     private func generateBulbType(

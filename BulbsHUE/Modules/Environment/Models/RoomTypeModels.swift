@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import Observation
 
 // MARK: - Модель подтипа комнаты
 struct RoomSubtype: Identifiable, Hashable {
@@ -46,8 +47,9 @@ struct RoomCategory: Identifiable {
 }
 
 // MARK: - Менеджер данных категорий комнат
-class RoomCategoryManager: ObservableObject {
-    @Published var selectedSubtype: UUID? = nil // Только один выбранный подтип
+@Observable
+class RoomCategoryManager {
+    var selectedSubtype: UUID? = nil // Только один выбранный подтип
     
     // Словарь с названиями подтипов для каждого типа (согласно скриншоту)
     private let subtypeNames: [String: [String]] = [
@@ -103,8 +105,12 @@ class RoomCategoryManager: ObservableObject {
         ]
     ]
     
-        // Генерируем категории комнат с подтипами
-    lazy var roomCategories: [RoomCategory] = {
+    // Генерируем категории комнат с подтипами
+    private var _roomCategories: [RoomCategory]?
+    var roomCategories: [RoomCategory] {
+        if let cached = _roomCategories {
+            return cached
+        }
         let categories = [
             generateRoomCategory(name: "TRADITIONAL", iconName: "Traditional", iconPrefix: "tr", count: 9),
             generateRoomCategory(name: "PRACTICAL", iconName: "Practical", iconPrefix: "pr", count: 8),
@@ -119,8 +125,9 @@ class RoomCategoryManager: ObservableObject {
             print("   - \(category.name): \(category.subtypes.count) подтипов, иконка: \(category.iconName)")
         }
         
+        _roomCategories = categories
         return categories
-    }()
+    }
     
    
     

@@ -236,6 +236,9 @@ struct AddNewRoom: View {
             createRoomWithLightsUseCase: diContainer.createRoomWithLightsUseCase
         )
         viewModel.setRoomCreationService(roomCreationService)
+        
+        // Вызываем setupBindings после установки всех зависимостей
+        viewModel.setupBindings()
     }
 }
 

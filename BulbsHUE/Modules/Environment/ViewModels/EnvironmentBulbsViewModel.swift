@@ -128,7 +128,6 @@ class EnvironmentBulbsViewModel  {
     }
     
     /// Применить цвета пресета к целевым лампам
-    @MainActor
     private func applyPresetColors(from scene: EnvironmentSceneEntity) async {
         guard let navigationManager = navigationManager else { return }
         

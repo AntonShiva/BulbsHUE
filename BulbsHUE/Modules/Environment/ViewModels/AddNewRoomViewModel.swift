@@ -59,9 +59,8 @@ class AddNewRoomViewModel  {
     /// Инициализация с минимальными зависимостями
     /// Другие зависимости устанавливаются через методы setup
     /// - Parameter categoryManager: Менеджер для управления категориями комнат
-    init(categoryManager: RoomCategoryManager = RoomCategoryManager()) {
+    nonisolated init(categoryManager: RoomCategoryManager = RoomCategoryManager()) {
         self.categoryManager = categoryManager
-        setupBindings()
     }
     
     // MARK: - Public Setup Methods
@@ -90,10 +89,10 @@ class AddNewRoomViewModel  {
         self.lightsSearchProvider = provider
     }
     
-    // MARK: - Private Setup
+    // MARK: - Public Setup Methods (continued)
     
     /// Настройка привязок и подписок
-    private func setupBindings() {
+    func setupBindings() {
         // @Observable не требует setupBindings для UI обновлений
         // Состояние синхронизируется автоматически
     }

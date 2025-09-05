@@ -61,6 +61,12 @@ class EnvironmentLightsViewModel  {
     func forceStateSync() {
         guard let appViewModel = appViewModel else { return }
         handleAPILightsUpdate(appViewModel.lightsViewModel.lights)
+        syncWithPersistenceService()
+    }
+    
+    /// Обновить список назначенных ламп из DataPersistenceService
+    func refreshAssignedLights() {
+        syncWithPersistenceService()
     }
     
     /// Назначить лампу к Environment
@@ -129,7 +135,9 @@ class EnvironmentLightsViewModel  {
     
     /// Загрузить начальные данные
     private func loadInitialData() {
-        // Данные уже загружаются автоматически через Publisher в setupObservers()
+        // Синхронизируем с данными из DataPersistenceService
+        syncWithPersistenceService()
+        
         // Запускаем обновление из API если нужно
         guard let appViewModel = appViewModel else { return }
         
@@ -139,6 +147,12 @@ class EnvironmentLightsViewModel  {
                 await appViewModel.lightsViewModel.refreshLightsWithStatus()
             }
         }
+    }
+    
+    /// Синхронизировать с DataPersistenceService
+    private func syncWithPersistenceService() {
+        guard let dataPersistenceService = dataPersistenceService else { return }
+        assignedLights = dataPersistenceService.assignedLights
     }
 }
 
