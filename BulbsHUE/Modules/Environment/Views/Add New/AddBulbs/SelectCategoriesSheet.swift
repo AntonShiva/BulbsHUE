@@ -174,7 +174,17 @@ struct SelectCategoriesSheet: View {
         if let dataPersistenceService = nav.dataPersistenceService {
             dataPersistenceService.saveLightData(updatedLight, isAssignedToEnvironment: true)
             print("✅ Лампа сохранена: подтип='\(selectedSubtype.name)', иконка='\(selectedSubtype.iconName)'")
+            
+            // ✅ FIX: Принудительно обновляем список назначенных ламп после сохранения
+            dataPersistenceService.loadAssignedLights()
         }
+        
+        // ✅ FIX: Отправляем уведомление о добавлении новой лампы для обновления UI
+        NotificationCenter.default.post(
+            name: Notification.Name("LightAddedToEnvironment"),
+            object: nil,
+            userInfo: ["lightId": selectedLight.id]
+        )
         
         // Возвращаемся к основному экрану
         nav.resetAddBulbState()

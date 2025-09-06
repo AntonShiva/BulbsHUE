@@ -320,10 +320,11 @@ final class DataPersistenceService {
         }
     }
     
-    // MARK: - Private Methods
+    // MARK: - Public Methods
     
     /// Загрузить назначенные лампы в @Published свойство
-    private func loadAssignedLights() {
+    /// ✅ ОБНОВЛЕНО: Сделано публичным для принудительного обновления из UI
+    func loadAssignedLights() {
         let descriptor = FetchDescriptor<LightDataModel>(
             predicate: #Predicate { $0.isAssignedToEnvironment == true },
             sortBy: [SortDescriptor(\.name)]

@@ -108,6 +108,17 @@ struct EnvironmentView: View {
                     // Нет подключения - пропускаем загрузку
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("LightAddedToEnvironment"))) { notification in
+                // ✅ FIX: Обновляем список при добавлении новой лампы
+                print("🔄 Получено уведомление о добавлении лампы в Environment")
+                
+                // Обновляем список ламп из API
+                appViewModel.lightsViewModel.loadLights()
+                
+                // Обновляем координатор
+                environmentCoordinator?.refreshAll()
+                environmentCoordinator?.lightsViewModel.refreshAssignedLights()
+            }
             
             .refreshable {
                 // ✅ Поддержка pull-to-refresh для всех данных

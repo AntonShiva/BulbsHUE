@@ -122,6 +122,24 @@ class EnvironmentLightsViewModel  {
         // dataPersistenceService.$assignedLights - больше не доступно в @Observable
         // Вызываем начальную синхронизацию данных
         loadInitialData()
+        
+        // ✅ FIX: Подписываемся на уведомление о добавлении лампы
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("LightAddedToEnvironment"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshAssignedLights()
+        }
+        
+        // ✅ FIX: Подписываемся на уведомление об обновлении данных лампы
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("LightDataUpdated"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshAssignedLights()
+        }
     }
     
     /// Обработка обновления ламп из API
