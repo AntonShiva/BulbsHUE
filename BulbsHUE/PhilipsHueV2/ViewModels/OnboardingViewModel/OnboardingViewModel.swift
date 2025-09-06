@@ -27,6 +27,9 @@ class OnboardingViewModel {
     var linkButtonPressed = false
     var connectionError: String? = nil
     
+    // ✅ ИСПРАВЛЕНИЕ: Добавляем управление Task для proper cancellation
+    internal var searchMonitoringTask: Task<Void, Never>?
+    
     // MARK: - Internal Properties
     
     internal var appViewModel: AppViewModelProtocol

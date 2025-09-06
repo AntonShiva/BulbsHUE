@@ -12,7 +12,7 @@ extension HueBridgeDiscovery {
     
     // MARK: - IP Scan Discovery
     
-    internal func ipScanDiscovery(completion: @escaping ([Bridge]) -> Void) {
+    internal func ipScanDiscovery(shouldStop: @escaping () -> Bool = { false }, completion: @escaping ([Bridge]) -> Void) {
         print("🔍 Сканируем популярные IP адреса...")
         
         var hasCompleted = false
@@ -22,7 +22,12 @@ extension HueBridgeDiscovery {
             ipScanLock.lock()
             defer { ipScanLock.unlock() }
             
-            guard !hasCompleted else { return }
+            guard !hasCompleted && !shouldStop() else { 
+                if shouldStop() {
+                    print("🛑 IP Scan: остановлен внешним shouldStop")
+                }
+                return 
+            }
             hasCompleted = true
             completion(bridges)
         }
@@ -47,12 +52,12 @@ extension HueBridgeDiscovery {
         let totalIPs = commonIPs.count
         
         for ip in commonIPs {
-            if !isDiscovering {
-                print("🛑 Останов IP-сканирования (раннее завершение)")
+            if !isDiscovering || shouldStop() {
+                print("🛑 Останов IP-сканирования (раннее завершение или shouldStop)")
                 safeCompletion(foundBridges)
                 break
             }
-            checkIPWithRetry(ip, maxAttempts: 2) { bridge in
+            checkIPWithRetry(ip, maxAttempts: 2, shouldStop: shouldStop) { bridge in
                 ipScanLock.lock()
                 if let bridge = bridge {
                     let isUnique = !foundBridges.contains { $0.id == bridge.id }
@@ -103,14 +108,14 @@ extension HueBridgeDiscovery {
         return ips
     }
     
-    private func checkIPWithRetry(_ ip: String, maxAttempts: Int = 2, completion: @escaping (Bridge?) -> Void) {
+    private func checkIPWithRetry(_ ip: String, maxAttempts: Int = 2, shouldStop: @escaping () -> Bool = { false }, completion: @escaping (Bridge?) -> Void) {
         func attemptCheck(attempt: Int) {
-            if !isDiscovering {
+            if !isDiscovering || shouldStop() {
                 completion(nil)
                 return
             }
-            checkIP(ip) { bridge in
-                if bridge != nil || attempt >= maxAttempts {
+            checkIP(ip, shouldStop: shouldStop) { bridge in
+                if bridge != nil || attempt >= maxAttempts || shouldStop() {
                     completion(bridge)
                 } else {
                     DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
@@ -123,12 +128,22 @@ extension HueBridgeDiscovery {
         attemptCheck(attempt: 1)
     }
     
-    internal func checkIP(_ ip: String, completion: @escaping (Bridge?) -> Void) {
-        checkIPViaConfig(ip) { bridge in
+    internal func checkIP(_ ip: String, shouldStop: @escaping () -> Bool = { false }, completion: @escaping (Bridge?) -> Void) {
+        guard !shouldStop() else {
+            completion(nil)
+            return
+        }
+        
+        checkIPViaConfig(ip, shouldStop: shouldStop) { bridge in
+            guard !shouldStop() else {
+                completion(nil)
+                return
+            }
+            
             if bridge != nil {
                 completion(bridge)
             } else {
-                self.checkIPViaXML(ip, completion: completion)
+                self.checkIPViaXML(ip, shouldStop: shouldStop, completion: completion)
             }
         }
     }

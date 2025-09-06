@@ -15,7 +15,8 @@
       "Bash(done)",
       "Bash(if grep -q \"ObservableObject\" \"$file\")",
       "Bash(then)",
-      "Bash(fi)"
+      "Bash(fi)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

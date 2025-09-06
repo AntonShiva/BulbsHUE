@@ -105,17 +105,31 @@ class SmartBridgeDiscovery {
     }
     
     /// Находит Hue Bridge используя интеллектуальные методы
-    static func discoverBridgeIntelligently(completion: @escaping ([Bridge]) -> Void) {
+    static func discoverBridgeIntelligently(shouldStop: @escaping () -> Bool = { false }, completion: @escaping ([Bridge]) -> Void) {
         print("🧠 Запускаем интеллектуальное обнаружение Hue Bridge...")
+        
+        // ✅ ИСПРАВЛЕНИЕ: Проверяем shouldStop перед началом
+        guard !shouldStop() else {
+            print("🛑 SmartBridgeDiscovery: отменено до запуска")
+            completion([])
+            return
+        }
         
         var foundBridges: [Bridge] = []
         var completedSteps = 0
         let totalSteps = 3
         let lock = NSLock()
+        var isCompleted = false
         
         func stepCompleted(bridges: [Bridge], stepName: String) {
             lock.lock()
             defer { lock.unlock() }
+            
+            // ✅ ИСПРАВЛЕНИЕ: Проверяем shouldStop и завершение
+            guard !shouldStop() && !isCompleted else {
+                print("🛑 \(stepName): отменено (shouldStop: \(shouldStop()), completed: \(isCompleted))")
+                return
+            }
             
             print("✅ \(stepName): найдено \(bridges.count) мостов")
             
@@ -129,21 +143,33 @@ class SmartBridgeDiscovery {
             completedSteps += 1
             
             if completedSteps >= totalSteps {
+                isCompleted = true
                 print("🎯 Интеллектуальное обнаружение завершено: \(foundBridges.count) уникальных мостов")
                 completion(foundBridges)
             }
         }
         
         // Шаг 1: Проверяем приоритетные адреса в текущей подсети
+        guard !shouldStop() else {
+            print("🛑 SmartBridgeDiscovery: отменено перед Priority Subnet Scan")
+            completion([])
+            return
+        }
+        
         let priorityDevices = getLocalNetworkDevices()
-        checkMultipleIPs(priorityDevices) { bridges in
+        checkMultipleIPs(priorityDevices, shouldStop: shouldStop) { bridges in
             stepCompleted(bridges: bridges, stepName: "Priority Subnet Scan")
         }
         
         // Шаг 2: Проверяем диапазон вокруг предполагаемого роутера
+        guard !shouldStop() else {
+            print("🛑 SmartBridgeDiscovery: отменено перед Gateway Range Scan")
+            return
+        }
+        
         if let gateway = getDefaultGateway() {
             let gatewayRange = generateNearbyIPs(around: gateway, count: 20)
-            checkMultipleIPs(gatewayRange) { bridges in
+            checkMultipleIPs(gatewayRange, shouldStop: shouldStop) { bridges in
                 stepCompleted(bridges: bridges, stepName: "Gateway Range Scan")
             }
         } else {
@@ -151,8 +177,13 @@ class SmartBridgeDiscovery {
         }
         
         // Шаг 3: Попробуем найти через Bonjour/mDNS
+        guard !shouldStop() else {
+            print("🛑 SmartBridgeDiscovery: отменено перед Bonjour Discovery")
+            return
+        }
+        
         if #available(iOS 14.0, *) {
-            attemptBonjourDiscovery { bridges in
+            attemptBonjourDiscovery(shouldStop: shouldStop) { bridges in
                 stepCompleted(bridges: bridges, stepName: "Bonjour Discovery")
             }
         } else {
@@ -160,9 +191,17 @@ class SmartBridgeDiscovery {
         }
         
         // Таймаут на случай зависания
-        DispatchQueue.global().asyncAfter(deadline: .now() + 15.0) { // Уменьшен таймаут
-            if completedSteps < totalSteps {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 15.0) {
+            lock.lock()
+            let currentCompleted = completedSteps
+            let currentIsCompleted = isCompleted
+            lock.unlock()
+            
+            if currentCompleted < totalSteps && !currentIsCompleted && !shouldStop() {
                 print("⏰ Таймаут интеллектуального обнаружения")
+                lock.lock()
+                isCompleted = true
+                lock.unlock()
                 completion(foundBridges)
             }
         }
@@ -192,15 +231,28 @@ class SmartBridgeDiscovery {
     }
     
     /// Проверяет несколько IP адресов параллельно
-    static func checkMultipleIPs(_ ips: [String], completion: @escaping ([Bridge]) -> Void) {
+    static func checkMultipleIPs(_ ips: [String], shouldStop: @escaping () -> Bool = { false }, completion: @escaping ([Bridge]) -> Void) {
+        // ✅ ИСПРАВЛЕНИЕ: Проверяем shouldStop перед началом
+        guard !shouldStop() else {
+            print("🛑 checkMultipleIPs: отменено до запуска")
+            completion([])
+            return
+        }
+        
         let dispatchGroup = DispatchGroup()
         var foundBridges: [Bridge] = []
         let bridgeLock = NSLock()
         
         for ip in ips {
+            // ✅ ИСПРАВЛЕНИЕ: Проверяем shouldStop перед каждым запросом
+            guard !shouldStop() else {
+                print("🛑 checkMultipleIPs: прерываем сканирование IP \(ip)")
+                break
+            }
+            
             dispatchGroup.enter()
             
-            checkSingleIP(ip) { bridge in
+            checkSingleIP(ip, shouldStop: shouldStop) { bridge in
                 if let bridge = bridge {
                     bridgeLock.lock()
                     foundBridges.append(bridge)
@@ -211,12 +263,22 @@ class SmartBridgeDiscovery {
         }
         
         dispatchGroup.notify(queue: .global()) {
+            guard !shouldStop() else {
+                print("🛑 checkMultipleIPs: результат отменен")
+                return
+            }
             completion(foundBridges)
         }
     }
     
     /// Проверяет один IP адрес на наличие Hue Bridge
-    static func checkSingleIP(_ ip: String, completion: @escaping (Bridge?) -> Void) {
+    static func checkSingleIP(_ ip: String, shouldStop: @escaping () -> Bool = { false }, completion: @escaping (Bridge?) -> Void) {
+        // ✅ ИСПРАВЛЕНИЕ: Проверяем shouldStop перед началом
+        guard !shouldStop() else {
+            completion(nil)
+            return
+        }
+        
         guard let url = URL(string: "http://\(ip)/api/0/config") else {
             completion(nil)
             return
@@ -227,6 +289,12 @@ class SmartBridgeDiscovery {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
         URLSession.shared.dataTask(with: request) { data, response, error in
+            // ✅ ИСПРАВЛЕНИЕ: Проверяем shouldStop перед обработкой ответа
+            guard !shouldStop() else {
+                completion(nil)
+                return
+            }
+            
             guard let data = data,
                   let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200,
@@ -254,6 +322,12 @@ class SmartBridgeDiscovery {
                     }
                 }
                 
+                // ✅ ИСПРАВЛЕНИЕ: Финальная проверка shouldStop перед возвратом результата
+                guard !shouldStop() else {
+                    completion(nil)
+                    return
+                }
+                
                 let normalizedId = bridgeID.replacingOccurrences(of: ":", with: "").uppercased()
                 print("✅ Интеллектуально найден Hue Bridge на \(ip): \(normalizedId)")
                 let bridge = Bridge(
@@ -272,13 +346,36 @@ class SmartBridgeDiscovery {
     
     /// Пытается найти мост через Bonjour/mDNS
     @available(iOS 14.0, *)
-    static func attemptBonjourDiscovery(completion: @escaping ([Bridge]) -> Void) {
+    static func attemptBonjourDiscovery(shouldStop: @escaping () -> Bool = { false }, completion: @escaping ([Bridge]) -> Void) {
+        // ✅ ИСПРАВЛЕНИЕ: Проверяем shouldStop перед началом
+        guard !shouldStop() else {
+            print("🛑 attemptBonjourDiscovery: отменено до запуска")
+            completion([])
+            return
+        }
+        
         print("📡 Попытка Bonjour/mDNS обнаружения...")
         
         let browser = NWBrowser(for: .bonjour(type: "_hue._tcp", domain: nil), using: .tcp)
         var foundBridges: [Bridge] = []
+        var isCompleted = false
+        let lock = NSLock()
         
         browser.browseResultsChangedHandler = { results, changes in
+            // ✅ ИСПРАВЛЕНИЕ: Проверяем shouldStop в обработчике
+            guard !shouldStop() else {
+                lock.lock()
+                if !isCompleted {
+                    isCompleted = true
+                    lock.unlock()
+                    browser.cancel()
+                    print("🛑 mDNS: прерываем из-за shouldStop")
+                } else {
+                    lock.unlock()
+                }
+                return
+            }
+            
             for result in results {
                 if case .service(let name, let type, let domain, _) = result.endpoint {
                     print("📡 mDNS найден сервис: \(name).\(type)\(domain)")
@@ -294,7 +391,14 @@ class SmartBridgeDiscovery {
                 print("📡 mDNS браузер готов")
             case .failed(let error):
                 print("❌ mDNS ошибка: \(error)")
-                completion([])
+                lock.lock()
+                if !isCompleted {
+                    isCompleted = true
+                    lock.unlock()
+                    completion([])
+                } else {
+                    lock.unlock()
+                }
             default:
                 break
             }
@@ -304,8 +408,19 @@ class SmartBridgeDiscovery {
         
         // Короткий таймаут для mDNS
         DispatchQueue.global().asyncAfter(deadline: .now() + 5.0) {
-            browser.cancel()
-            completion(foundBridges)
+            lock.lock()
+            if !isCompleted && !shouldStop() {
+                isCompleted = true
+                lock.unlock()
+                browser.cancel()
+                completion(foundBridges)
+            } else {
+                lock.unlock()
+                if shouldStop() {
+                    print("🛑 mDNS: таймаут отменен из-за shouldStop")
+                    browser.cancel()
+                }
+            }
         }
     }
     

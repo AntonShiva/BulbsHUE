@@ -45,8 +45,8 @@ extension HueBridgeDiscovery {
         }.resume()
     }
     
-    internal func checkIPViaConfig(_ ip: String, completion: @escaping (Bridge?) -> Void) {
-        guard let url = URL(string: "http://\(ip)/api/0/config") else {
+    internal func checkIPViaConfig(_ ip: String, shouldStop: @escaping () -> Bool = { false }, completion: @escaping (Bridge?) -> Void) {
+        guard let url = URL(string: "http://\(ip)/api/0/config"), !shouldStop() else {
             completion(nil)
             return
         }
@@ -58,6 +58,11 @@ extension HueBridgeDiscovery {
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         
         URLSession.shared.dataTask(with: request) { data, response, error in
+            guard !shouldStop() else {
+                completion(nil)
+                return
+            }
+            
             if let error = error {
                 let nsError = error as NSError
                 switch nsError.code {
@@ -140,8 +145,8 @@ extension HueBridgeDiscovery {
         }.resume()
     }
     
-    internal func checkIPViaXML(_ ip: String, completion: @escaping (Bridge?) -> Void) {
-        guard let url = URL(string: "http://\(ip)/description.xml") else {
+    internal func checkIPViaXML(_ ip: String, shouldStop: @escaping () -> Bool = { false }, completion: @escaping (Bridge?) -> Void) {
+        guard let url = URL(string: "http://\(ip)/description.xml"), !shouldStop() else {
             completion(nil)
             return
         }
@@ -153,6 +158,11 @@ extension HueBridgeDiscovery {
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         
         URLSession.shared.dataTask(with: request) { data, response, error in
+            guard !shouldStop() else {
+                completion(nil)
+                return
+            }
+            
             if let error = error {
                 let nsError = error as NSError
                 switch nsError.code {

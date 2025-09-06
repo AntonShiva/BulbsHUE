@@ -25,68 +25,101 @@ extension OnboardingViewModel {
         
         appViewModel.searchForBridges()
         
-        // ✅ ИСПРАВЛЕНИЕ: Отслеживаем изменения состояния вместо фиксированного таймаута
+        // ✅ ИСПРАВЛЕНИЕ: Заменяем рекурсию на async последовательность
+        startSearchProgressMonitoring()
+    }
+    
+    // ✅ ИСПРАВЛЕНИЕ: Безопасный мониторинг без рекурсии с proper cancellation
+    @MainActor
+    private func startSearchProgressMonitoring() {
+        // Отменяем предыдущий поиск если есть
+        searchMonitoringTask?.cancel()
+        
         let startTime = Date()
-        let maxSearchTime: TimeInterval = 30.0 // Максимальное время поиска
+        let maxSearchTime: TimeInterval = 30.0
+        let checkInterval: TimeInterval = 0.5
         
-        func checkSearchProgress() {
-            // Обновляем состояние из AppViewModel
+        searchMonitoringTask = Task { [weak self] in
+            guard let self = self else { return }
+            
+            while self.isSearchingBridges && !Task.isCancelled {
+                await MainActor.run {
+                    // Обновляем состояние из AppViewModel
+                    self.updateFromAppViewModel()
+                }
+                
+                // Проверяем условия завершения
+                if await self.shouldStopSearching(startTime: startTime, maxSearchTime: maxSearchTime) {
+                    break
+                }
+                
+                // Ждем интервал проверки
+                try? await Task.sleep(nanoseconds: UInt64(checkInterval * 1_000_000_000))
+            }
+            
+            // Очищаем ссылку на завершенный Task
+            await MainActor.run {
+                self.searchMonitoringTask = nil
+            }
+        }
+    }
+    
+    // ✅ ИСПРАВЛЕНИЕ: Метод для отмены поиска
+    @MainActor
+    func stopBridgeSearch() {
+        isSearchingBridges = false
+        searchMonitoringTask?.cancel()
+        searchMonitoringTask = nil
+        print("🛑 Поиск мостов остановлен")
+    }
+    
+    @MainActor
+    private func shouldStopSearching(startTime: Date, maxSearchTime: TimeInterval) -> Bool {
+        // Проверяем успешное подключение
+        if appViewModel.connectionStatus == .connected ||
+           appViewModel.connectionStatus == .needsAuthentication {
+            print("✅ Мост уже найден и подключен")
+            isSearchingBridges = false
+            return true
+        }
+        
+        // Проверяем найденные мосты
+        if appViewModel.connectionStatus == .discovered && !appViewModel.discoveredBridges.isEmpty {
+            print("✅ Найдено мостов: \(appViewModel.discoveredBridges.count)")
+            isSearchingBridges = false
             updateFromAppViewModel()
-            
-            // Проверяем различные условия завершения
-            if appViewModel.connectionStatus == .connected ||
-               appViewModel.connectionStatus == .needsAuthentication {
-                print("✅ Мост уже найден и подключен")
-                isSearchingBridges = false
-                return
-            }
-            
-            if appViewModel.connectionStatus == .discovered && !appViewModel.discoveredBridges.isEmpty {
-                print("✅ Найдено мостов: \(appViewModel.discoveredBridges.count)")
-                isSearchingBridges = false
-                updateFromAppViewModel()
-                return
-            }
-            
-            // Проверяем ошибки
-            if let error = appViewModel.error as? HueAPIError,
-               case .localNetworkPermissionDenied = error {
-                print("🚫 Отказано в разрешении локальной сети")
-                isSearchingBridges = false
-                showLocalNetworkAlert = true
-                return
-            }
-            
-            // Проверяем таймаут
-            if Date().timeIntervalSince(startTime) > maxSearchTime {
-                print("⏰ Превышено максимальное время поиска")
-                isSearchingBridges = false
-                if appViewModel.discoveredBridges.isEmpty {
-                    connectionError = "Мосты не найдены в локальной сети. Проверьте подключение."
-                } else {
-                    updateFromAppViewModel()
-                }
-                return
-            }
-            
-            // Если поиск еще продолжается - планируем следующую проверку
-            if appViewModel.connectionStatus == .searching && isSearchingBridges {
-                Task { @MainActor in
-                    try await Task.sleep(nanoseconds: 500_000_000) // 0.5 секунды
-                    checkSearchProgress()
-                }
-            } else {
-                // Поиск завершен по другим причинам
-                isSearchingBridges = false
-                updateFromAppViewModel()
-            }
+            return true
         }
         
-        // Запускаем первую проверку через короткую задержку
-        Task { @MainActor in
-            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 секунды
-            checkSearchProgress()
+        // Проверяем ошибки
+        if let error = appViewModel.error as? HueAPIError,
+           case .localNetworkPermissionDenied = error {
+            print("🚫 Отказано в разрешении локальной сети")
+            isSearchingBridges = false
+            showLocalNetworkAlert = true
+            return true
         }
+        
+        // Проверяем таймаут
+        if Date().timeIntervalSince(startTime) > maxSearchTime {
+            print("⏰ Превышено максимальное время поиска")
+            isSearchingBridges = false
+            if appViewModel.discoveredBridges.isEmpty {
+                connectionError = "Мосты не найдены в локальной сети. Проверьте подключение."
+            } else {
+                updateFromAppViewModel()
+            }
+            return true
+        }
+        
+        // Проверяем изменение состояния поиска
+        if appViewModel.connectionStatus != .searching {
+            isSearchingBridges = false
+            updateFromAppViewModel()
+            return true
+        }
+        
+        return false
     }
 }
 
