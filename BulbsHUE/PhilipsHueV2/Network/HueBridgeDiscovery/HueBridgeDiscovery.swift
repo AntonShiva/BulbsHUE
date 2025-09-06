@@ -30,14 +30,24 @@ class HueBridgeDiscovery {
         }
         
         isDiscovering = true
-
-        func finishEarly(with bridges: [Bridge]) {
+        var hasCompleted = false
+        let globalLock = NSLock()
+        
+        // ✅ ИСПРАВЛЕНИЕ: Единая функция для завершения поиска
+        func finishDiscovery(with bridges: [Bridge], reason: String) {
+            globalLock.lock()
+            defer { globalLock.unlock() }
+            
+            guard !hasCompleted else { return }
+            hasCompleted = true
             self.isDiscovering = false
+            
             let normalized = bridges.map { b -> Bridge in
                 var nb = b; nb.id = b.normalizedId; return nb
             }
+            
             Task { @MainActor in
-                print("🎯 mDNS нашёл мост(ы): \(normalized.count). Раннее завершение поиска")
+                print("🎯 \(reason): найдено \(normalized.count) мостов. Завершаем поиск.")
                 for bridge in normalized {
                     print("   - \(bridge.name ?? "Unknown") (\(bridge.id)) at \(bridge.internalipaddress)")
                 }
@@ -47,115 +57,124 @@ class HueBridgeDiscovery {
         }
 
         if #available(iOS 14.0, *) {
+            // ✅ ИСПРАВЛЕНИЕ: Последовательный запуск методов
+            print("🎯 Шаг 1: Пытаемся использовать mDNS поиск...")
             attemptMDNSDiscovery { bridges in
                 if !bridges.isEmpty {
-                    finishEarly(with: bridges)
+                    print("✅ mDNS успешно нашел мост(ы)!")
+                    finishDiscovery(with: bridges, reason: "mDNS Discovery")
                     return
                 }
-
-                var allFoundBridges: [Bridge] = []
-                let lock = NSLock()
-                var completedTasks = 0
-                let totalTasks = 3
-
-                func safeTaskCompletion(bridges: [Bridge], taskName: String) {
-                    lock.lock()
-                    defer { lock.unlock() }
-
-                    print("✅ \(taskName) завершен, найдено: \(bridges.count) мостов")
-
-                    if taskName == "Cloud Discovery", !bridges.isEmpty {
-                        finishEarly(with: bridges)
-                        return
-                    }
-
-                    let uniqueBridges = bridges.map { b in
-                        var normalized = b
-                        normalized.id = b.normalizedId
-                        return normalized
-                    }.filter { newBridge in
-                        !allFoundBridges.contains { existing in
-                            existing.normalizedId == newBridge.normalizedId ||
-                            existing.internalipaddress == newBridge.internalipaddress
-                        }
-                    }
-                    allFoundBridges.append(contentsOf: uniqueBridges)
-
-                    completedTasks += 1
-
-                    if completedTasks >= totalTasks {
-                        self.isDiscovering = false
-                        Task { @MainActor in
-                            print("🎯 Найдено всего уникальных мостов: \(allFoundBridges.count)")
-                            for bridge in allFoundBridges {
-                                print("   - \(bridge.name ?? "Unknown") (\(bridge.id)) at \(bridge.internalipaddress)")
-                            }
-                            print("📋 Discovery завершен с результатом: \(allFoundBridges.count) мостов")
-                            completion(allFoundBridges)
-                        }
-                    }
-                }
-
+                
+                print("🎯 Шаг 2: mDNS не дал результатов, пробуем Cloud Discovery...")
                 self.cloudDiscovery { bridges in
                     if !bridges.isEmpty {
-                        finishEarly(with: bridges)
+                        print("✅ Cloud Discovery успешно нашел мост(ы)!")
+                        finishDiscovery(with: bridges, reason: "Cloud Discovery")
                         return
+                    }
+                    
+                    print("🎯 Шаг 3: Cloud не дал результатов, запускаем параллельные методы...")
+                    // Только если не нашли через быстрые методы - запускаем медленные
+                    var allFoundBridges: [Bridge] = []
+                    let slowLock = NSLock()
+                    var completedSlowTasks = 0
+                    let totalSlowTasks = 2
+
+                    func slowTaskCompletion(bridges: [Bridge], taskName: String) {
+                        slowLock.lock()
+                        defer { slowLock.unlock() }
+                        
+                        // Проверяем что поиск еще не завершен
+                        globalLock.lock()
+                        let stillSearching = !hasCompleted
+                        globalLock.unlock()
+                        
+                        guard stillSearching else { return }
+
+                        print("✅ \(taskName) завершен, найдено: \(bridges.count) мостов")
+                        
+                        // Если нашли мосты - завершаем немедленно
+                        if !bridges.isEmpty {
+                            finishDiscovery(with: bridges, reason: taskName)
+                            return
+                        }
+
+                        let uniqueBridges = bridges.map { b in
+                            var normalized = b
+                            normalized.id = b.normalizedId
+                            return normalized
+                        }.filter { newBridge in
+                            !allFoundBridges.contains { existing in
+                                existing.normalizedId == newBridge.normalizedId ||
+                                existing.internalipaddress == newBridge.internalipaddress
+                            }
+                        }
+                        allFoundBridges.append(contentsOf: uniqueBridges)
+
+                        completedSlowTasks += 1
+
+                        if completedSlowTasks >= totalSlowTasks {
+                            finishDiscovery(with: allFoundBridges, reason: "Все методы завершены")
+                        }
                     }
 
                     SmartBridgeDiscovery.discoverBridgeIntelligently { bridges in
-                        safeTaskCompletion(bridges: bridges, taskName: "Smart Discovery")
+                        slowTaskCompletion(bridges: bridges, taskName: "Smart Discovery")
                     }
 
                     self.ipScanDiscovery { bridges in
-                        safeTaskCompletion(bridges: bridges, taskName: "Legacy IP Scan")
+                        slowTaskCompletion(bridges: bridges, taskName: "Legacy IP Scan")
                     }
 
+                    // Общий таймаут для медленных методов
                     Task { [weak self] in
                         guard let self = self else { return }
                         try await Task.sleep(nanoseconds: UInt64(self.discoveryTimeout * 1_000_000_000))
-                        guard self.isDiscovering else { return }
-                        self.isDiscovering = false
-                        await MainActor.run {
-                            print("⏰ Таймаут поиска, найдено мостов: \(allFoundBridges.count)")
-                            if allFoundBridges.isEmpty {
-                                print("❌ Мосты не найдены")
-                                NetworkDiagnostics.generateDiagnosticReport { report in
-                                    print("🔍 ДИАГНОСТИЧЕСКИЙ ОТЧЕТ:")
-                                    print(report)
-                                }
-                            }
-                            completion(allFoundBridges)
-                        }
+                        
+                        slowLock.lock()
+                        let currentBridges = allFoundBridges
+                        slowLock.unlock()
+                        
+                        finishDiscovery(with: currentBridges, reason: "Таймаут поиска")
                     }
                 }
             }
         } else {
-            var allFoundBridges: [Bridge] = []
-            let lock = NSLock()
-            var completedTasks = 0
-            let totalTasks = 3
-
-            func safeTaskCompletion(bridges: [Bridge], taskName: String) {
-                lock.lock(); defer { lock.unlock() }
-                print("✅ \(taskName) завершен, найдено: \(bridges.count) мостов")
-                let uniqueBridges = bridges.filter { newBridge in
-                    !allFoundBridges.contains { existing in
-                        existing.normalizedId == newBridge.normalizedId ||
-                        existing.internalipaddress == newBridge.internalipaddress
+            // Legacy iOS < 14.0 - последовательный поиск
+            print("📱 Используем legacy discovery для iOS < 12.0")
+            cloudDiscovery { bridges in
+                if !bridges.isEmpty {
+                    finishDiscovery(with: bridges, reason: "Cloud Discovery (Legacy)")
+                    return
+                }
+                
+                SmartBridgeDiscovery.discoverBridgeIntelligently { bridges in
+                    if !bridges.isEmpty {
+                        finishDiscovery(with: bridges, reason: "Smart Discovery (Legacy)")
+                        return
+                    }
+                    
+                    self.ipScanDiscovery { bridges in
+                        finishDiscovery(with: bridges, reason: "IP Scan (Legacy)")
                     }
                 }
-                allFoundBridges.append(contentsOf: uniqueBridges)
-                completedTasks += 1
-                if completedTasks >= totalTasks {
-                    isDiscovering = false
-                    Task { @MainActor in completion(allFoundBridges) }
-                }
             }
-
-            cloudDiscovery { bridges in safeTaskCompletion(bridges: bridges, taskName: "Cloud Discovery") }
-            SmartBridgeDiscovery.discoverBridgeIntelligently { bridges in safeTaskCompletion(bridges: bridges, taskName: "Smart Discovery") }
-            ipScanDiscovery { bridges in safeTaskCompletion(bridges: bridges, taskName: "Legacy IP Scan") }
         }
+    }
+    
+    /// Принудительно останавливает все процессы поиска
+    func stopDiscovery() {
+        print("🛑 Принудительно останавливаем все процессы поиска...")
+        
+        lock.lock()
+        defer { lock.unlock() }
+        
+        isDiscovering = false
+        udpConnection?.cancel()
+        udpConnection = nil
+        
+        print("✅ Все процессы поиска остановлены")
     }
     
     // MARK: - Cleanup

@@ -134,6 +134,15 @@ extension AppViewModel {
                 print("✅ Найдено мостов (уникальных): \(deduped.count)")
                 self.connectionStatus = .discovered
                 self.error = nil
+                
+                // ✅ ИСПРАВЛЕНИЕ: Если найден единственный мост - сразу переходим к подключению
+                if deduped.count == 1, let singleBridge = deduped.first {
+                    print("🎯 Найден единственный мост, автоматически переходим к подключению")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        // Небольшая задержка для обновления UI
+                        self.connectToBridge(singleBridge)
+                    }
+                }
             }
         }
     }

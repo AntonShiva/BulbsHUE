@@ -20,7 +20,12 @@ extension AppViewModel {
     /// Подключается к выбранному мосту
     func connectToBridge(_ bridge: Bridge) {
         currentBridge = bridge
+        
+        // Сохраняем IP и ID моста
         UserDefaults.standard.set(bridge.internalipaddress, forKey: "HueBridgeIP")
+        if !bridge.id.isEmpty {
+            UserDefaults.standard.set(bridge.id, forKey: "HueBridgeID")
+        }
         
         recreateAPIClient(with: bridge.internalipaddress)
         
@@ -28,8 +33,24 @@ extension AppViewModel {
             .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    if case .failure = completion {
+                    if case .failure(let error) = completion {
+                        print("❌ Ошибка подключения к мосту: \(error)")
                         self?.connectionStatus = .disconnected
+                        
+                        // Если мост недоступен, пробуем найти его в сети
+                        if !bridge.id.isEmpty {
+                            print("🔍 Пытаемся найти мост в сети по ID: \(bridge.id)")
+                            self?.searchForSpecificBridge(bridgeId: bridge.id) { foundBridge in
+                                if let newBridge = foundBridge {
+                                    print("✅ Мост найден по новому адресу: \(newBridge.internalipaddress)")
+                                    // Рекурсивно вызываем connectToBridge с новым адресом
+                                    self?.connectToBridge(newBridge)
+                                } else {
+                                    print("❌ Мост не найден в сети")
+                                    self?.error = HueAPIError.bridgeNotFound
+                                }
+                            }
+                        }
                     }
                 },
                 receiveValue: { [weak self] config in
@@ -39,15 +60,33 @@ extension AppViewModel {
                         return
                     }
                     
+                    // Обновляем информацию о мосте
                     if let bridgeId = config.bridgeid {
                         self?.currentBridge?.id = bridgeId
+                        UserDefaults.standard.set(bridgeId, forKey: "HueBridgeID")
+                        UserDefaults.standard.set(bridgeId, forKey: "lastUsedBridgeId")
                     }
                     
+                    if let name = config.name {
+                        self?.currentBridge?.name = name
+                    }
+                    
+                    if let mac = config.mac {
+                        self?.currentBridge?.macaddress = mac
+                    }
+                    
+                    // Проверяем наличие application key
                     if let key = self?.applicationKey {
                         self?.connectionStatus = .connected
                         self?.startEventStream()
                         self?.loadAllData()
                         self?.showSetup = false
+                        
+                        // Сохраняем полные credentials
+                        self?.saveCredentials()
+                        
+                        // Запускаем мониторинг подключения
+                        self?.startConnectionMonitoring()
                     } else {
                         self?.connectionStatus = .needsAuthentication
                         self?.showSetup = true
@@ -90,6 +129,13 @@ extension AppViewModel {
                         self?.showSetup = false
                         self?.startEventStream()
                         self?.loadAllData()
+                        
+                        // ✅ ИСПРАВЛЕНИЕ: Сохраняем credentials при создании пользователя
+                        self?.saveCredentials()
+                        
+                        // Запускаем мониторинг подключения
+                        self?.startConnectionMonitoring()
+                        
                         completion(true)
                     } else if let error = response.error {
                         if error.type == 101 {

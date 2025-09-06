@@ -62,9 +62,11 @@ extension HueBridgeDiscovery {
         var activeServices: [NetService] = []
         var activeResolvers: [ServiceResolver] = []
         var bridges: [Bridge] = []
+        var hasFoundBridge = false
 
         browser.browseResultsChangedHandler = { [weak self] results, _ in
-            guard let self = self else { return }
+            guard let self = self, !hasFoundBridge else { return }
+            
             for result in results {
                 if case .service(let name, var type, var domain, _) = result.endpoint {
                     if !type.hasSuffix(".") { type += "." }
@@ -75,9 +77,16 @@ extension HueBridgeDiscovery {
 
                     let service = NetService(domain: domain, type: type, name: name)
                     let resolver = ServiceResolver(onResolved: { ip, port in
+                        guard !hasFoundBridge else { return }
+                        print("🎯 mDNS резолвит IP: \(ip):\(port)")
+                        
                         self.checkIPViaConfig(ip) { confirmed in
+                            guard !hasFoundBridge else { return }
                             if let bridge = confirmed {
+                                hasFoundBridge = true
                                 bridges = [bridge]
+                                print("✅ mDNS успешно нашел и подтвердил мост: \(bridge.id) на \(ip)")
+                                
                                 browser.cancel()
                                 resolverQueue.async {
                                     activeServices.forEach { $0.stop() }
@@ -88,7 +97,7 @@ extension HueBridgeDiscovery {
                             }
                         }
                     }, onFailed: {
-                        // Игнорируем неудачные резолвы
+                        print("❌ mDNS не удалось резолвить сервис: \(name)")
                     })
                     service.delegate = resolver
                     resolverQueue.async {
@@ -96,7 +105,7 @@ extension HueBridgeDiscovery {
                         activeResolvers.append(resolver)
                         DispatchQueue.main.async {
                             service.schedule(in: .main, forMode: .common)
-                            service.resolve(withTimeout: 3.0)
+                            service.resolve(withTimeout: 5.0) // Увеличен таймаут резолвинга
                         }
                     }
                 }

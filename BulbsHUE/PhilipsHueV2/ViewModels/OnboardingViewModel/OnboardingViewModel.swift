@@ -38,6 +38,7 @@ class OnboardingViewModel {
     internal var lastGroupRequestTime = Date.distantPast
     internal let lightRequestInterval: TimeInterval = 0.1
     internal let groupRequestInterval: TimeInterval = 1.0
+    internal var lastSearchingLogTime = Date.distantPast // ✅ ДОБАВЛЕНО: Throttling для логов поиска
     
     // MARK: - Initialization
     
@@ -91,7 +92,12 @@ class OnboardingViewModel {
         case .disconnected:
             print("❌ OnboardingViewModel: Отключено")
         case .searching:
-            print("🔍 OnboardingViewModel: Поиск мостов...")
+            // ✅ ИСПРАВЛЕНИЕ: Ограничиваем частоту логов поиска (максимум раз в 2 секунды)
+            let now = Date()
+            if now.timeIntervalSince(lastSearchingLogTime) > 2.0 {
+                print("🔍 OnboardingViewModel: Поиск мостов...")
+                lastSearchingLogTime = now
+            }
         @unknown default:
             break
         }

@@ -25,32 +25,67 @@ extension OnboardingViewModel {
         
         appViewModel.searchForBridges()
         
-        Task { @MainActor in
-            try await Task.sleep(nanoseconds: 15_000_000_000) // 15 seconds
-            
-            // Обновляем состояние из AppViewModel после поиска
+        // ✅ ИСПРАВЛЕНИЕ: Отслеживаем изменения состояния вместо фиксированного таймаута
+        let startTime = Date()
+        let maxSearchTime: TimeInterval = 30.0 // Максимальное время поиска
+        
+        func checkSearchProgress() {
+            // Обновляем состояние из AppViewModel
             updateFromAppViewModel()
             
+            // Проверяем различные условия завершения
             if appViewModel.connectionStatus == .connected ||
                appViewModel.connectionStatus == .needsAuthentication {
                 print("✅ Мост уже найден и подключен")
+                isSearchingBridges = false
                 return
             }
             
-            isSearchingBridges = false
+            if appViewModel.connectionStatus == .discovered && !appViewModel.discoveredBridges.isEmpty {
+                print("✅ Найдено мостов: \(appViewModel.discoveredBridges.count)")
+                isSearchingBridges = false
+                updateFromAppViewModel()
+                return
+            }
             
+            // Проверяем ошибки
             if let error = appViewModel.error as? HueAPIError,
                case .localNetworkPermissionDenied = error {
                 print("🚫 Отказано в разрешении локальной сети")
+                isSearchingBridges = false
                 showLocalNetworkAlert = true
-            } else if appViewModel.discoveredBridges.isEmpty {
-                print("❌ Мосты не найдены")
-                connectionError = "Мосты не найдены в локальной сети. Проверьте подключение."
+                return
+            }
+            
+            // Проверяем таймаут
+            if Date().timeIntervalSince(startTime) > maxSearchTime {
+                print("⏰ Превышено максимальное время поиска")
+                isSearchingBridges = false
+                if appViewModel.discoveredBridges.isEmpty {
+                    connectionError = "Мосты не найдены в локальной сети. Проверьте подключение."
+                } else {
+                    updateFromAppViewModel()
+                }
+                return
+            }
+            
+            // Если поиск еще продолжается - планируем следующую проверку
+            if appViewModel.connectionStatus == .searching && isSearchingBridges {
+                Task { @MainActor in
+                    try await Task.sleep(nanoseconds: 500_000_000) // 0.5 секунды
+                    checkSearchProgress()
+                }
             } else {
-                print("✅ Найдено мостов: \(appViewModel.discoveredBridges.count)")
-                // Обновляем локальное состояние
+                // Поиск завершен по другим причинам
+                isSearchingBridges = false
                 updateFromAppViewModel()
             }
+        }
+        
+        // Запускаем первую проверку через короткую задержку
+        Task { @MainActor in
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 секунды
+            checkSearchProgress()
         }
     }
 }

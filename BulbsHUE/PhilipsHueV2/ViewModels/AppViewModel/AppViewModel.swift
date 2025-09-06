@@ -51,6 +51,11 @@ class AppViewModel {
     internal var entertainmentClient: HueEntertainmentClient?
     internal weak var dataPersistenceService: DataPersistenceService?
     
+    // MARK: - Reconnection Properties
+    
+    internal var connectionCheckTimer: Timer?
+    internal var networkMonitor: AnyObject? // NWPathMonitor для iOS 12+
+    
     // MARK: - Public Properties
     
     var dataService: DataPersistenceService? {
@@ -90,6 +95,9 @@ class AppViewModel {
         currentBridge = nil
         applicationKey = nil
         eventStreamCancellable?.cancel()
+        
+        // Останавливаем мониторинг подключения
+        stopConnectionMonitoring()
         
         UserDefaults.standard.removeObject(forKey: "HueBridgeIP")
         UserDefaults.standard.removeObject(forKey: "HueApplicationKey")
@@ -187,35 +195,232 @@ class AppViewModel {
     // MARK: - Private Methods
     
     private func loadSavedSettings() {
+        // Приоритет 1: Проверяем Keychain (более полная информация)
         if let credentials = HueKeychainManager.shared.getLastBridgeCredentials() {
-            loadSavedSettingsFromKeychain()
+            print("📱 Загружаем сохраненные настройки из Keychain...")
+            
+            applicationKey = credentials.applicationKey
+            recreateAPIClient(with: credentials.bridgeIP)
+            
+            if let clientKey = credentials.clientKey {
+                setupEntertainmentClient(clientKey: clientKey)
+            }
+            
+            currentBridge = Bridge(
+                id: credentials.bridgeId,
+                internalipaddress: credentials.bridgeIP,
+                port: 443
+            )
+            
+            // Проверяем доступность моста перед установкой статуса
+            connectionStatus = .connecting
+            showSetup = false
+            
+            // Проверяем, доступен ли мост
+            Task {
+                await verifyBridgeConnection(credentials.bridgeIP) { [weak self] isAvailable in
+                    if isAvailable {
+                        self?.connectionStatus = .connected
+                        self?.startEventStream()
+                        self?.loadAllData()
+                        
+                        // Запускаем мониторинг подключения после успешного подключения
+                        self?.startConnectionMonitoring()
+                    } else {
+                        print("⚠️ Сохраненный мост недоступен, ищем его в сети...")
+                        self?.rediscoverSavedBridge()
+                    }
+                }
+            }
+            
             return
         }
         
+        // Приоритет 2: Проверяем UserDefaults (legacy)
         if let savedIP = UserDefaults.standard.string(forKey: "HueBridgeIP"),
            let savedKey = UserDefaults.standard.string(forKey: "HueApplicationKey") {
+            
+            print("📱 Загружаем сохраненные настройки из UserDefaults...")
             
             applicationKey = savedKey
             recreateAPIClient(with: savedIP)
             
-            if let bridgeId = UserDefaults.standard.string(forKey: "HueBridgeID"),
+            // Получаем Bridge ID если сохранен
+            let bridgeId = UserDefaults.standard.string(forKey: "HueBridgeID") ?? ""
+            
+            if !bridgeId.isEmpty,
                let clientKey = HueKeychainManager.shared.getClientKey(for: bridgeId) {
                 setupEntertainmentClient(clientKey: clientKey)
             }
             
             currentBridge = Bridge(
-                id: "",
+                id: bridgeId,
                 internalipaddress: savedIP,
                 port: 443
             )
             
-            connectionStatus = .connected
-            showSetup = false  // 🔧 ИСПРАВЛЕНИЕ: Переходим к главному экрану при загрузке из UserDefaults
-            startEventStream()
+            // Проверяем доступность моста
+            connectionStatus = .connecting
+            showSetup = false
+            
+            Task {
+                await verifyBridgeConnection(savedIP) { [weak self] isAvailable in
+                    if isAvailable {
+                        // Получаем актуальный Bridge ID с моста
+                        self?.updateBridgeInfo {
+                            self?.connectionStatus = .connected
+                            self?.startEventStream()
+                            self?.loadAllData()
+                            
+                            // Запускаем мониторинг подключения
+                            self?.startConnectionMonitoring()
+                            
+                            // Мигрируем данные в Keychain для будущего использования
+                            self?.saveCredentials()
+                        }
+                    } else {
+                        print("⚠️ Сохраненный мост недоступен по адресу \(savedIP)")
+                        
+                        // Если есть Bridge ID, пробуем найти мост в сети
+                        if !bridgeId.isEmpty {
+                            self?.rediscoverSavedBridge()
+                        } else {
+                            // Нет Bridge ID - показываем экран настройки
+                            self?.connectionStatus = .disconnected
+                            self?.showSetup = true
+                        }
+                    }
+                }
+            }
+            
+            return
+        }
+        
+        // Нет сохраненных настроек - первый запуск
+        showSetup = true
+        connectionStatus = .disconnected
+        print("🚀 Первый запуск - ждем настройки подключения")
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Проверяет доступность моста по IP адресу
+    private func verifyBridgeConnection(_ ip: String, completion: @escaping (Bool) -> Void) async {
+        guard let url = URL(string: "https://\(ip)/api/\(applicationKey ?? "0")/config") else {
+            await MainActor.run {
+                completion(false)
+            }
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 5.0
+        
+        // Используем URLSession с делегатом для самоподписанных сертификатов
+        let delegate = HueURLSessionDelegate()
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode == 200 {
+                
+                // Пробуем распарсить конфигурацию
+                if let config = try? JSONDecoder().decode(BridgeConfig.self, from: data) {
+                    await MainActor.run {
+                        // Обновляем информацию о мосте если нужно
+                        if let bridgeId = config.bridgeid, self.currentBridge?.id.isEmpty == true {
+                            self.currentBridge?.id = bridgeId
+                        }
+                        if let name = config.name {
+                            self.currentBridge?.name = name
+                        }
+                        completion(true)
+                    }
+                } else {
+                    await MainActor.run {
+                        completion(true) // Мост доступен, даже если не удалось распарсить
+                    }
+                }
+            } else {
+                await MainActor.run {
+                    completion(false)
+                }
+            }
+        } catch {
+            print("❌ Ошибка проверки подключения: \(error)")
+            await MainActor.run {
+                completion(false)
+            }
+        }
+    }
+    
+    /// Обновляет информацию о мосте с сервера
+    private func updateBridgeInfo(completion: @escaping () -> Void) {
+        apiClient.getBridgeConfig()
+            .receive(on: RunLoop.main)
+            .sink(
+                receiveCompletion: { _ in
+                    completion()
+                },
+                receiveValue: { [weak self] config in
+                    if let bridgeId = config.bridgeid {
+                        self?.currentBridge?.id = bridgeId
+                        UserDefaults.standard.set(bridgeId, forKey: "HueBridgeID")
+                    }
+                    if let name = config.name {
+                        self?.currentBridge?.name = name
+                    }
+                    completion()
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    /// Переоткрывает сохраненный мост в сети
+    private func rediscoverSavedBridge() {
+        let savedBridgeId = currentBridge?.id ?? 
+                           UserDefaults.standard.string(forKey: "HueBridgeID") ?? 
+                           UserDefaults.standard.string(forKey: "lastUsedBridgeId") ?? ""
+        
+        if !savedBridgeId.isEmpty {
+            print("🔍 Ищем мост с ID: \(savedBridgeId)")
+            
+            connectionStatus = .searching
+            
+            // Используем метод из расширения Reconnection
+            searchForSpecificBridge(bridgeId: savedBridgeId) { [weak self] foundBridge in
+                if let bridge = foundBridge {
+                    print("✅ Мост найден по новому адресу: \(bridge.internalipaddress)")
+                    
+                    // Обновляем данные
+                    self?.currentBridge = bridge
+                    UserDefaults.standard.set(bridge.internalipaddress, forKey: "HueBridgeIP")
+                    
+                    // Переподключаемся
+                    self?.recreateAPIClient(with: bridge.internalipaddress)
+                    self?.connectionStatus = .connected
+                    self?.showSetup = false
+                    self?.startEventStream()
+                    self?.loadAllData()
+                    
+                    // Сохраняем обновленные credentials
+                    self?.saveCredentials()
+                    
+                    // Запускаем мониторинг подключения
+                    self?.startConnectionMonitoring()
+                    
+                } else {
+                    print("❌ Не удалось найти сохраненный мост в сети")
+                    self?.connectionStatus = .disconnected
+                    self?.showSetup = true
+                }
+            }
         } else {
-            showSetup = true
+            print("❌ Нет сохраненного Bridge ID для поиска")
             connectionStatus = .disconnected
-            print("🚀 Первый запуск - ждем настройки подключения")
+            showSetup = true
         }
     }
     
@@ -283,6 +488,33 @@ class AppViewModel {
         }
     }
     
+    /// Ищет конкретный мост по ID
+    func searchForSpecificBridge(bridgeId: String, completion: @escaping (Bridge?) -> Void) {
+        print("🔍 Поиск моста с ID: \(bridgeId)")
+        
+        // Используем метод из расширения Discovery
+        if #available(iOS 12.0, *) {
+            let discovery = HueBridgeDiscovery()
+            discovery.discoverBridges { bridges in
+                let foundBridge = bridges.first { $0.matches(bridgeId: bridgeId) }
+                DispatchQueue.main.async {
+                    completion(foundBridge)
+                }
+            }
+        } else {
+            // Для старых версий iOS используем облачный поиск
+            apiClient.discoverBridgesViaCloud()
+                .sink(
+                    receiveCompletion: { _ in },
+                    receiveValue: { bridges in
+                        let foundBridge = bridges.first { $0.matches(bridgeId: bridgeId) }
+                        completion(foundBridge)
+                    }
+                )
+                .store(in: &cancellables)
+        }
+    }
+    
     // MARK: - Deinit
     
     nonisolated deinit {
@@ -290,6 +522,25 @@ class AppViewModel {
         
         // Cancellables и другие ресурсы освобождаются автоматически при деинициализации
         // Избегаем обращения к @MainActor свойствам в deinit для предотвращения retain cycles
+    }
+}
+
+// MARK: - URLSession Delegate
+
+private class HueURLSessionDelegate: NSObject, URLSessionDelegate {
+    func urlSession(_ session: URLSession, 
+                   didReceive challenge: URLAuthenticationChallenge,
+                   completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        
+        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
+            if let serverTrust = challenge.protectionSpace.serverTrust {
+                let credential = URLCredential(trust: serverTrust)
+                completionHandler(.useCredential, credential)
+                return
+            }
+        }
+        
+        completionHandler(.performDefaultHandling, nil)
     }
 }
 
